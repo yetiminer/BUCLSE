@@ -135,7 +135,7 @@ class Orderbook_half:
                         self.best_price = None
                         self.best_tid = None
 
-                if lob_verbose : print self.lob
+                if lob_verbose : print(self.lob)
 
 
         def book_add(self, order):
@@ -432,9 +432,9 @@ class Trader:
                 self.profitpertime = self.balance/(time - self.birthtime)
 
                 if profit < 0 :
-                        print profit
-                        print trade
-                        print order
+                        print(profit)
+                        print(trade)
+                        print(order)
                         sys.exit()
 
                 if verbose: print('%s profit=%d balance=%d profit/time=%d' % (outstr, profit, self.balance, self.profitpertime))
@@ -687,7 +687,8 @@ class Trader_ZIP(Trader):
                 if lob_best_bid_p != None:
                         # non-empty bid LOB
                         lob_best_bid_q = lob['bids']['lob'][-1][1]
-                        if self.prev_best_bid_p < lob_best_bid_p :
+                        ##if self.prev_best_bid_p < lob_best_bid_p : #python 3 port
+                        if self.prev_best_bid_p is None or self.prev_best_bid_p < lob_best_bid_p:
                                 # best bid has improved
                                 # NB doesn't check if the improvement was by self
                                 bid_improved = True
@@ -710,7 +711,8 @@ class Trader_ZIP(Trader):
                 if lob_best_ask_p != None:
                         # non-empty ask LOB
                         lob_best_ask_q = lob['asks']['lob'][0][1]
-                        if self.prev_best_ask_p > lob_best_ask_p :
+                        #if self.prev_best_ask_p > lob_best_ask_p : #python3 port
+                        if self.prev_best_ask_p is not None and self.prev_best_ask_p > lob_best_ask_p :
                                 # best ask has improved -- NB doesn't check if the improvement was by self
                                 ask_improved = True
                         elif trade != None and ((self.prev_best_ask_p < lob_best_ask_p) or ((self.prev_best_ask_p == lob_best_ask_p) and (self.prev_best_ask_q > lob_best_ask_q))):
@@ -1044,7 +1046,7 @@ def customer_orders(time, last_update, traders, trader_stats, os, pending, verbo
                                 schedrange = sched['ranges']
                                 mode = sched['stepmode']
                                 got_one = True
-                                exit  # jump out the loop -- so the first matching timezone has priority over any others
+                                break  # jump out the loop -- so the first matching timezone has priority over any others
                 if not got_one:
                         sys.exit('Fail: time=%5.2f not within any timezone in os=%s' % (time, os))
                 return (schedrange, mode)
@@ -1314,6 +1316,6 @@ if __name__ == "__main__":
                 trdr_1_n += 1
         tdump.close()
         
-        print trialnumber
+        print(trialnumber)
 
 
