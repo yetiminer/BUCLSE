@@ -24,7 +24,8 @@
 #
 #
 
-
+bse_sys_minprice=0
+bse_sys_maxprice=1000
 
 
 # an Order/quote has a trader id, a type (buy/sell) price, quantity, timestamp, and unique i.d.

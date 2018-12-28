@@ -22,7 +22,8 @@
 #Copyright (c) 2018, Henry Ashton
 #
 #
-
+import random
+from UCLSE.exchange import Order
 
 # Trader superclass
 # all Traders have a trader id, bank balance, blotter, and list of orders to execute

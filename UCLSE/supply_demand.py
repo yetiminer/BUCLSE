@@ -22,7 +22,8 @@
 #
 #
 
-
+import random
+from UCLSE.exchange import bse_sys_minprice, bse_sys_maxprice, Order
 
 # customer_orders(): allocate orders to traders
 # parameter "os" is order schedule
@@ -47,9 +48,9 @@
 #                   and fourth is a function giving dynamic offset for schedule max, so gradient of sup/dem linear curve can vary
 #
 # the interface on this is a bit of a mess... could do with refactoring
+import sys
 
-
-def customer_orders(time, last_update, traders, trader_stats, os, pending, verbose):
+def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending, verbose):
 
 
         def sysmin_check(price):
@@ -169,8 +170,8 @@ def customer_orders(time, last_update, traders, trader_stats, os, pending, verbo
                 return (schedrange, mode)
         
 
-        n_buyers = trader_stats['n_buyers']
-        n_sellers = trader_stats['n_sellers']
+        #n_buyers = trader_stats['n_buyers']
+        #n_sellers = trader_stats['n_sellers']
 
         shuffle_times = True
 
