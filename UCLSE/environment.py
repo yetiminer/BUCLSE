@@ -39,7 +39,8 @@ class Market_session:
 				  demand_price_low=105,demand_price_high=105,interval=30,timemode='drip-poisson',
 				 buyers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
 				 sellers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
-				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False):
+				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False,
+				 trade_record='transactions.csv'):
 			self.start_time=start_time
 			self.end_time=end_time
 			self.interval=interval
@@ -52,6 +53,7 @@ class Market_session:
 			self.verbose=verbose
 			self.stepmode=stepmode
 			self.dump_each_trade=dump_each_trade
+			self.trade_record=trade_record
 			
 			self.duration=float(self.end_time-self.start_time)
 			self.supply_schedule=[self.set_schedule(range_low=supply_price_low,range_high=supply_price_high)]
@@ -336,6 +338,7 @@ class Market_session:
 			for typ in self.trader_type_list:
 				self.df[(typ,'pc')]=self.df[(typ,'balance_sum')]/self.df[(typ,'n')]
 								 
+			print(dumpfile)
 			self.df.to_csv(dumpfile)
 		   
 				
@@ -418,7 +421,7 @@ class Market_session:
 
 
 		# end of an experiment -- dump the tape
-		exchange.tape_dump('transactions.csv', 'w', 'keep')
+		exchange.tape_dump(self.trade_record, 'w', 'keep')
 
 
 		# write trade_stats for this experiment NB end-of-session summary only
