@@ -189,7 +189,7 @@ class Market_session:
 			self.first_open=False
 		
 		with open(dumpfile,file_option) as tdump:      
-			tdump.write('%s, %06d, ' % (expid, time))
+			tdump.write('%s, %f, ' % (expid, time))
 		
 			for ttype in sorted(list(trader_types.keys())):
 					n = trader_types[ttype]['n']
