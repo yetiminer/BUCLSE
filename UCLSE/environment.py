@@ -21,13 +21,15 @@
 #Copyright (c) 2018, Henry Ashton
 #
 #
+import random, sys
+random.seed(22)
 
 from UCLSE.exchange import Exchange
 from UCLSE.traders import (Trader_Giveaway, Trader_ZIC, Trader_Shaver,
                            Trader_Sniper, Trader_ZIP)
-from UCLSE.supply_demand import customer_orders
+from UCLSE.supply_demand import customer_orders,set_customer_orders
 
-import random, sys
+
 import pandas as pd
 import numpy as np
 import yaml
@@ -40,7 +42,7 @@ class Market_session:
 				 buyers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
 				 sellers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
 				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False,
-				 trade_record='transactions.csv'):
+				 trade_record='transactions.csv', random_seed=22):
 			self.start_time=start_time
 			self.end_time=end_time
 			self.interval=interval
@@ -54,6 +56,10 @@ class Market_session:
 			self.stepmode=stepmode
 			self.dump_each_trade=dump_each_trade
 			self.trade_record=trade_record
+			self.random_seed=random_seed
+			
+			#set random seed
+			#random.seed(random_seed)
 			
 			self.duration=float(self.end_time-self.start_time)
 			self.supply_schedule=[self.set_schedule(range_low=supply_price_low,range_high=supply_price_high)]
@@ -77,6 +83,8 @@ class Market_session:
 			self.set_sess_id()
 			self.stat_list=[]
 			self.first_open=True
+			
+			
 
 	def _reset_session(self):
 		#occasionally may want to test same session?
@@ -288,7 +296,7 @@ class Market_session:
 			print(alist)
 			raise
 
-	def trade_stats_df3(self,expid, traders, dumpfile, time, lob):
+	def trade_stats_df3(self,expid, traders, dumpfile, time, lob, final=False):
 
 		if self.first_open:
 			trader_type_list=list(set(list(self.traders_spec['buyers'].keys())+list(self.traders_spec['sellers'].keys())))        
@@ -325,7 +333,7 @@ class Market_session:
 		self.stat_list.append(new_dic)
 
 		#with pandas, concatenating at the end always seems to be quicker than as you go
-		if self.time >= self.end_time:
+		if final or self.time >= self.end_time:
 			idx=[('expid',''),('time','')]
 			for typ, val in trader_types.items():
 				for k in ['balance_sum','n','pc']:
@@ -340,92 +348,302 @@ class Market_session:
 								 
 			print(dumpfile)
 			self.df.to_csv(dumpfile)
-		   
+
 				
-	def simulate(self,trade_stats=None):
+	# def simulate_old(self,trade_stats=None,recording=False,replay_vars=None):
 		
-		if trade_stats is None:
-			trade_stats=self.trade_stats
+		# if trade_stats is None:
+			# trade_stats=self.trade_stats
 		
-		orders_verbose = False
-		lob_verbose = False
-		process_verbose = False
-		respond_verbose = False
-		bookkeep_verbose = False
+		# orders_verbose = False
+		# lob_verbose = False
+		# process_verbose = False
+		# respond_verbose = False
+		# bookkeep_verbose = False
 
-		pending_cust_orders = []
+		# self.pending_cust_orders = []
 
-		time=self.time
-		endtime=self.end_time
-		verbose=self.verbose
-		last_update=self.last_update
-		traders=self.traders
-		order_schedule=self.order_schedule
-		exchange=self.exchange
+		# time=self.time
+		# endtime=self.end_time
+		# verbose=self.verbose
+		# last_update=self.last_update
+		# traders=self.traders
+		# order_schedule=self.order_schedule
+		# exchange=self.exchange
+		
+		# pending_cust_orders=[]
+		# cancellations=[]
+		# recording_record={}
+		# replay=False
+		# if replay_vars is not None: replay=True
+		
 
+		# if verbose: print('\n%s;  ' % (self.sess_id))
+		# while self.time < endtime:
+			# time=self.time
 
-		if verbose: print('\n%s;  ' % (self.sess_id))
-		while self.time < endtime:
-			time=self.time
 			
-			# how much time left, as a percentage?
-			self.time_left = (endtime - time) / self.duration
+			# # how much time left, as a percentage?
+			# self.time_left = (endtime - time) / self.duration
 
-			# if verbose: print('\n\n%s; t=%08.2f (%4.1f/100) ' % (sess_id, time, time_left*100))
+			# # if verbose: print('\n\n%s; t=%08.2f (%4.1f/100) ' % (sess_id, time, time_left*100))
 
-			trade = None
+			# trade = None
+			
+			# #for testing need to pass same historic values
+			# if replay:
+				# #customer_orders() passes orders to trades. we need to recreate that here. 
+				# kills =replay_vars[time]['kills']
+				# dispatched_orders=replay_vars[time]['dispatched_orders']
+				# #feed the dispatched orders to the set function
+				# set_customer_orders(dispatched_orders,kills,verbose=orders_verbose,time=time,traders=traders)
+				# pending_cust_orders=replay_vars[time]['pending_cust_orders']
+				
+			# else:
+				# [pending_cust_orders, kills,dispatched_orders] = customer_orders(time, last_update, traders, self.n_buyers, self.n_sellers,
+												 # order_schedule, pending_cust_orders, orders_verbose)
+											 
+			
 
-			[pending_cust_orders, kills] = customer_orders(time, last_update, traders, self.n_buyers, self.n_sellers,
-											 order_schedule, pending_cust_orders, orders_verbose)
-
-			# if any newly-issued customer orders mean quotes on the LOB need to be cancelled, kill them
-			if len(kills) > 0 :
-					# if verbose : print('Kills: %s' % (kills))
-					for kill in kills :
+			# # if any newly-issued customer orders mean quotes on the LOB need to be cancelled, kill them
+			# if len(kills) > 0 :
+					# # if verbose : print('Kills: %s' % (kills))
+					# for kill in kills :
 							# if verbose : print('lastquote=%s' % traders[kill].lastquote)
-							if traders[kill].lastquote != None :
-									# if verbose : print('Killing order %s' % (str(traders[kill].lastquote)))
-									exchange.del_order(time, traders[kill].lastquote, verbose)
+							# if traders[kill].lastquote != None :
+									# # if verbose : print('Killing order %s' % (str(traders[kill].lastquote)))
+									# exchange.del_order(time, traders[kill].lastquote, verbose)
 
 
-			# get a limit-order quote (or None) from a randomly chosen trader
-			tid = list(traders.keys())[random.randint(0, len(traders) - 1)]
-			order = traders[tid].getorder(time, self.time_left, exchange.publish_lob(time, lob_verbose))
+			# # get a limit-order quote (or None) from a randomly chosen trader
+			
+			# if replay:
+				# tid=replay_vars[time]['tid']
+			# else:
+				# random_idx=random.randint(0, len(traders) - 1)
+				# tid = list(traders.keys())[random_idx]
+			
+			# if replay:
+				# order=replay_vars[time]['order']
+				# #pretend that the trader was asked for an order
+				# traders[tid].setorder(order)
+			# else:
+				# order = traders[tid].getorder(time, self.time_left, exchange.publish_lob(time, lob_verbose))
 
 			# if verbose: print('Trader Quote: %s' % (order))
 
-			if order != None:
-					if order.otype == 'Ask' and order.price < traders[tid].orders[0].price: sys.exit('Bad ask')
-					if order.otype == 'Bid' and order.price > traders[tid].orders[0].price: sys.exit('Bad bid')
-					# send order to exchange
-					traders[tid].n_quotes = 1
-					trade = exchange.process_order2(time, order, process_verbose)
-					if trade != None:
-							# trade occurred,
-							# so the counterparties update order lists and blotters
-							traders[trade['party1']].bookkeep(trade, order, bookkeep_verbose, time)
-							traders[trade['party2']].bookkeep(trade, order, bookkeep_verbose, time)
-							if self.dump_each_trade: 
-								trade_stats(self.sess_id, traders, self.trade_file, time,
-																	  exchange.publish_lob(time, lob_verbose))
+			# if order != None:
+					# try:
+						# if order.otype == 'Ask' and order.price < traders[tid].orders[0].price: sys.exit('Bad ask')
+						# if order.otype == 'Bid' and order.price > traders[tid].orders[0].price: sys.exit('Bad bid')
+					# except IndexError:
+						# print('error here')
+						# recording_record[time]={'pending_cust_orders':pending_cust_orders,'kills':kills, 
+			# 'tid':tid, 'order':order,'dispatched_orders':dispatched_orders}
+						# self.replay_vars=recording_record
+						# return order, dispatched_orders
+						# break
+					
+					# # send order to exchange
+					# traders[tid].n_quotes = 1
+					# trade = exchange.process_order2(time, order, process_verbose)
+					# if trade != None:
+							# # trade occurred,
+							# # so the counterparties update order lists and blotters
+							# traders[trade['party1']].bookkeep(trade, order, bookkeep_verbose, time)
+							# traders[trade['party2']].bookkeep(trade, order, bookkeep_verbose, time)
+							# if self.dump_each_trade: 
+								# trade_stats(self.sess_id, traders, self.trade_file, time,
+																	  # exchange.publish_lob(time, lob_verbose))
 								
+					# # traders respond to whatever happened
+					# lob = exchange.publish_lob(time, lob_verbose)
+					# for t in traders:
+							# # NB respond just updates trader's internal variables
+							# # doesn't alter the LOB, so processing each trader in
+							# # sequence (rather than random/shuffle) isn't a problem
+							# traders[t].respond(time, lob, trade, respond_verbose)
+			
+			# if recording: 
+				# recording_record[time]={'pending_cust_orders':pending_cust_orders,'kills':kills, 
+			# 'tid':tid, 'order':order,'dispatched_orders':dispatched_orders}
+				# self.replay_vars=recording_record
+			
+			# self.time = time + self.timestep
+
+
+		# # end of an experiment -- dump the tape
+		# exchange.tape_dump(self.trade_record, 'w', 'keep')
+
+
+		# # write trade_stats for this experiment NB end-of-session summary only
+		# trade_stats(self.sess_id, traders, self.trade_file, time, exchange.publish_lob(time, lob_verbose))
+		# if recording: self.replay_vars=recording_record
+
+	def simulate(self,trade_stats=None,recording=False,replay_vars=None,orders_verbose = False,lob_verbose = False,
+	process_verbose = False,respond_verbose = False,bookkeep_verbose=False):
+	
+
+		while self.time<self.end_time:
+			self.simulate_one_period(trade_stats,recording,replay_vars,orders_verbose,lob_verbose ,
+				process_verbose,respond_verbose,bookkeep_verbose)
+				
+		trade_stats(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, lob_verbose))
+	
+	def simulate_one_period(self,trade_stats=None,recording=False,replay_vars=None,orders_verbose = False,lob_verbose = False,
+	process_verbose = False,respond_verbose = False,bookkeep_verbose=False):
+			
+			if trade_stats is None:
+				trade_stats=self.trade_stats
+			
+			self.orders_verbose = orders_verbose
+			self.lob_verbose = lob_verbose
+			self.process_verbose = process_verbose
+			self.respond_verbose = respond_verbose
+			self.bookkeep_verbose = bookkeep_verbose
+			
+			
+			if self.time==0:
+				self.pending_cust_orders = []
+
+			verbose=self.verbose
+			cancellations=[]
+			self.cancellations=cancellations
+			lob={}
+			
+			replay=False
+			if replay_vars is not None: replay=True
+			
+
+			if verbose: print('\n%s;  ' % (self.sess_id))
+
+			# how much time left, as a percentage?
+			self.time_left = (self.end_time - self.time) / self.duration
+
+			# if verbose: print('\n\n%s; t=%08.2f (%4.1f/100) ' % (sess_id, time, time_left*100))
+
+			self.trade = None
+			
+			#_get_demand(replay=replay,replay_vars=replay_vars,order_schedule=order_schedule,time=time,last_update=last_update,traders=traders)
+			self._get_demand(replay=replay,replay_vars=replay_vars,order_schedule=self.order_schedule)
+
+			#cancel any previous orders for a trader
+			self._cancel_existing_orders_for_traders_who_already_have_one_in_the_market()
+
+			# get a limit-order quote (or None) from a randomly chosen trader
+			order,tid=self._pick_trader_and_get_order(replay,replay_vars)
+
+			if verbose and order!=None:
+				print('replay',replay,self.traders[tid].ttype,' ',self.traders[tid].balance,self.traders[tid].blotter)
+				print('Trader Quote: %s' % (traders[tid].orders[0]))
+				print('Trader Quote: %s' % (order))
+
+
+			if order != None:
+					#check the order makes sense
+					self._order_logic_check(order,tid)
+					
+					# send order to exchange
+					self.trade=self._send_order_to_exchange(tid,order,trade_stats)
+
 					# traders respond to whatever happened
-					lob = exchange.publish_lob(time, lob_verbose)
-					for t in traders:
-							# NB respond just updates trader's internal variables
-							# doesn't alter the LOB, so processing each trader in
-							# sequence (rather than random/shuffle) isn't a problem
-							traders[t].respond(time, lob, trade, respond_verbose)
+					lob=self._traders_respond(self.trade)
 
-			self.time = time + self.timestep
+			if recording:
+				#record the particulars of the period for subsequent recreation
+				self._record_period(tid=tid,lob=lob,order=order,trade=self.trade)
 
+			
+			self.time = self.time + self.timestep
+			
+	def _get_demand(self,replay_vars=None,replay=False,order_schedule=None):
+	
+			if replay:
+				#customer_orders() passes orders to trades. we need to recreate that here. 
+				self.kills =replay_vars[self.time]['kills']
+				self.dispatched_orders=replay_vars[self.time]['dispatched_orders']
+				#feed the dispatched orders to the set function
+				set_customer_orders(self.dispatched_orders,self.cancellations,verbose=self.orders_verbose,time=self.time,traders=self.traders)
+				self.pending_cust_orders=replay_vars[self.time]['pending_cust_orders']
+				
+			else:
+				[self.pending_cust_orders, self.kills,self.dispatched_orders] = customer_orders(self.time, self.last_update, self.traders, 
+				self.n_buyers, self.n_sellers,
+												 order_schedule, self.pending_cust_orders, self.orders_verbose)
+	def _cancel_existing_orders_for_traders_who_already_have_one_in_the_market(self):
+		# if any newly-issued customer orders mean quotes on the LOB need to be cancelled, kill them
+		if len(self.kills) > 0 :
+				# if verbose : print('Kills: %s' % (kills))
+				for kill in self.kills :
+						
+						#print(self.traders[kill].ttype)
+						#print('Pre-Killing order %s' % (str(self.traders[kill].lastquote)))
+						if self.traders[kill].lastquote != None :
+								if self.verbose : print('killing lastquote=%s' % self.traders[kill].lastquote)
+								#wait = input("PRESS ENTER TO CONTINUE.")
+								self.exchange.del_order(self.time, self.traders[kill].lastquote, self.verbose)
+								
+	def _pick_trader_and_get_order(self,replay,replay_vars):
+				if replay:
+					tid=replay_vars[self.time]['tid']
+					order=replay_vars[self.time]['order']
+					#pretend that the trader was asked for an order
+					if order!=None:
+						self.traders[tid].setorder(order)
+				
+				else:
+					random_idx=random.randint(0, len(self.traders) - 1)
+					tid = list(self.traders.keys())[random_idx]
+					order = self.traders[tid].getorder(self.time, self.time_left, self.exchange.publish_lob(self.time, self.lob_verbose))
+				
+				return order,tid
+				
+	def _order_logic_check(self,order,tid):
+		try:
+		
+			if order.otype == 'Ask' and order.price < self.traders[tid].orders[0].price: sys.exit('Bad ask')
+			if order.otype == 'Bid' and order.price > self.traders[tid].orders[0].price: sys.exit('Bad bid')
+			
+		except IndexError:
+			print('error here')
+			recording_record={'pending_cust_orders':self.pending_cust_orders,'kills':self.kills, 
+			'tid':tid, 'order':order,'dispatched_orders':self.dispatched_orders}
+			self.replay_vars[self.time]=recording_record
+			raise
+			
+	def _send_order_to_exchange(self,tid,order,trade_stats):
+		# send order to exchange
+		self.traders[tid].n_quotes = 1
+		trade = self.exchange.process_order2(self.time, order, self.process_verbose)
+		if trade != None:
+				# trade occurred,
+				# so the counterparties update order lists and blotters
+				self.traders[trade['party1']].bookkeep(trade, order, self.bookkeep_verbose, self.time)
+				self.traders[trade['party2']].bookkeep(trade, order, self.bookkeep_verbose, self.time)
+				if self.dump_each_trade: 
+					trade_stats(self.sess_id, self.traders, self.trade_file, self.time,
+														  self.exchange.publish_lob(self.time, self.lob_verbose))
+				return trade
 
-		# end of an experiment -- dump the tape
-		exchange.tape_dump(self.trade_record, 'w', 'keep')
+	def _traders_respond(self,trade):
+		lob = self.exchange.publish_lob(self.time, self.lob_verbose)
+		for t in self.traders:
+				# NB respond just updates trader's internal variables
+				# doesn't alter the LOB, so processing each trader in
+				# sequence (rather than random/shuffle) isn't a problem
+				self.traders[t].respond(self.time, lob, trade, self.respond_verbose)
+		return lob
+		
+	def _record_period(self,lob=None,tid=None,order=None,trade=None):
+		
+			recording_record={'pending_cust_orders':self.pending_cust_orders,'kills':self.kills, 
+		'tid':tid, 'order':order,'dispatched_orders':self.dispatched_orders,'trade':trade,'lob':lob}
+			try:
+				self.replay_vars[self.time]=recording_record
+			except AttributeError:
+				self.replay_vars={}
+				self.replay_vars[self.time]=recording_record
 
-
-		# write trade_stats for this experiment NB end-of-session summary only
-		trade_stats(self.sess_id, traders, self.trade_file, time, exchange.publish_lob(time, lob_verbose))
         
 
 # schedule_offsetfn returns time-dependent offset on schedule prices
