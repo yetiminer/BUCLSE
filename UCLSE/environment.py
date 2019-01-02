@@ -483,12 +483,18 @@ class Market_session:
 	def simulate(self,trade_stats=None,recording=False,replay_vars=None,orders_verbose = False,lob_verbose = False,
 	process_verbose = False,respond_verbose = False,bookkeep_verbose=False):
 	
+		if trade_stats is None:
+			trade_stats=self.trade_stats
+	
 
 		while self.time<self.end_time:
 			self.simulate_one_period(trade_stats,recording,replay_vars,orders_verbose,lob_verbose ,
 				process_verbose,respond_verbose,bookkeep_verbose)
 				
 		trade_stats(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, lob_verbose))
+		
+		
+		self.exchange.tape_dump(self.trade_record, 'w', 'keep')
 	
 	def simulate_one_period(self,trade_stats=None,recording=False,replay_vars=None,orders_verbose = False,lob_verbose = False,
 	process_verbose = False,respond_verbose = False,bookkeep_verbose=False):
@@ -535,7 +541,7 @@ class Market_session:
 
 			if verbose and order!=None:
 				print('replay',replay,self.traders[tid].ttype,' ',self.traders[tid].balance,self.traders[tid].blotter)
-				print('Trader Quote: %s' % (traders[tid].orders[0]))
+				print('Trader Quote: %s' % (self.traders[tid].orders[0]))
 				print('Trader Quote: %s' % (order))
 
 
