@@ -172,7 +172,9 @@ class Orderbook_half:
 			else:
 					# best_bid_qty>1 so the order decrements the quantity of the best bid
 					# update the lob with the decremented order data
-					self.lob[self.best_price] = [best_price_qty - 1, best_price_orders[1][1:]]
+					#self.lob[self.best_price] = [best_price_qty - 1, best_price_orders[1][1:]]
+					self.lob[self.best_price] = [sum([k[1] for k in best_price_orders[1][1:]]),
+					best_price_orders[1][1:]]
 
 					# update the bid list: counterparty's bid has been deleted
 					del(self.orders[best_price_counterparty])
