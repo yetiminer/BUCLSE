@@ -1,7 +1,4 @@
-from UCLSE.environment import Market_session, yamlLoad
-from UCLSE.exchange import Order, Exchange
-import yaml
-import pandas as pd
+from UCLSE.environment import Market_session
 
 def identical_replay_vars(sess,sess1,verbose=True):
 	#input two market_sessions, function will highlight differences in the replay_vars dictionary. 
@@ -54,75 +51,3 @@ def side_by_side_period_by_period_difference_checker(sess,sess1):
 						 sess.time, sess.exchange.publish_lob(sess.time, lob_verbose))
 	sess1.trade_stats_df3(sess1.sess_id, sess1.traders, sess1.trade_file,
 						  sess1.time, sess1.exchange.publish_lob(sess.time, lob_verbose))
-						 
-def build_df_from_yaml(path):
-    ## builds a df from a yaml file containing any number of sub dictionaries 
-    #of the form {'tid':[],'otype':[],'price':[],'qty':[],'time':[],'qid':[]}
-    #typically but not necessarily one dictionary for bids, one for asks.
-    
-    necessary_cols=['tid','otype','price','qty','time','qid']
-    
-    dic=yamlLoad(path)
-    
-    try:
-        for _,k in dic.items():
-            for col in necessary_cols:
-                assert col in k 
-    except AssertionError:
-        print('All of ',necessary_cols, ' must be in each sub dictionary')
-      
-    order_df=build_df_from_dic_dic(dic) 
-    order_df=order_df[necessary_cols]
-
-    return order_df
-    
-    
-def build_df_from_dic_dic(dic):    
-    ##builds a df from a dictionary of dictionaries 
-    
-    df_list=[]
-    for k in dic:
-        df_list.append(pd.DataFrame(dic[k]))
-        
-    order_df=pd.concat(df_list)
-    
-    return order_df
-
-def yaml_dump(data,path):
-    #saves a file in yaml format at the specified path.
-
-    with open(path, 'w') as stream:
-
-        yaml.dump(data, stream)
-
-def yamlLoad(path):
-	
-	with open(path, 'r') as stream:
-		try:
-			cfg=yaml.load(stream)
-		except yaml.YAMLError as exc:
-			print(exc)
-	return cfg		
-    
-def build_lob_from_df(order_df,exch=None):
-    ##adds orders from a df of orders, if supplied an exchange, will append them
-    #else will create blank exchange
-    #returns an exchange
-    
-    if exch is None:
-        exch=Exchange()
-
-    order_list=[]
-    for index, row in order_df.iterrows():
-
-        exch.add_order(Order(*row.values),verbose=False)
-
-    return exch
-	
-def dump_order_df_to_yaml(order_df,path):
-	#puts a df of orders into two dictionaries bid/ask and saves in yaml format
-
-	dic={'ask':order_df[order_df.otype=='Ask'].to_dict('list'),
-		 'bid':order_df[order_df.otype=='Bid'].to_dict('list')}
-
-	yaml_dump(dic,path)
