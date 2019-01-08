@@ -313,7 +313,103 @@ class Exchange(Orderbook):
 				else:
 						return None
 
+		def process_order3(self,order,time,verbose=False):
+			oprice=order.price
+			leg=0
+			tr=[]
+			qid=order.qid
+			print('qid',qid)
+			if order.otype == 'Bid':
+				pty1_side=self.asks
+				pty2_side=self.bids
+				pty_1_name='Ask'
+				pty_2_name='Bid'
 
+			else:
+				pty1_side=self.bids
+				pty2_side=self.asks
+				pty_1_name='Bid'
+				pty_2_name='Ask'
+
+			quantity=order.qty
+			
+			while self.asks.n_orders > 0 and self.bids.best_price >= self.asks.best_price and quantity>0:
+					#do enough fills until the remaining order quantity is zero
+					
+					quantity,fill=self._do_one_fill(time,order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid)
+					
+					tr.append(fill)
+					leg+=1
+					
+			return tr
+
+
+		def _do_one_fill(self,time,order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,verbose=True,leg=0,qid=None):
+
+			pty1_tid = pty1_side.best_tid
+			counterparty = pty1_tid
+
+			best_ask_order=pty1_side.orders.get(counterparty)
+			p1_qid=best_ask_order.qid
+
+			# bid lifts the best ask
+			if verbose: print(pty_2_name,' leg', leg, ' lifts best ', pty_1_name , order.price)
+		   
+			price = pty1_side.best_price  # bid crossed ask, so use ask price
+			if verbose: print('counterparty',counterparty, 'price',  price)
+			best_ask_q=pty1_side.lob[pty1_side.best_price][1][0][1]
+
+			if quantity-best_ask_q>=0:
+				quantity=quantity-best_ask_q
+
+				# delete the ask(bid) just crossed
+				pty1_side.delete_best()
+				# delete the bid(ask) that was the latest order
+				pty2_side.delete_best()
+
+				order.qty=quantity
+				fill_q=best_ask_q
+
+				if quantity>0:
+					[order.qid,response]=self.add_order(order,verbose,leg=leg,qid=qid) 
+					print(leg,order.qid)
+			else: 
+				print('Partial fill situation')
+				#delete the bid that was the latest order
+
+				pty1_side.delete_best()
+				#adjust the quantity of the best ask left on the book
+				best_ask_order.qty=best_ask_q-quantity
+
+				self.add_order(best_ask_order,verbose,leg=1,qid=p1_qid)
+
+				pty2_side.delete_best()
+				fill_q=quantity
+
+			fill=self.make_transaction_record(time=time,price=price,
+					p1_tid=counterparty,p2_tid=order.tid,
+									 transact_qty=fill_q,verbose=False,p1_qid=p1_qid,p2_qid=qid+0.000001*leg)
+
+			return quantity,fill
+
+		def make_transaction_record(self,time=None,price=None,p1_tid=None,
+									p2_tid=None,transact_qty=None,verbose=False,p1_qid=None,p2_qid=None):
+				if verbose: print('counterparty %s' % counterparty)
+				
+				# process the trade
+				if verbose: print('>>>>>>>>>>>>>>>>>TRADE t=%5.2f $%d %s %s' % (time, price, p1_tid, p2_tid))
+				transaction_record = { 'type': 'Trade',
+									   'time': time,
+									   'price': price,
+									   'party1':p1_tid,
+									   'party2':p2_tid,
+									   'qty': transact_qty,
+										'p1_qid':p1_qid,
+									  'p2_qid':p2_qid
+
+									  }
+				self.tape.append(transaction_record)
+				return transaction_record
 
 		def tape_dump(self, fname, fmode, tmode):
 				dumpfile = open(fname, fmode)
