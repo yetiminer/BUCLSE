@@ -141,34 +141,38 @@ def dump_order_df_to_yaml(order_df,path=None,output_level=False):
 
 		yaml_dump(dic,path)
 		
-def lob_to_dic(exchange,df=False):
-    #turns a lob into a dic suitable for transformation into a df, or the df itself, ready for yaml writing
-    side_dic={'Bid':exchange.bids,'Ask':exchange.asks}
-    dic={}
-    df_list=[]
-    for side in side_dic:
-        otype=[]
-        price=[]
-        qid=[]
-        qty=[]
-        tid=[]
-        time=[]
-        for k,val in side_dic[side].lob.items():
-            for order in val[1]:
-                otype.append(side)
-                price.append(k)
-                time.append(order[0])
-                qty.append(order[1])
-                tid.append(order[2])
-                qid.append(order[3])
+def lob_to_dic(exchange,df=False,side_dic=None):
+	#turns a lob into a dic suitable for transformation into a df, or the df itself, ready for yaml writing
+	if side_dic is None:
+		side_dic={'Bid':exchange.bids.lob,'Ask':exchange.asks.lob}
+		
+	
+		
+	dic={}
+	df_list=[]
+	for side in ['Bid','Ask']:
+		otype=[]
+		price=[]
+		qid=[]
+		qty=[]
+		tid=[]
+		time=[]
+		for k,val in side_dic[side].items():
+			for order in val[1]:
+				otype.append(side)
+				price.append(k)
+				time.append(order[0])
+				qty.append(order[1])
+				tid.append(order[2])
+				qid.append(order[3])
 
-        dic[side]={'otype':otype,'price':price,'time':time,'qty':qty,'tid':tid,'qid':qid}
-        df_list.append(pd.DataFrame.from_dict(dic[side]))
-    if df:
-        
-        return pd.concat(df_list,ignore_index=True)
-    else:
-        return dic
+		dic[side]={'otype':otype,'price':price,'time':time,'qty':qty,'tid':tid,'qid':qid}
+		df_list.append(pd.DataFrame.from_dict(dic[side]))
+	if df:
+		
+		return pd.concat(df_list,ignore_index=True)
+	else:
+		return dic
 		
 def order_to_dic(order):
     
@@ -190,6 +194,7 @@ def record_exchange_answers(fixture_list=[],fixture_dic=None,fixture_name=None,e
 	else:
 		yaml_dump(fixture_list,fixture_name)
 
-def pretty_lob_print(exchange):
-	df=lob_to_dic(exchange,df=True)
+def pretty_lob_print(exchange,df=None):
+	if df is None:
+		df=lob_to_dic(exchange,df=True)
 	print(df.groupby(['price','time','qid','qty','otype']).first().unstack())
