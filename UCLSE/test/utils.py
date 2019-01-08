@@ -75,18 +75,26 @@ def build_df_from_yaml(path):
     order_df=order_df[necessary_cols]
 
     return order_df
-    
+
+def order_from_dic(dic):
+    necessary_cols=['tid','otype','price','qty','time','qid']
+    o_data=[]
+    for c in necessary_cols:
+        o_data.append(dic[c])
+        
+    return Order(*o_data)    
     
 def build_df_from_dic_dic(dic):    
-    ##builds a df from a dictionary of dictionaries 
-    
-    df_list=[]
-    for k in dic:
-        df_list.append(pd.DataFrame(dic[k]))
-        
-    order_df=pd.concat(df_list)
-    
-    return order_df
+	##builds a df from a dictionary of dictionaries 
+
+	df_list=[]
+	for k in dic:
+		df_list.append(pd.DataFrame(dic[k]))
+		
+	order_df=pd.concat(df_list)
+	order_df.sort_values(['time','tid'],inplace=True) #important to get qids correct
+
+	return order_df
 
 def yaml_dump(data,path):
     #saves a file in yaml format at the specified path.
@@ -105,24 +113,83 @@ def yamlLoad(path):
 	return cfg		
     
 def build_lob_from_df(order_df,exch=None):
-    ##adds orders from a df of orders, if supplied an exchange, will append them
-    #else will create blank exchange
-    #returns an exchange
-    
-    if exch is None:
-        exch=Exchange()
+	##adds orders from a df of orders, if supplied an exchange, will append them
+	#else will create blank exchange
+	#returns an exchange
+	necessary_cols=['tid','otype','price','qty','time','qid']
+	order_df=order_df[necessary_cols]
+	if exch is None:
+		exch=Exchange()
 
-    order_list=[]
-    for index, row in order_df.iterrows():
+	order_list=[]
+	for index, row in order_df.iterrows():
 
-        exch.add_order(Order(*row.values),verbose=False)
+		exch.add_order(Order(*row.values),verbose=False)
 
-    return exch
+	return exch
 	
-def dump_order_df_to_yaml(order_df,path):
+def dump_order_df_to_yaml(order_df,path=None,output_level=False):
 	#puts a df of orders into two dictionaries bid/ask and saves in yaml format
 
 	dic={'ask':order_df[order_df.otype=='Ask'].to_dict('list'),
 		 'bid':order_df[order_df.otype=='Bid'].to_dict('list')}
+	if output_level:
+		dic={'output':dic}
+	if path is None:
+		return dic
+	else:
 
-	yaml_dump(dic,path)
+		yaml_dump(dic,path)
+		
+def lob_to_dic(exchange,df=False):
+    #turns a lob into a dic suitable for transformation into a df, or the df itself, ready for yaml writing
+    side_dic={'Bid':exchange.bids,'Ask':exchange.asks}
+    dic={}
+    df_list=[]
+    for side in side_dic:
+        otype=[]
+        price=[]
+        qid=[]
+        qty=[]
+        tid=[]
+        time=[]
+        for k,val in side_dic[side].lob.items():
+            for order in val[1]:
+                otype.append(side)
+                price.append(k)
+                time.append(order[0])
+                qty.append(order[1])
+                tid.append(order[2])
+                qid.append(order[3])
+
+        dic[side]={'otype':otype,'price':price,'time':time,'qty':qty,'tid':tid,'qid':qid}
+        df_list.append(pd.DataFrame.from_dict(dic[side]))
+    if df:
+        
+        return pd.concat(df_list,ignore_index=True)
+    else:
+        return dic
+		
+def order_to_dic(order):
+    
+    output_dic={'otype':order.otype,'price':order.price,'time':order.time,'qty':order.qty,'tid':order.tid,'qid':order.qid}
+    
+    return output_dic
+	
+def record_exchange_answers(fixture_list=[],fixture_dic=None,fixture_name=None,exchange=None,tr=None):
+#handy function for writing fixtures - output
+	output_dic=fixture_dic
+	output_dic['output']={}
+	output_dic['output']['bids']=exchange.bids.lob
+	output_dic['output']['asks']=exchange.asks.lob
+	output_dic['output']['tr']=tr
+
+	fixture_list.append(output_dic)
+	if fixture_name is None:
+		return output_dic
+	else:
+		yaml_dump(fixture_list,fixture_name)
+
+def pretty_lob_print(exchange):
+	df=lob_to_dic(exchange,df=True)
+	print(df.groupby(['price','time','qid','qty','otype']).first().unstack())
