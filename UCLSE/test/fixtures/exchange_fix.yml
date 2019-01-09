@@ -18,6 +18,65 @@
     asks:
       110:
       - 1
+      - - [3, 1, 3, 7]
+      111:
+      - 1
+      - - [4, 1, 4, 9]
+      112:
+      - 1
+      - - [5, 1, 5, 11]
+    bids:
+      100:
+      - 1
+      - - [0, 1, 0, 0]
+      101:
+      - 1
+      - - [1, 1, 1, 2]
+      102:
+      - 1
+      - - [2, 1, 2, 4]
+      103:
+      - 1
+      - - [3, 1, 3, 6]
+      104:
+      - 1
+      - - [4, 1, 4, 8]
+      105:
+      - 1
+      - - [5, 1, 5, 10]
+      109:
+      - 2
+      - - [10, 2, Henry, 12.000002]
+    tr:
+    - {p1_qid: 1, p2_qid: 12.0, party1: 0, party2: Henry, price: 107, qty: 1, time: 10,
+      type: Trade}
+    - {p1_qid: 3, p2_qid: 12.000001, party1: 1, party2: Henry, price: 108, qty: 1,
+      time: 10, type: Trade}
+    - {p1_qid: 5, p2_qid: 12.000002, party1: 2, party2: Henry, price: 109, qty: 1,
+      time: 10, type: Trade}
+- input:
+    Ask:
+      otype: [Ask, Ask, Ask, Ask, Ask, Ask, Ask]
+      price: [112, 107, 108, 109, 109, 110, 111]
+      qid: [11, 1, 3, 5, 12, 7, 9]
+      qty: [1, 1, 1, 1, 5, 1, 1]
+      tid: [5, 0, 1, 2, John, 3, 4]
+      time: [5, 0, 1, 2, 9, 3, 4]
+    Bid:
+      otype: [Bid, Bid, Bid, Bid, Bid, Bid]
+      price: [100, 101, 102, 103, 104, 105]
+      qid: [0, 2, 4, 6, 8, 10]
+      qty: [1, 1, 1, 1, 1, 1]
+      tid: [0, 1, 2, 3, 4, 5]
+      time: [0, 1, 2, 3, 4, 5]
+  new_trade: {otype: Bid, price: 109, qid: 10000, qty: 6, tid: Henry, time: 10}
+  output:
+    asks:
+      109:
+      - 2
+      - - [9, 2, John, 12.000001]
+      110:
+      - 1
       - - [3, 1, 3, 6]
       111:
       - 1
@@ -44,71 +103,12 @@
       105:
       - 1
       - - [5, 1, 5, 11]
-      109:
-      - 2
-      - - [10, 2, Henry, 12.000002]
     tr:
-    - {p1_qid: 0, p2_qid: 12.0, party1: 0, party2: Henry, price: 107, qty: 1, time: 10,
+    - {p1_qid: 0, p2_qid: 13.0, party1: 0, party2: Henry, price: 107, qty: 1, time: 10,
       type: Trade}
-    - {p1_qid: 2, p2_qid: 12.000001, party1: 1, party2: Henry, price: 108, qty: 1,
+    - {p1_qid: 2, p2_qid: 13.000001, party1: 1, party2: Henry, price: 108, qty: 1,
       time: 10, type: Trade}
-    - {p1_qid: 4, p2_qid: 12.000002, party1: 2, party2: Henry, price: 109, qty: 1,
-      time: 10, type: Trade}
-- input:
-    Ask:
-      otype: [Ask, Ask, Ask, Ask, Ask, Ask, Ask]
-      price: [112, 107, 108, 109, 109, 110, 111]
-      qid: [10, 0, 2, 4, 12, 6, 8]
-      qty: [1, 1, 1, 1, 5, 1, 1]
-      tid: [5, 0, 1, 2, John, 3, 4]
-      time: [5, 0, 1, 2, 9, 3, 4]
-    Bid:
-      otype: [Bid, Bid, Bid, Bid, Bid, Bid]
-      price: [100, 101, 102, 103, 104, 105]
-      qid: [1, 3, 5, 7, 9, 11]
-      qty: [1, 1, 1, 1, 1, 1]
-      tid: [0, 1, 2, 3, 4, 5]
-      time: [0, 1, 2, 3, 4, 5]
-  new_trade: {otype: Bid, price: 109, qid: 10000, qty: 6, tid: Henry, time: 10}
-  output:
-    asks:
-      109:
-      - 2
-      - - [9, 2, John, 12.000001]
-      110:
-      - 1
-      - - [3, 1, 3, 7]
-      111:
-      - 1
-      - - [4, 1, 4, 9]
-      112:
-      - 1
-      - - [5, 1, 5, 11]
-    bids:
-      100:
-      - 1
-      - - [0, 1, 0, 0]
-      101:
-      - 1
-      - - [1, 1, 1, 2]
-      102:
-      - 1
-      - - [2, 1, 2, 4]
-      103:
-      - 1
-      - - [3, 1, 3, 6]
-      104:
-      - 1
-      - - [4, 1, 4, 8]
-      105:
-      - 1
-      - - [5, 1, 5, 10]
-    tr:
-    - {p1_qid: 1, p2_qid: 13.0, party1: 0, party2: Henry, price: 107, qty: 1, time: 10,
-      type: Trade}
-    - {p1_qid: 3, p2_qid: 13.000001, party1: 1, party2: Henry, price: 108, qty: 1,
-      time: 10, type: Trade}
-    - {p1_qid: 5, p2_qid: 13.000002, party1: 2, party2: Henry, price: 109, qty: 1,
+    - {p1_qid: 4, p2_qid: 13.000002, party1: 2, party2: Henry, price: 109, qty: 1,
       time: 10, type: Trade}
     - {p1_qid: 12, p2_qid: 13.000003, party1: John, party2: Henry, price: 109, qty: 3,
       time: 10, type: Trade}
@@ -116,14 +116,14 @@
     Ask:
       otype: [Ask, Ask, Ask, Ask, Ask, Ask, Ask, Ask]
       price: [112, 107, 107, 107, 108, 109, 110, 111]
-      qid: [10, 0, 12, 13, 2, 4, 6, 8]
+      qid: [11, 1, 12, 13, 3, 5, 7, 9]
       qty: [1, 1, 5, 5, 1, 1, 1, 1]
       tid: [5, 0, John, Jun, 1, 2, 3, 4]
       time: [5, 0, 10, 11, 1, 2, 3, 4]
     Bid:
       otype: [Bid, Bid, Bid, Bid, Bid, Bid]
       price: [100, 101, 102, 103, 104, 105]
-      qid: [1, 3, 5, 7, 9, 11]
+      qid: [0, 2, 4, 6, 8, 10]
       qty: [1, 1, 1, 1, 1, 1]
       tid: [0, 1, 2, 3, 4, 5]
       time: [0, 1, 2, 3, 4, 5]
@@ -136,40 +136,40 @@
         - [11, 5, Jun, 13]
       108:
       - 1
-      - - [1, 1, 1, 3]
+      - - [1, 1, 1, 2]
       109:
       - 1
-      - - [2, 1, 2, 5]
+      - - [2, 1, 2, 4]
       110:
       - 1
-      - - [3, 1, 3, 7]
+      - - [3, 1, 3, 6]
       111:
       - 1
-      - - [4, 1, 4, 9]
+      - - [4, 1, 4, 8]
       112:
       - 1
-      - - [5, 1, 5, 11]
+      - - [5, 1, 5, 10]
     bids:
       100:
       - 1
-      - - [0, 1, 0, 0]
+      - - [0, 1, 0, 1]
       101:
       - 1
-      - - [1, 1, 1, 2]
+      - - [1, 1, 1, 3]
       102:
       - 1
-      - - [2, 1, 2, 4]
+      - - [2, 1, 2, 5]
       103:
       - 1
-      - - [3, 1, 3, 6]
+      - - [3, 1, 3, 7]
       104:
       - 1
-      - - [4, 1, 4, 8]
+      - - [4, 1, 4, 9]
       105:
       - 1
-      - - [5, 1, 5, 10]
+      - - [5, 1, 5, 11]
     tr:
-    - {p1_qid: 1, p2_qid: 14.0, party1: 0, party2: Henry, price: 107, qty: 1, time: 10,
+    - {p1_qid: 0, p2_qid: 14.0, party1: 0, party2: Henry, price: 107, qty: 1, time: 10,
       type: Trade}
     - {p1_qid: 12, p2_qid: 14.000001, party1: John, party2: Henry, price: 107, qty: 3,
       time: 10, type: Trade}
