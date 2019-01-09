@@ -309,16 +309,24 @@ class Exchange(Orderbook):
 											   'qty': order.qty
 											  }
 						self.tape.append(transaction_record)
-						return transaction_record
+						return [transaction_record] #note as a one length array to make forward compatible with multi leg trades
 				else:
 						return None
-
+		
+		def process_order3w(self,time=None,order=None,verbose=False):
+			[qid, response] = self.add_order(order, verbose)  # add it to the order lists -- overwriting any previous order
+			order.qid = qid
+			if verbose :
+						print('QUID: order.quid=%d' % order.qid)
+						print('RESPONSE: %s' % response)
+			return self.process_order3(time=time,order=order,verbose=verbose)
+		
 		def process_order3(self,time=None,order=None,verbose=False):
 			oprice=order.price
 			leg=0
 			tr=[]
 			qid=order.qid
-			print('qid',qid)
+			
 			if order.otype == 'Bid':
 				pty1_side=self.asks
 				pty2_side=self.bids
@@ -333,7 +341,10 @@ class Exchange(Orderbook):
 
 			quantity=order.qty
 			
-			while self.asks.n_orders > 0 and self.bids.best_price >= self.asks.best_price and quantity>0:
+			print('best_bid',self.bids.best_price)
+			print('best_ask',self.asks.best_price)
+			
+			while pty1_side.n_orders > 0 and self.bids.best_price >= self.asks.best_price and quantity>0:
 					#do enough fills until the remaining order quantity is zero
 					
 					quantity,fill=self._do_one_fill(time,order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid)

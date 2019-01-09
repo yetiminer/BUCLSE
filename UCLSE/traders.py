@@ -376,7 +376,7 @@ class Trader_ZIP(Trader):
 								# best bid has improved
 								# NB doesn't check if the improvement was by self
 								bid_improved = True
-						elif trade != None and ((self.prev_best_bid_p > lob_best_bid_p) or ((self.prev_best_bid_p == lob_best_bid_p) and (self.prev_best_bid_q > lob_best_bid_q))):
+						elif trade != None and ((self.prev_best_bid_p > lob_best_bid_p) or ((self.prev_best_bid_p == lob_best_bid_p) and (self.prev_best_bid_q > lob_best_bid_q))): #henry: check logic here on multileg trade
 								# previous best bid was hit
 								bid_hit = True
 				elif self.prev_best_bid_p != None:

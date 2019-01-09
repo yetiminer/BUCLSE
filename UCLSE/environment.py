@@ -599,6 +599,7 @@ class Market_session:
 					#pretend that the trader was asked for an order
 					if order!=None:
 						self.traders[tid].setorder(order)
+						#self.traders[tid].orders[0]=order
 				
 				else:
 					random_idx=random.randint(0, len(self.traders) - 1)
@@ -624,15 +625,20 @@ class Market_session:
 		# send order to exchange
 		self.traders[tid].n_quotes = 1
 		trade = self.process_order(self.time, order, self.process_verbose)
+		
 		if trade != None:
-				# trade occurred,
-				# so the counterparties update order lists and blotters
-				self.traders[trade['party1']].bookkeep(trade, order, self.bookkeep_verbose, self.time)
-				self.traders[trade['party2']].bookkeep(trade, order, self.bookkeep_verbose, self.time)
-				if self.dump_each_trade: 
-					trade_stats(self.sess_id, self.traders, self.trade_file, self.time,
-														  self.exchange.publish_lob(self.time, self.lob_verbose))
+				print(trade)
+				for trade_leg in trade:
+					# trade occurred,
+					# so the counterparties update order lists and blotters
+					self.traders[trade_leg['party1']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
+					self.traders[trade_leg['party2']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
+					if self.dump_each_trade: 
+						
+						trade_stats(self.sess_id, self.traders, self.trade_file, self.time,
+															  self.exchange.publish_lob(self.time, self.lob_verbose))
 				return trade
+		#else: print('no trade')
 
 	def _traders_respond(self,trade):
 		lob = self.exchange.publish_lob(self.time, self.lob_verbose)
@@ -640,7 +646,12 @@ class Market_session:
 				# NB respond just updates trader's internal variables
 				# doesn't alter the LOB, so processing each trader in
 				# sequence (rather than random/shuffle) isn't a problem
-				self.traders[t].respond(self.time, lob, trade, self.respond_verbose)
+				
+				if trade is not None:
+					last_trade_leg=trade[-1] #henry: we only see the state of the lob after a multileg trade is executed. 
+				else: last_trade_leg=None
+				
+				self.traders[t].respond(self.time, lob, last_trade_leg, self.respond_verbose)
 		return lob
 		
 	def _record_period(self,lob=None,tid=None,order=None,trade=None):
