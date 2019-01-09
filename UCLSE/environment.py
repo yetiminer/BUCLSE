@@ -84,6 +84,9 @@ class Market_session:
 			self.stat_list=[]
 			self.first_open=True
 			
+			#testing how changes in process_order effect things
+			self.process_order=self.exchange.process_order2
+			
 			
 
 	def _reset_session(self):
@@ -481,7 +484,7 @@ class Market_session:
 		# if recording: self.replay_vars=recording_record
 
 	def simulate(self,trade_stats=None,recording=False,replay_vars=None,orders_verbose = False,lob_verbose = False,
-	process_verbose = False,respond_verbose = False,bookkeep_verbose=False):
+	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,):
 	
 		if trade_stats is None:
 			trade_stats=self.trade_stats
@@ -620,7 +623,7 @@ class Market_session:
 	def _send_order_to_exchange(self,tid,order,trade_stats):
 		# send order to exchange
 		self.traders[tid].n_quotes = 1
-		trade = self.exchange.process_order2(self.time, order, self.process_verbose)
+		trade = self.process_order(self.time, order, self.process_verbose)
 		if trade != None:
 				# trade occurred,
 				# so the counterparties update order lists and blotters

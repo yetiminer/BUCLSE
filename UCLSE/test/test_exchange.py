@@ -1,4 +1,4 @@
-from UCLSE.test.utils import yamlLoad,build_lob_from_df,build_df_from_dic_dic,yaml_dump,order_from_dic
+from UCLSE.test.utils import yamlLoad,build_lob_from_df,build_df_from_dic_dic,yaml_dump,order_from_dic,pretty_lob_print
 import os
 
 def test_lob():
@@ -15,10 +15,10 @@ def test_lob():
 		new_order=order_from_dic(fixture_dic['new_trade'])
 
 		exchange.add_order(new_order,verbose=False)
-		[exchange.bids.lob,exchange.asks.lob]
+		pretty_lob_print(exchange)
 
 		time=10
-		tr=exchange.process_order3(new_order,time,verbose=False)
+		tr=exchange.process_order3(order=new_order,time=time,verbose=False)
 		
 		
 		try: 

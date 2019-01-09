@@ -313,7 +313,7 @@ class Exchange(Orderbook):
 				else:
 						return None
 
-		def process_order3(self,order,time,verbose=False):
+		def process_order3(self,time=None,order=None,verbose=False):
 			oprice=order.price
 			leg=0
 			tr=[]
@@ -340,8 +340,10 @@ class Exchange(Orderbook):
 					
 					tr.append(fill)
 					leg+=1
-					
-			return tr
+			if len(tr)==0:
+				return None
+			else: 
+				return tr
 
 
 		def _do_one_fill(self,time,order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,verbose=True,leg=0,qid=None):
