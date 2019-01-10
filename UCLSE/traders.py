@@ -124,7 +124,7 @@ class Trader_Giveaway(Trader):
 									self.orders[0].otype,
 									quoteprice,
 									self.orders[0].qty,
-									time, lob['QID'])
+									time, qid=lob['QID'],oid=self.orders[0].oid)
 						self.lastquote=order
 				return order
 
@@ -150,7 +150,7 @@ class Trader_ZIC(Trader):
 						else:
 								quoteprice = random.randint(limit, maxprice)
 								# NB should check it == 'Ask' and barf if not
-						order = Order(self.tid, otype, quoteprice, self.orders[0].qty, time, qid)
+						order = Order(self.tid, otype, quoteprice, self.orders[0].qty, time, qid=qid,oid=self.orders[0].oid)
 						self.lastquote = order
 				return order
 
@@ -181,7 +181,7 @@ class Trader_Shaver(Trader):
 												quoteprice = limitprice
 								else:
 										quoteprice = lob['asks']['worst']
-						order = Order(self.tid, otype, quoteprice, self.orders[0].qty, time, lob['QID'])
+						order = Order(self.tid, otype, quoteprice, self.orders[0].qty, time, qid=lob['QID'],oid=self.orders[0].oid)
 						self.lastquote = order
 				return order
 
@@ -217,7 +217,7 @@ class Trader_Sniper(Trader):
                                                 quoteprice = limitprice
                                 else:
                                         quoteprice = lob['asks']['worst']
-                        order = Order(self.tid, otype, quoteprice, self.orders[0].qty, time, lob['QID'])
+                        order = Order(self.tid, otype, quoteprice, self.orders[0].qty, time, qid=lob['QID'],oid=self.orders[0].oid)
                         self.lastquote = order
                 return order
 
@@ -280,7 +280,7 @@ class Trader_ZIP(Trader):
 						quoteprice = int(self.limit * (1 + self.margin))
 						self.price = quoteprice
 
-						order = Order(self.tid, self.job, quoteprice, self.orders[0].qty, time, lob['QID'])
+						order = Order(self.tid, self.job, quoteprice, self.orders[0].qty, time, qid=lob['QID'],oid=self.orders[0].oid)
 						self.lastquote = order
 				return order
 		
