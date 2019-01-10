@@ -588,9 +588,12 @@ class Market_session:
 						#print(self.traders[kill].ttype)
 						#print('Pre-Killing order %s' % (str(self.traders[kill].lastquote)))
 						if self.traders[kill].lastquote != None :
-								if self.verbose : print('killing lastquote=%s' % self.traders[kill].lastquote)
+								if self.process_verbose : print('killing lastquote=%s' % self.traders[kill].lastquote)
 								#wait = input("PRESS ENTER TO CONTINUE.")
 								self.exchange.del_order(self.time, self.traders[kill].lastquote, self.verbose)
+								if self.traders[kill].lastquote.qid is None:
+									print('delete trade not at exchange')
+									wait = input("PRESS ENTER TO CONTINUE.")
 								
 	def _pick_trader_and_get_order(self,replay,replay_vars):
 				if replay:
