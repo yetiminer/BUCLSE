@@ -24,6 +24,8 @@
 #
 #
 
+import copy
+
 from operator import itemgetter
 
 bse_sys_minprice=0
@@ -322,12 +324,13 @@ class Exchange(Orderbook):
 			return self.process_order3(time=time,order=order,verbose=verbose)
 		
 		def process_order3(self,time=None,order=None,verbose=False):
-			oprice=order.price
+			temp_order=copy.deepcopy(order) #Need this to stop original order quantity mutating outside this method
+			oprice=temp_order.price
 			leg=0
 			tr=[]
-			qid=order.qid
+			qid=temp_order.qid
 			
-			if order.otype == 'Bid':
+			if temp_order.otype == 'Bid':
 				pty1_side=self.asks
 				pty2_side=self.bids
 				pty_1_name='Ask'
@@ -339,17 +342,18 @@ class Exchange(Orderbook):
 				pty_1_name='Bid'
 				pty_2_name='Ask'
 
-			quantity=order.qty
-			
-			print('best_bid',self.bids.best_price)
-			print('best_ask',self.asks.best_price)
+			quantity=temp_order.qty
+
 			
 			while pty1_side.n_orders > 0 and self.bids.best_price >= self.asks.best_price and quantity>0:
 					#do enough fills until the remaining order quantity is zero
 					
-					quantity,fill=self._do_one_fill(time,order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid)
+					quantity,fill=self._do_one_fill(time,temp_order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid)
 					
 					tr.append(fill)
+					
+					if pty2_side.n_orders==0: break #check that one side of the LOB is not empty
+					
 					leg+=1
 			if len(tr)==0:
 				return None
