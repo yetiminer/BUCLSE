@@ -191,7 +191,7 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 						issuetime = time + issuetimes[t]
 						tname = 'B%02d' % t
 						orderprice = getorderprice(t, sched, n_buyers, mode, issuetime)
-						order = Order(tname, ordertype, orderprice, 1, issuetime, -3.14)
+						order = Order(tname, ordertype, orderprice, 1, issuetime, qid=None,oid=-3.14)
 						new_pending.append(order)
 						
 				# supply side (sellers)
@@ -202,7 +202,7 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 						issuetime = time + issuetimes[t]
 						tname = 'S%02d' % t
 						orderprice = getorderprice(t, sched, n_sellers, mode, issuetime)
-						order = Order(tname, ordertype, orderprice, 1, issuetime, -3.14)
+						order = Order(tname, ordertype, orderprice, 1, issuetime, qid=None,oid=-3.14)
 						new_pending.append(order)
 		else:
 				# there are pending future orders: issue any whose timestamp is in the past
