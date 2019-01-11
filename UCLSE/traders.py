@@ -35,6 +35,7 @@ class Trader:
 				self.balance = balance  # money in the bank
 				self.blotter = []       # record of trades executed
 				self.orders = []        # customer orders currently being worked (fixed at 1)
+				self.orders_dic={}		#customer orders currently being worked, key=OID
 				self.n_quotes = 0       # number of quotes live on LOB
 				self.willing = 1        # used in ZIP etc
 				self.able = 1           # used in ZIP etc
@@ -59,6 +60,7 @@ class Trader:
 				else:
 					response = 'Proceed'
 				self.orders = [order]
+				self.orders_dic[order.oid]=order
 				if verbose : print('add_order < response=%s' % response)
 				return response
 
@@ -67,6 +69,7 @@ class Trader:
 				# this is lazy: assumes each trader has only one customer order with quantity=1, so deleting sole order
 				# CHANGE TO DELETE THE HEAD OF THE LIST AND KEEP THE TAIL
 				self.orders = []
+				del(self.orders_dic[order.oid]) #preparing for when traders have multiple orders
 
 
 		def bookkeep(self, trade, order, verbose, time):
@@ -242,6 +245,7 @@ class Trader_ZIP(Trader):
 				self.n_trades = 0
 				self.blotter = []
 				self.orders = []
+				self.orders_dic={}
 				self.n_quotes = 0
 				self.lastquote = None
 				self.job = None  # this gets switched to 'Bid' or 'Ask' depending on order-type
