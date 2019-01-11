@@ -53,7 +53,7 @@ import sys
 def do_one():
 	return 1
 
-def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending, verbose,quantity=do_one):
+def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending, verbose,quantity=None):
 		oid=-1 #number we start at for unique oid codes. Will increase negatively (to quickly differentiate from qid)
 
 		def sysmin_check(price):
@@ -194,6 +194,7 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 						issuetime = time + issuetimes[t]
 						tname = 'B%02d' % t
 						orderprice = getorderprice(t, sched, n_buyers, mode, issuetime)
+						
 						order = Order(tname, ordertype, orderprice, quantity(), issuetime, qid=None,oid=oid)
 						oid-=1
 						new_pending.append(order)
@@ -206,6 +207,7 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 						issuetime = time + issuetimes[t]
 						tname = 'S%02d' % t
 						orderprice = getorderprice(t, sched, n_sellers, mode, issuetime)
+
 						order = Order(tname, ordertype, orderprice, quantity(), issuetime, qid=None,oid=oid)
 						oid-=1
 						new_pending.append(order)
