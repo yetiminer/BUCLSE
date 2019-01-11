@@ -51,7 +51,7 @@ from UCLSE.exchange import bse_sys_minprice, bse_sys_maxprice, Order
 import sys
 
 def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending, verbose):
-
+		oid=-1 #number we start at for unique oid codes. Will increase negatively (to quickly differentiate from qid)
 
 		def sysmin_check(price):
 				if price < bse_sys_minprice:
@@ -191,7 +191,8 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 						issuetime = time + issuetimes[t]
 						tname = 'B%02d' % t
 						orderprice = getorderprice(t, sched, n_buyers, mode, issuetime)
-						order = Order(tname, ordertype, orderprice, 1, issuetime, qid=None,oid=-3.14)
+						order = Order(tname, ordertype, orderprice, 1, issuetime, qid=None,oid=oid)
+						oid-=1
 						new_pending.append(order)
 						
 				# supply side (sellers)
@@ -202,7 +203,8 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 						issuetime = time + issuetimes[t]
 						tname = 'S%02d' % t
 						orderprice = getorderprice(t, sched, n_sellers, mode, issuetime)
-						order = Order(tname, ordertype, orderprice, 1, issuetime, qid=None,oid=-3.14)
+						order = Order(tname, ordertype, orderprice, 1, issuetime, qid=None,oid=oid)
+						oid-=1
 						new_pending.append(order)
 		else:
 				# there are pending future orders: issue any whose timestamp is in the past
