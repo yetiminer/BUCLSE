@@ -37,8 +37,6 @@ class Trader:
 				self.orders = []        # customer orders currently being worked (fixed at 1)
 				self.orders_dic={}		#customer orders currently being worked, key=OID
 				self.n_quotes = 0       # number of quotes live on LOB
-				#self.willing = 1        # used in ZIP etc
-				#self.able = 1           # used in ZIP etc
 				self.birthtime = time   # used when calculating age of a trader/strategy
 				self.profitpertime = 0  # profit per unit time
 				self.n_trades = 0       # how many trades has this trader done?
@@ -237,20 +235,9 @@ class Trader_ZIP(Trader):
 		#    -- in the original, traders were either buyers OR sellers
 
 		def __init__(self, ttype, tid, balance, time): #can I use parent init function and then modify?
-				self.ttype = ttype
-				self.tid = tid
-				self.balance = balance
-				self.blotter = []
-				self.orders = []
-				self.orders_dic={}
-				self.n_trades = 0
-				#willing
-				#able
-				self.birthtime = time
-				self.profitpertime = 0
-				self.n_quotes = 0
-				self.lastquote = None
 				
+				#DRY: use parent instantiation before adding child specific properties
+				super().__init__(ttype,tid,balance,time)
 				
 				self.job = None  # this gets switched to 'Bid' or 'Ask' depending on order-type
 				self.active = False  # gets switched to True while actively working an order
