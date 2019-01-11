@@ -71,7 +71,17 @@ class Trader:
 
 
 		def bookkeep(self, trade, order, verbose, time):
+				
+				trade['oid']=order.oid
+				if trade['qty']==order.qty:
+					trade['status']='full'
+				elif trade['qty']<order.qty:
+					trade['status']='partial'
+				else:
+					print("shouldn't execute more than order?")
+					raise AssertionError
 
+				
 				outstr=""
 				for order in self.orders: outstr = outstr + str(order)
 
@@ -237,7 +247,7 @@ class Trader_ZIP(Trader):
 		def __init__(self, ttype, tid, balance, time): #can I use parent init function and then modify?
 				
 				#DRY: use parent instantiation before adding child specific properties
-				super().__init__(ttype,tid,balance,time)
+				super().__init__(ttype=ttype,tid=tid,balance=balance,time=time)
 				
 				self.job = None  # this gets switched to 'Bid' or 'Ask' depending on order-type
 				self.active = False  # gets switched to True while actively working an order
