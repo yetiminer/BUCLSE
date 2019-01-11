@@ -29,7 +29,7 @@ from UCLSE.exchange import Order
 # all Traders have a trader id, bank balance, blotter, and list of orders to execute
 class Trader:
 
-		def __init__(self, ttype=None, tid=None, balance=None, time=None):
+		def __init__(self, ttype=None, tid=None, balance=0, time=None):
 				self.ttype = ttype      # what type / strategy this trader is
 				self.tid = tid          # trader unique ID code
 				self.balance = balance  # money in the bank
@@ -107,6 +107,7 @@ class Trader:
 				trade['oid']=oid
 				trade['order qty']=order_qty
 				trade['order_issue_time']=order.time
+				trade['profit']=profit
 				
 				if trade_qty==order_qty:
 					trade['status']='full'
