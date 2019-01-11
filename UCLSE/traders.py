@@ -37,8 +37,8 @@ class Trader:
 				self.orders = []        # customer orders currently being worked (fixed at 1)
 				self.orders_dic={}		#customer orders currently being worked, key=OID
 				self.n_quotes = 0       # number of quotes live on LOB
-				self.willing = 1        # used in ZIP etc
-				self.able = 1           # used in ZIP etc
+				#self.willing = 1        # used in ZIP etc
+				#self.able = 1           # used in ZIP etc
 				self.birthtime = time   # used when calculating age of a trader/strategy
 				self.profitpertime = 0  # profit per unit time
 				self.n_trades = 0       # how many trades has this trader done?
