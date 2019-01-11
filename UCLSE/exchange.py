@@ -351,9 +351,9 @@ class Exchange(Orderbook):
 											   'p2_qid':qid
 											  }
 						self.tape.append(transaction_record)
-						return [transaction_record] #note as a one length array to make forward compatible with multi leg trades
+						return qid,[transaction_record] #note as a one length array to make forward compatible with multi leg trades
 				else:
-						return None
+						return qid, None
 		
 		def process_order3w(self,time=None,order=None,verbose=False):
 			[qid, response] = self.add_order(order, verbose)  # add it to the order lists -- overwriting any previous order
@@ -361,7 +361,7 @@ class Exchange(Orderbook):
 			if verbose :
 						print('QUID: order.quid=%d' % order.qid)
 						print('RESPONSE: %s' % response)
-			return self.process_order3(time=time,order=order,verbose=verbose)
+			return qid,self.process_order3(time=time,order=order,verbose=verbose)
 		
 		def process_order3(self,time=None,order=None,verbose=False):
 			temp_order=copy.deepcopy(order) #Need this to stop original order quantity mutating outside this method
