@@ -27,7 +27,7 @@ random.seed(22)
 from UCLSE.exchange import Exchange
 from UCLSE.traders import (Trader_Giveaway, Trader_ZIC, Trader_Shaver,
                            Trader_Sniper, Trader_ZIP)
-from UCLSE.supply_demand import customer_orders,set_customer_orders
+from UCLSE.supply_demand import customer_orders,set_customer_orders, do_one
 
 
 import pandas as pd
@@ -87,7 +87,8 @@ class Market_session:
 			#testing how changes in process_order effect things
 			self.process_order=self.exchange.process_order2
 			
-			
+			#specify the quantity function for new orders
+			self.quantity_f=do_one
 
 	def _reset_session(self):
 		#occasionally may want to test same session?
@@ -576,9 +577,10 @@ class Market_session:
 				self.pending_cust_orders=replay_vars[self.time]['pending_cust_orders']
 				
 			else:
+				
 				[self.pending_cust_orders, self.kills,self.dispatched_orders] = customer_orders(self.time, self.last_update, self.traders, 
 				self.n_buyers, self.n_sellers,
-												 order_schedule, self.pending_cust_orders, self.orders_verbose)
+												 order_schedule, self.pending_cust_orders, self.orders_verbose,quantity=self.quantity_f)
 	def _cancel_existing_orders_for_traders_who_already_have_one_in_the_market(self):
 		# if any newly-issued customer orders mean quotes on the LOB need to be cancelled, kill them
 		if len(self.kills) > 0 :
@@ -627,7 +629,11 @@ class Market_session:
 	def _send_order_to_exchange(self,tid,order,trade_stats):
 		# send order to exchange
 		self.traders[tid].n_quotes = 1
-		trade = self.process_order(self.time, order, self.process_verbose)
+		qid, trade = self.process_order(self.time, order, self.process_verbose)
+		
+		#sneakily 'inform' trader what qid is
+		order.qid=qid
+		
 		
 		if trade != None:
 				print(trade)
