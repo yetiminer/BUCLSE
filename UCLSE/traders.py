@@ -236,18 +236,22 @@ class Trader_ZIP(Trader):
 		#    so a single trader can both buy AND sell
 		#    -- in the original, traders were either buyers OR sellers
 
-		def __init__(self, ttype, tid, balance, time):
+		def __init__(self, ttype, tid, balance, time): #can I use parent init function and then modify?
 				self.ttype = ttype
 				self.tid = tid
 				self.balance = balance
-				self.birthtime = time
-				self.profitpertime = 0
-				self.n_trades = 0
 				self.blotter = []
 				self.orders = []
 				self.orders_dic={}
+				self.n_trades = 0
+				#willing
+				#able
+				self.birthtime = time
+				self.profitpertime = 0
 				self.n_quotes = 0
 				self.lastquote = None
+				
+				
 				self.job = None  # this gets switched to 'Bid' or 'Ask' depending on order-type
 				self.active = False  # gets switched to True while actively working an order
 				self.prev_change = 0  # this was called last_d in Cliff'97
