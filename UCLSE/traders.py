@@ -72,26 +72,25 @@ class Trader:
 
 		def bookkeep(self, trade, order, verbose, time):
 				
-				trade['oid']=order.oid
-				if trade['qty']==order.qty:
-					trade['status']='full'
-				elif trade['qty']<order.qty:
-					trade['status']='partial'
-				else:
-					print("shouldn't execute more than order?")
-					raise AssertionError
+				trade_qty=trade['qty']
+				order_qty=order.qty
+				oid=order.oid
+				
 
+
+				
 				
 				outstr=""
 				for order in self.orders: outstr = outstr + str(order)
 
-				self.blotter.append(trade)  # add trade record to trader's blotter
+				  # add trade record to trader's blotter
+				
 				# NB What follows is **LAZY** -- assumes all orders are quantity=1
 				transactionprice = trade['price']
 				if self.orders[0].otype == 'Bid':
-						profit = self.orders[0].price - transactionprice
+						profit = (self.orders[0].price - transactionprice)*trade_qty
 				else:
-						profit = transactionprice - self.orders[0].price
+						profit = (transactionprice - self.orders[0].price)*trade_qty
 				self.balance += profit
 				self.n_trades += 1
 				self.profitpertime = self.balance/(time - self.birthtime)
@@ -103,7 +102,26 @@ class Trader:
 						sys.exit()
 
 				if verbose: print('%s profit=%d balance=%d profit/time=%d' % (outstr, profit, self.balance, self.profitpertime))
-				self.del_order(order)  # delete the order
+				
+				#add some supplementary information to the blotter
+				trade['oid']=oid
+				trade['order qty']=order_qty
+				trade['order_issue_time']=order.time
+				
+				if trade_qty==order_qty:
+					trade['status']='full'
+					self.del_order(order)  # delete the order
+				
+				elif trade_qty<order_qty:
+					trade['status']='partial'
+					self.orders_dic[oid].qty=order_qty-trade_qty #ammend the order 
+					#note that this is the same order object as found in self.orders[0], so qty changes here as well
+				else:
+					print("shouldn't execute more than order?")
+					raise AssertionError
+					
+				
+				self.blotter.append(trade)
 
 
 		# specify how trader responds to events in the market
