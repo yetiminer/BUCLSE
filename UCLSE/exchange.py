@@ -91,7 +91,7 @@ class Orderbook_half:
 			# also builds anonymized version (just price/quantity, sorted, as a list) for publishing to traders
 			self.lob = {}
 			for tid in self.orders:
-					order = self.orders.get(tid)
+					order = self.orders.get(tid)[0]
 					price = order.price
 					if price in self.lob:
 							# update existing entry
@@ -138,12 +138,12 @@ class Orderbook_half:
 			
 			if order.tid in self.orders:
 					if overwrite:				#I want to explicitly show that previous orders are overwritten
-						self.book_del(self.orders[order.tid],rebuild=False)
-						self.orders[order.tid] = order
+						self.book_del(self.orders[order.tid][0],rebuild=False)
+						self.orders[order.tid] = [order]
 					else:
 						self.orders[order.tid].append(order) #this will only work if I start putting them in lists
 			else:
-				self.orders[order.tid] = order
+				self.orders[order.tid] = [order]
 
 			
 			self.q_orders[order.qid]=order
@@ -407,7 +407,7 @@ class Exchange(Orderbook):
 			pty1_qid=pty1_side.best_qid
 			counterparty = pty1_tid
 
-			best_ask_order_old=pty1_side.orders.get(counterparty)
+			best_ask_order_old=pty1_side.orders.get(counterparty)[0] #Ready for multi trade environment
 			best_ask_order=pty1_side.q_orders.get(pty1_qid)
 			
 			assert best_ask_order_old==best_ask_order #this is only going to work when traders can only have one trade
