@@ -43,8 +43,13 @@ def side_by_side_period_by_period_difference_checker(sess,sess1):
 
 
 		for t in sess.traders:
-			assert sess.traders[t].orders==sess1.traders[t].orders
-			assert sess.traders[t].lastquote==sess1.traders[t].lastquote
+			try:
+				assert sess.traders[t].orders==sess1.traders[t].orders
+				assert sess.traders[t].lastquote==sess1.traders[t].lastquote
+			except AssertionError:
+				print('identical trades',sess.traders[t].orders[0],sess.traders[t].orders[0])
+				print('same last quote ',sess.traders[t].lastquote,sess1.traders[t].lastquote)
+			
 
 		err_list=identical_replay_vars(sess,sess1,verbose=False)
 		if err_list!={}: raise AssertionError
