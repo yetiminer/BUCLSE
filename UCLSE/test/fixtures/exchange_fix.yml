@@ -46,7 +46,7 @@
       - - [5, 1, 5, 10]
       109:
       - 2
-      - - [10, 2, Henry, 12.000002]
+      - - [10, 2, Henry, 12.000003]
     tr:
     - {p1_qid: 1, p2_qid: 12.0, party1: 0, party2: Henry, price: 107, qty: 1, time: 10,
       type: Trade}
