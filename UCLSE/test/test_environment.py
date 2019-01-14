@@ -125,7 +125,7 @@ def test_trade_stats_methods():
 			   labels=[[ 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 5, 4], [ 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 0, 0]])
 
 	#check the data is the same
-	assert (d[cols]==sess.df[cols]).all().all()
+	assert (d[cols].replace(' N',0).astype('float64')==sess.df[cols].fillna(0)).all().all()
 
 	#check the time periods are the same
 	assert np.allclose(d.index.values-sess.df.index.values,np.zeros(d.index.values.shape))
