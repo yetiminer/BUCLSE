@@ -47,6 +47,16 @@ class Order:
 		def __str__(self):
 				return '[%s %s P=%03d Q=%s T=%5.2f QID:%s OID:%s]' % \
 					   (self.tid, self.otype, self.price, self.qty, self.time, str(self.qid),str(self.oid))
+					   
+		def __eq__(self,other): 
+		#a method override so that we can check for equality between orders
+			if isinstance(other, self.__class__):
+				return self.__dict__ == other.__dict__
+			else:
+				return False
+				
+		def __ne__(self, other):
+			return not self.__eq__(other)
 
 
 
@@ -230,6 +240,8 @@ class Exchange(Orderbook):
 
 		def add_order(self, order, verbose,leg=0,qid=None):
 				# add a quote/order to the exchange and update all internal records; return unique i.d.
+				assert order.qid is not None
+				
 				if leg==0:
 					order.qid = self.quote_id
 				else:
@@ -351,9 +363,9 @@ class Exchange(Orderbook):
 											   'p2_qid':qid
 											  }
 						self.tape.append(transaction_record)
-						return qid,[transaction_record] #note as a one length array to make forward compatible with multi leg trades
+						return qid,[transaction_record],[[None]] #note as a one length array to make forward compatible with multi leg trades
 				else:
-						return qid, None
+						return qid, None, None
 		
 		def process_order3w(self,time=None,order=None,verbose=False):
 			[qid, response] = self.add_order(order, verbose)  # add it to the order lists -- overwriting any previous order
@@ -361,13 +373,15 @@ class Exchange(Orderbook):
 			if verbose :
 						print('QUID: order.quid=%d' % order.qid)
 						print('RESPONSE: %s' % response)
-			return qid,self.process_order3(time=time,order=order,verbose=verbose)
+			tr,ammended_orders=self.process_order3(time=time,order=order,verbose=verbose)
+			return qid,tr,ammended_orders
 		
 		def process_order3(self,time=None,order=None,verbose=False):
 			temp_order=copy.deepcopy(order) #Need this to stop original order quantity mutating outside this method
 			oprice=temp_order.price
 			leg=0
 			tr=[]
+			ammended_orders=[]
 			qid=temp_order.qid
 			
 			if temp_order.otype == 'Bid':
@@ -388,17 +402,18 @@ class Exchange(Orderbook):
 			while pty1_side.n_orders > 0 and self.bids.best_price >= self.asks.best_price and quantity>0:
 					#do enough fills until the remaining order quantity is zero
 					
-					quantity,fill=self._do_one_fill(time,temp_order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid)
+					quantity,fill, ammended_order=self._do_one_fill(time,temp_order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid)
 					
 					tr.append(fill)
+					ammended_orders.append(ammended_order)
 					
 					if pty2_side.n_orders==0: break #check that one side of the LOB is not empty
 					
 					leg+=1
 			if len(tr)==0:
-				return None
+				return None,None
 			else: 
-				return tr
+				return tr,ammended_orders
 
 
 		def _do_one_fill(self,time,order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,verbose=True,leg=0,qid=None):
@@ -406,23 +421,43 @@ class Exchange(Orderbook):
 			pty1_tid = pty1_side.best_tid
 			pty1_qid=pty1_side.best_qid
 			counterparty = pty1_tid
+			ammended_order=(None,None,None)
 
 			best_ask_order_old=pty1_side.orders.get(counterparty)[0] #Ready for multi trade environment
 			best_ask_order=pty1_side.q_orders.get(pty1_qid)
 			
-			assert best_ask_order_old==best_ask_order #this is only going to work when traders can only have one trade
+			try:
+				assert best_ask_order_old==best_ask_order #this is only going to work when traders can only have one trade
+
+			except AssertionError:
+				print(best_ask_order_old,best_ask_order)
+				raise
+			
+			
+			best_ask_order=copy.deepcopy(best_ask_order)
+			
+
 			
 			p1_qid=best_ask_order.qid
 			
-			assert p1_qid==pty1_side.best_qid #this should always be true
+			try: 
+				assert p1_qid==pty1_side.best_qid #this should always be true
+			except AssertionError:
+				print('qid mismatch',p1_qid,pty1_side.best_qid)
+				raise
+				
 
 			# bid lifts the best ask
 			if verbose: print(pty_2_name,' leg', leg, ' lifts best ', pty_1_name , order.price)
 		   
 			price = pty1_side.best_price  # bid crossed ask, so use ask price
 			if verbose: print('counterparty',counterparty, 'price',  price)
+			
 			best_ask_q=pty1_side.lob[pty1_side.best_price][1][0][1]
-
+			best_ask_q1=best_ask_order.qty
+			assert best_ask_q1==best_ask_q
+			
+			
 			if quantity-best_ask_q>=0:
 				quantity=quantity-best_ask_q
 
@@ -435,8 +470,11 @@ class Exchange(Orderbook):
 				fill_q=best_ask_q
 
 				if quantity>0:
-					[order.qid,response]=self.add_order(order,verbose,leg=leg,qid=qid) 
-					print(leg,order.qid)
+					#[order.qid,response]=self.add_order(order,verbose,leg=leg,qid=qid)
+					self.add_order(order,verbose,leg=leg+1,qid=qid)
+					ammend_qid=order.qid
+					ammended_order=(order.tid,ammend_qid,order)
+					print('order partially filled, new ammended one ',leg,order.qid,order)
 			else: 
 				print('Partial fill situation')
 				#delete the bid that was the latest order
@@ -445,7 +483,10 @@ class Exchange(Orderbook):
 				#adjust the quantity of the best ask left on the book
 				best_ask_order.qty=best_ask_q-quantity
 
-				self.add_order(best_ask_order,verbose,leg=1,qid=p1_qid)
+				[best_ask_order.qid,response]=self.add_order(best_ask_order,verbose,leg=1,qid=best_ask_order.qid)
+				
+				print('partial fill passive side ', best_ask_order.qid,best_ask_order)
+				ammended_order=(counterparty,best_ask_order.qid,best_ask_order)
 
 				pty2_side.delete_best()
 				fill_q=quantity
@@ -454,7 +495,7 @@ class Exchange(Orderbook):
 					p1_tid=counterparty,p2_tid=order.tid,
 									 transact_qty=fill_q,verbose=False,p1_qid=p1_qid,p2_qid=qid+0.000001*leg)
 
-			return quantity,fill
+			return quantity,fill,ammended_order
 
 		def make_transaction_record(self,time=None,price=None,p1_tid=None,
 									p2_tid=None,transact_qty=None,verbose=False,p1_qid=None,p2_qid=None):
