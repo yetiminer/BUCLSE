@@ -35,7 +35,7 @@ class Trader:
 				self.balance = balance  # money in the bank
 				self.blotter = []       # record of trades executed
 				self.orders = []        # customer orders currently being worked (fixed at 1)
-				self.orders_dic={}		#customer orders currently being worked, key=OID
+				self.orders_dic={}		#customer orders currently being worked, key=OID or QID
 				self.n_quotes = 0       # number of quotes live on LOB
 				self.birthtime = time   # used when calculating age of a trader/strategy
 				self.profitpertime = 0  # profit per unit time
@@ -61,24 +61,35 @@ class Trader:
 				self.orders_dic[order.oid]=order
 				if verbose : print('add_order < response=%s' % response)
 				return response
+				
+		def add_order_exchange(self,order,qid):
+			order.qid=qid
+			self.orders_dic[order.qid]=order
+			self.orders_dic[order.oid]=order
+			if self.orders==[]:
+				self.orders=[order]
 
 
 		def del_order(self, order):
 				# this is lazy: assumes each trader has only one customer order with quantity=1, so deleting sole order
 				# CHANGE TO DELETE THE HEAD OF THE LIST AND KEEP THE TAIL
 				self.orders = []
-				del(self.orders_dic[order.oid]) #preparing for when traders have multiple orders
+				
+				del(self.orders_dic[order.oid])
+				if order.qid is not None:
+					del(self.orders_dic[order.qid])
 
 
-		def bookkeep(self, trade, order, verbose, time):
+		def bookkeep(self, trade, order, verbose, time,active=True):
 				
 				trade_qty=trade['qty']
 				order_qty=order.qty
-				oid=order.oid
-				
-
-
-				
+				if active:
+					qid=trade['p2_qid']
+					oid=order.oid
+				else:
+					qid=trade['p1_qid']
+					oid=self.orders_dic[qid].oid
 				
 				outstr=""
 				for order in self.orders: outstr = outstr + str(order)
@@ -104,24 +115,28 @@ class Trader:
 				if verbose: print('%s profit=%d balance=%d profit/time=%d' % (outstr, profit, self.balance, self.profitpertime))
 				
 				#add some supplementary information to the blotter
+				
+				
 				trade['oid']=oid
+				
+				
 				trade['order qty']=order_qty
 				trade['order_issue_time']=order.time
 				trade['profit']=profit
 				
 				if trade_qty==order_qty:
 					trade['status']='full'
-					self.del_order(order)  # delete the order
+					  # delete the order
 				
 				elif trade_qty<order_qty:
 					trade['status']='partial'
-					self.orders_dic[oid].qty=order_qty-trade_qty #ammend the order 
+					#self.orders_dic[oid].qty=order_qty-trade_qty #ammend the order 
 					#note that this is the same order object as found in self.orders[0], so qty changes here as well
 				else:
 					print("shouldn't execute more than order?")
 					raise AssertionError
 					
-				
+				self.del_order(order)
 				self.blotter.append(trade)
 
 
