@@ -629,23 +629,36 @@ class Market_session:
 	def _send_order_to_exchange(self,tid,order,trade_stats):
 		# send order to exchange
 		self.traders[tid].n_quotes = 1
-		qid, trade = self.process_order(self.time, order, self.process_verbose)
+		qid, trade,ammended_orders = self.process_order(self.time, order, self.process_verbose)
 		
-		#sneakily 'inform' trader what qid is
-		order.qid=qid
+		#'inform' trader what qid is
+		self.traders[tid].add_order_exchange(order,qid)
 		
 		
 		if trade != None:
 				print(trade)
-				for trade_leg in trade:
+				for trade_leg,ammended_order in zip(trade,ammended_orders):
 					# trade occurred,
 					# so the counterparties update order lists and blotters
 					self.traders[trade_leg['party1']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
 					self.traders[trade_leg['party2']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
+					
+					ammend_tid=ammended_order[0]
+					if ammend_tid is not None:
+						ammend_qid=ammended_order[1]
+						
+						print('ammend trade ', ammended_order[2])
+						
+						self.traders[ammend_tid].add_order_exchange(ammended_order[2],ammend_qid)
+					
+					
 					if self.dump_each_trade: 
 						
 						trade_stats(self.sess_id, self.traders, self.trade_file, self.time,
 															  self.exchange.publish_lob(self.time, self.lob_verbose))
+															  
+					
+															  
 				return trade
 		#else: print('no trade')
 
