@@ -39,6 +39,64 @@ def test_replay_for_same_results():
 	assert (sess1.df.fillna(0)==sess.df.fillna(0)).all().all()
 	
 	
+def test_backwards_multi_leg():
+	pa=os.getcwd()
+	config_name='UCLSE\\test\\fixtures\\mkt_cfg.yml'
+	config_path=os.path.join(pa,config_name)
+	
+	environ_dic=yamlLoad(config_path)
+	environ_dic['end_time']=50
+	
+	sess=Market_session(**environ_dic)
+	sess1=copy.deepcopy(sess)
+	sess.process_order=sess.exchange.process_order3w
+	try:
+		side_by_side_period_by_period_difference_checker(sess,sess1)
+	except AssertionError:
+		print('sess uses new process order,sess1 old')
+		raise
+		
+def test_forwards_multi_leg():
+	pa=os.getcwd()
+	config_name='UCLSE\\test\\fixtures\\mkt_cfg.yml'
+	config_path=os.path.join(pa,config_name)
+	
+	environ_dic=yamlLoad(config_path)
+	environ_dic['end_time']=50
+	
+	sess=Market_session(**environ_dic)
+	sess1=copy.deepcopy(sess)
+	sess1.process_order=sess1.exchange.process_order3w
+	try:
+		side_by_side_period_by_period_difference_checker(sess,sess1)
+	except AssertionError:
+		print('sess1 uses new process order,sess old')
+		raise
+		
+def test_multi_q_exchange():
+	pa=os.getcwd()
+	config_name='UCLSE\\test\\fixtures\\mkt_cfg.yml'
+	config_path=os.path.join(pa,config_name)
+	
+	environ_dic=yamlLoad(config_path)
+	environ_dic['end_time']=50
+	
+	def geometric_q():
+		return np.random.geometric(0.6)
+	
+	sess=Market_session(**environ_dic)
+	
+	sess.process_order=sess.exchange.process_order3w
+	sess.quantity_f=geometric_q
+	sess1=copy.deepcopy(sess)
+	try:
+		side_by_side_period_by_period_difference_checker(sess,sess1)
+	except AssertionError:
+		print('multi q exchange failure')
+		raise
+
+	
+	
 def test_trade_stats_methods():
 	#checks to see if the df is the same as the old fashioned csv print method
 	pa=os.getcwd()

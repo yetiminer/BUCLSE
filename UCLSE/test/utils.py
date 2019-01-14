@@ -97,8 +97,9 @@ def build_df_from_dic_dic(dic):
 		df_list.append(pd.DataFrame(dic[k]))
 		
 	order_df=pd.concat(df_list)
-	order_df.sort_values(['time','tid'],inplace=True) #important to get qids correct
-
+	order_df.sort_values(['time','tid','otype'],inplace=True) #important to get qids correct
+	order_df.reset_index(inplace=True)
+	
 	return order_df
 
 def yaml_dump(data,path):
@@ -128,7 +129,7 @@ def build_lob_from_df(order_df,exch=None):
 
 	order_list=[]
 	for index, row in order_df.iterrows():
-
+		print('index',index)
 		exch.add_order(Order(*row.values),verbose=False)
 
 	return exch

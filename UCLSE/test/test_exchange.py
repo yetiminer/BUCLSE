@@ -21,7 +21,7 @@ def test_lob():
 		pretty_lob_print(exchange)
 
 		time=10
-		tr=exchange.process_order3(order=new_order,time=time,verbose=False)
+		tr, ammended_orders=exchange.process_order3(order=new_order,time=time,verbose=False)
 		
 		
 		try: 
