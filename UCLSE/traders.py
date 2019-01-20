@@ -194,16 +194,31 @@ class Trader_Giveaway(Trader):
 
 		def getorder(self, time, countdown, lob):
 				if len(self.orders) < 1:
-						order = None
+						new_order = None
 				else:
-						quoteprice = self.orders[0].price
-						order = Order(self.tid,
-									self.orders[0].otype,
-									quoteprice,
-									self.orders[0].qty,
-									time, qid=lob['QID'],oid=self.orders[0].oid)
-						self.lastquote=order
-				return order
+						# quoteprice = self.orders[0].price
+						# order = Order(self.tid,
+									# self.orders[0].otype,
+									# quoteprice,
+									# self.orders[0].qty,
+									# time, qid=lob['QID'],oid=self.orders[0].oid)
+						# #self.lastquote=order
+						
+						listish=self.orders_dic.items()
+							
+						for oi,ord in listish:
+							
+							quoteprice = ord['Original'].price
+							new_order = Order(self.tid,
+										ord['Original'].otype,
+										quoteprice,
+										ord['qty_remain'],
+										time, qid=lob['QID'],oid=oi)
+							#assert new_order==order
+						
+						self.lastquote=new_order
+						
+				return new_order
 
 
 
