@@ -26,6 +26,7 @@ def test_bookkeep():
 
 		qid,_=exchange.add_order(new_order,verbose=False)
 		
+		henry.add_order(new_order, True)
 		henry.add_order_exchange(new_order,qid)
 
 		#pretty_lob_print(exchange)

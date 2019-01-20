@@ -640,7 +640,7 @@ class Market_session:
 				for trade_leg,ammended_order in zip(trade,ammended_orders):
 					# trade occurred,
 					# so the counterparties update order lists and blotters
-					self.traders[trade_leg['party1']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
+					self.traders[trade_leg['party1']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time,active=False)
 					self.traders[trade_leg['party2']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
 					
 					ammend_tid=ammended_order[0]

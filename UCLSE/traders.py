@@ -23,6 +23,7 @@
 #
 #
 import random
+import copy
 from UCLSE.exchange import Order
 
 # Trader superclass
@@ -35,7 +36,9 @@ class Trader:
 				self.balance = balance  # money in the bank
 				self.blotter = []       # record of trades executed
 				self.orders = []        # customer orders currently being worked (fixed at 1)
-				self.orders_dic={}		#customer orders currently being worked, key=OID or QID
+				self.orders_dic={}		#customer orders currently being worked, key=OID
+				self.orders_dic_hist={}
+				self.orders_lookup={}
 				self.n_quotes = 0       # number of quotes live on LOB
 				self.birthtime = time   # used when calculating age of a trader/strategy
 				self.profitpertime = 0  # profit per unit time
@@ -58,14 +61,29 @@ class Trader:
 				else:
 					response = 'Proceed'
 				self.orders = [order]
-				self.orders_dic[order.oid]=order
+				self.orders_dic[order.oid]={}
+				self.orders_dic[order.oid]['Original']=order #should be immutable
+				self.orders_dic[order.oid]['submitted_quotes']=[] #history of trades sent to exchange
+				self.orders_dic[order.oid]['qty_remain']=order.qty #running total of how much to execute left
+				
+				
 				if verbose : print('add_order < response=%s' % response)
 				return response
 				
 		def add_order_exchange(self,order,qid):
+			order=copy.deepcopy(order)
+			print('this is the oid',order.oid)
 			order.qid=qid
-			self.orders_dic[order.qid]=order
-			self.orders_dic[order.oid]=order
+			try: assert order.oid in self.orders_dic
+			except AssertionError:
+				print(order.oid,' in ',self.orders_dic)
+				raise
+			
+			self.orders_dic[order.oid]['submitted_quotes'].append(order)
+			
+			#also need to create a lookup method
+			self.orders_lookup[qid]=order.oid
+			
 			if self.orders==[]:
 				self.orders=[order]
 
@@ -74,10 +92,9 @@ class Trader:
 				# this is lazy: assumes each trader has only one customer order with quantity=1, so deleting sole order
 				# CHANGE TO DELETE THE HEAD OF THE LIST AND KEEP THE TAIL
 				self.orders = []
-				
+				self.orders_dic_hist[order.oid]=self.orders_dic[order.oid]
 				del(self.orders_dic[order.oid])
-				if order.qid is not None:
-					del(self.orders_dic[order.qid])
+
 
 
 		def bookkeep(self, trade, order, verbose, time,active=True):
@@ -89,7 +106,9 @@ class Trader:
 					oid=order.oid
 				else:
 					qid=trade['p1_qid']
-					oid=self.orders_dic[qid].oid
+					#use the lookup to get the oid for the trade
+					oid=self.orders_lookup[qid]
+					order_qty=self.orders_dic[oid]['qty_remain']
 				
 				outstr=""
 				for order in self.orders: outstr = outstr + str(order)
@@ -124,19 +143,25 @@ class Trader:
 				trade['order_issue_time']=order.time
 				trade['profit']=profit
 				
+				#update the qty remaining in the order
+				self.orders_dic[oid]['qty_remain']=order_qty-trade_qty
+				
 				if trade_qty==order_qty:
 					trade['status']='full'
+					self.del_order(order)
 					  # delete the order
 				
 				elif trade_qty<order_qty:
 					trade['status']='partial'
+					self.orders[0].qty=order_qty-trade_qty
+					
 					#self.orders_dic[oid].qty=order_qty-trade_qty #ammend the order 
 					#note that this is the same order object as found in self.orders[0], so qty changes here as well
 				else:
 					print("shouldn't execute more than order?")
 					raise AssertionError
 					
-				self.del_order(order)
+				
 				self.blotter.append(trade)
 
 
