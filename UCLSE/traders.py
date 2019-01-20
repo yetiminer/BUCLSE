@@ -257,24 +257,31 @@ class Trader_Shaver(Trader):
 				if len(self.orders) < 1:
 						order = None
 				else:
-						limitprice = self.orders[0].price
-						otype = self.orders[0].otype
-						if otype == 'Bid':
-								if lob['bids']['n'] > 0:
-										quoteprice = lob['bids']['best'] + 1
-										if quoteprice > limitprice :
-												quoteprice = limitprice
-								else:
-										quoteprice = lob['bids']['worst']
-						else:
-								if lob['asks']['n'] > 0:
-										quoteprice = lob['asks']['best'] - 1
-										if quoteprice < limitprice:
-												quoteprice = limitprice
-								else:
-										quoteprice = lob['asks']['worst']
-						order = Order(self.tid, otype, quoteprice, self.orders[0].qty, time, qid=lob['QID'],oid=self.orders[0].oid)
-						self.lastquote = order
+						listish=self.orders_dic.items()
+						for oi,ord in listish:
+							#limitprice = self.orders[0].price
+							limitprice=ord['Original'].price
+							otype = ord['Original'].otype
+							qty=ord['qty_remain']
+							
+							
+							
+							if otype == 'Bid':
+									if lob['bids']['n'] > 0:
+											quoteprice = lob['bids']['best'] + 1
+											if quoteprice > limitprice :
+													quoteprice = limitprice
+									else:
+											quoteprice = lob['bids']['worst']
+							else:
+									if lob['asks']['n'] > 0:
+											quoteprice = lob['asks']['best'] - 1
+											if quoteprice < limitprice:
+													quoteprice = limitprice
+									else:
+											quoteprice = lob['asks']['worst']
+							order = Order(self.tid, otype, quoteprice, qty, time, qid=lob['QID'],oid=oi)
+							self.lastquote = order
 				return order
 
 
