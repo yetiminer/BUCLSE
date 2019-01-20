@@ -109,18 +109,25 @@ class Trader:
 					#use the lookup to get the oid for the trade
 					oid=self.orders_lookup[qid]
 					order_qty=self.orders_dic[oid]['qty_remain']
+					
 				
 				outstr=""
 				for order in self.orders: outstr = outstr + str(order)
 
 				  # add trade record to trader's blotter
 				
-				# NB What follows is **LAZY** -- assumes all orders are quantity=1
+				
 				transactionprice = trade['price']
+				
+				assert self.orders[0].otype==self.orders_dic[oid]['Original'].otype
+				assert self.orders[0].price==self.orders_dic[oid]['Original'].price
+				
+				original_order=self.orders_dic[oid]['Original']
+				
 				if self.orders[0].otype == 'Bid':
-						profit = (self.orders[0].price - transactionprice)*trade_qty
+						profit = (original_order.price - transactionprice)*trade_qty
 				else:
-						profit = (transactionprice - self.orders[0].price)*trade_qty
+						profit = (transactionprice - original_order.price)*trade_qty
 				self.balance += profit
 				self.n_trades += 1
 				self.profitpertime = self.balance/(time - self.birthtime)
