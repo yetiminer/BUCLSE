@@ -56,10 +56,10 @@ class Trader:
 		def add_order(self, order, verbose):
 				#this is adding an order from the perspective of a customer giving the trader an order to execute.
 				
-				if self.n_quotes >= self.n_quote_limit :
+				if self.n_orders >= self.n_quote_limit :
 					# this trader has a live quote on the LOB, from a previous customer order
 					# need response to signal cancellation/withdrawal of that quote
-					response = 'LOB_Cancel'
+					response = ('LOB_Cancel',self.get_oldest_order())
 				else:
 					response = 'Proceed'
 				#self.orders = [order]
@@ -71,7 +71,25 @@ class Trader:
 				
 				
 				if verbose : print('add_order < response=%s' % response)
-				return response
+				return (response,None)
+		
+		def get_oldest_order(self):
+			#retrieves the oldest order in the order_dic, return tuple (time,oid,current_qid)
+			output={'time':None,'oid':None,'last_qid':None}
+			if len(self.orders_dic)>0:
+				listy=[(order_dic['Original'].time,
+				order_dic['Original'].oid,
+			   order_dic['submitted_quotes']) for k,order_dic in self.orders_dic.items()]
+				listy.sort()
+				
+				last_qid=None
+				if len(listy[0][2])>0: #check if any quotes were submitted to exchange
+					last_qid=listy[0][2][-1]
+			
+				output= {'time':listy[0][0],'oid':listy[0][1],'last_qid':last_qid}
+				
+			return output
+		
 				
 		def add_order_exchange(self,order,qid):
 			order=copy.deepcopy(order)
