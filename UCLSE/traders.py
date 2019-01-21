@@ -61,7 +61,7 @@ class Trader:
 					# need response to signal cancellation/withdrawal of that quote
 					response = ('LOB_Cancel',self.get_oldest_order())
 				else:
-					response = 'Proceed'
+					response = ('Proceed',None)
 				#self.orders = [order]
 				self.orders_dic[order.oid]={}
 				self.orders_dic[order.oid]['Original']=order #should be immutable
@@ -70,8 +70,8 @@ class Trader:
 				self.n_orders=len(self.orders_dic) 
 				
 				
-				if verbose : print('add_order < response=%s' % response)
-				return (response,None)
+				if verbose : print('add_order < response=%s (time,oid,qid) %s' % (response[0],response[1]))
+				return response
 		
 		def get_oldest_order(self):
 			#retrieves the oldest order in the order_dic, return tuple (time,oid,current_qid)

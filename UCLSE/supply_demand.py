@@ -223,7 +223,7 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 								# issue it to the trader
 								tname = order.tid
 								response = traders[tname].add_order(order, verbose)
-								if verbose: print('Customer order: %s %s' % (response, order) )
+								if verbose: print('Customer order: %s %s' % (response[0], order) )
 								if response[0] == 'LOB_Cancel' :
 									cancellations.append(tname)
 									if verbose: print('Cancellations: %s' % (cancellations))
