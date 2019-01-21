@@ -86,13 +86,13 @@ class Trader:
 			#also need to create a lookup method
 			self.orders_lookup[qid]=order.oid
 			
-			if self.orders==[]:
-				self.orders=[order]
+			#if self.orders==[]:
+			#	self.orders=[order]
 
 
 		def del_order(self, order):
 				#delete a customer order
-				self.orders = []
+				#self.orders = []
 				self.orders_dic_hist[order.oid]=self.orders_dic[order.oid]
 				del(self.orders_dic[order.oid])
 				self.n_orders=len(self.orders_dic) 
@@ -164,7 +164,7 @@ class Trader:
 				
 				if trade_qty==order_qty:
 					trade['status']='full'
-					self.del_order(order)
+					self.del_order(original_order)
 					  # delete the order
 				
 				elif trade_qty<order_qty:
