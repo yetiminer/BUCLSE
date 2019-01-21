@@ -95,7 +95,36 @@ def test_multi_q_exchange():
 		print('multi q exchange failure')
 		raise
 
+def test_multi_q_exchange_order_quantity():
+	#this one checks that no trades are executed more than the original order specified
+	pa=os.getcwd()
+	config_name='UCLSE\\test\\fixtures\\mkt_cfg.yml'
+	config_path=os.path.join(pa,config_name)
 	
+	environ_dic=yamlLoad(config_path)
+	environ_dic['end_time']=50
+	
+	def geometric_q():
+		return np.random.geometric(0.6)
+	
+	sess=Market_session(**environ_dic)
+	sess.process_order=sess.exchange.process_order3w
+	sess.quantity_f=geometric_q
+	sess.simulate()
+		
+	listy=[]
+	for t in sess.traders:
+		listy=listy+sess.traders[t].blotter
+
+	#listy[0]
+		
+	df=pd.DataFrame(listy).groupby(['tid','oid']).agg({'order qty':'max','qty':'sum'})
+	assert (df.qty<=df['order qty']).all()
+	
+	
+
+		
+		
 	
 def test_trade_stats_methods():
 	#checks to see if the df is the same as the old fashioned csv print method
