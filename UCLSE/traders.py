@@ -196,13 +196,6 @@ class Trader_Giveaway(Trader):
 				if len(self.orders) < 1:
 						new_order = None
 				else:
-						# quoteprice = self.orders[0].price
-						# order = Order(self.tid,
-									# self.orders[0].otype,
-									# quoteprice,
-									# self.orders[0].qty,
-									# time, qid=lob['QID'],oid=self.orders[0].oid)
-						# #self.lastquote=order
 						
 						listish=self.orders_dic.items()
 							
@@ -232,18 +225,31 @@ class Trader_ZIC(Trader):
 						# no orders: return NULL
 						order = None
 				else:
+				
 						minprice = lob['bids']['worst']
 						maxprice = lob['asks']['worst']
-						qid = lob['QID']
-						limit = self.orders[0].price
-						otype = self.orders[0].otype
-						if otype == 'Bid':
-								quoteprice = random.randint(minprice, limit)
-						else:
-								quoteprice = random.randint(limit, maxprice)
-								# NB should check it == 'Ask' and barf if not
-						order = Order(self.tid, otype, quoteprice, self.orders[0].qty, time, qid=qid,oid=self.orders[0].oid)
-						self.lastquote = order
+						
+						listish=self.orders_dic.items()
+						
+						for oi,ord in listish:
+							qid = lob['QID']
+							#limitprice = self.orders[0].price
+							limitprice=ord['Original'].price
+							#otype = self.orders[0].otype
+							otype = ord['Original'].otype
+							qty=ord['qty_remain']
+							
+							if otype == 'Bid':
+									quoteprice = random.randint(minprice, limitprice)
+							elif otype == 'Ask':
+									quoteprice = random.randint(limitprice, maxprice)
+							else:
+								print('Unknown order type ',otype)
+								raise TypeError
+									
+									
+							order = Order(self.tid, otype, quoteprice, qty, time, qid=qid,oid=oi)
+							self.lastquote = order
 				return order
 
 
