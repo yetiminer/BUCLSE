@@ -83,6 +83,8 @@ class Market_session:
 			self.set_sess_id()
 			self.stat_list=[]
 			self.first_open=True
+			
+			#the starting number for the order numbers
 			self.latest_oid=-1
 			
 			#testing how changes in process_order effect things
@@ -211,95 +213,7 @@ class Market_session:
 					tdump.write('N, ')
 			tdump.write('\n');
 			tdump.flush()
-			
-	def trade_stats_df(self,expid, traders, dumpfile, time, lob):
 
-
-		trader_types = {}
-		n_traders = len(traders)
-		for t in traders:
-				ttype = traders[t].ttype
-				if ttype in trader_types.keys():
-						t_balance = trader_types[ttype]['balance_sum'] + traders[t].balance
-						n = trader_types[ttype]['n'] + 1
-				else:
-						t_balance = traders[t].balance
-						n = 1
-				trader_types[ttype] = {'n':n, 'balance_sum':t_balance}
-
-		ser1=pd.DataFrame(trader_types).unstack()
-		ser1['time']=time
-		ser1['expid']=expid
-		if lob['bids']['best'] != None :
-				ser1['best_bid']=lob['bids']['best']
-		else:
-				ser1['best_bid']=np.nan
-		if lob['asks']['best'] != None :
-				ser1['best_ask']=lob['asks']['best']
-		else:
-				ser1['best_ask']=np.nan
-
-		self.stat_list.append(ser1)
-		
-		#if this is the last call, create the final dataframe
-		if self.time >= self.end_time:
-			df=pd.DataFrame(sess.stat_list)
-			for typ in trader_types.keys():
-				df[(typ,'%')]=df[(typ,'balance_sum')]/df[(typ,'n')]
-				df = df.reindex(sorted(df.columns), axis=1)
-				#to do: set column ordering to my liking
-			self.df=df
-
-	def trade_stats_df2(self,expid, traders, dumpfile, time, lob):
-		
-		if self.first_open:
-			trader_type_list=list(set(list(self.traders_spec['buyers'].keys())+list(self.traders_spec['sellers'].keys())))        
-			trader_type_list.sort()
-			self.trader_type_list=trader_type_list
-
-		trader_types={}
-
-		for typ in self.trader_type_list:
-			ts=list(filter(lambda x: traders[x].ttype==typ,traders))
-			trader_types[typ]={}
-			trader_types[typ]['balance_sum']=reduce(lambda x,y: x+y,[traders[t].balance for t in ts])
-			trader_types[typ]['n']=len(ts)
-		
-		alist=[expid,time]
-		for typ, val in trader_types.items():
-			for k,v in val.items():
-				alist.append(v)
-				
-		if lob['bids']['best'] != None :
-				alist.append(lob['bids']['best'])
-		else:
-				alist.append(np.nan)
-		if lob['asks']['best'] != None :
-				alist.append(lob['asks']['best'])
-		else:
-				alist.append(np.nan)
-		
-		
-		if self.first_open:
-			idx=[('expid',''),('time','')]
-			for typ, val in trader_types.items():
-				for k in ['balance_sum','n']:
-					
-					idx.append((typ,k))
-			idx=idx+[('best_bid',''),('best_ask','')]
-			self.df=pd.DataFrame(columns=pd.MultiIndex.from_tuples(idx))
-			self.first_open=False
-		
-		try:
-
-			self.df.loc[time]=alist
-		except ValueError:
-			print(len(alist))
-			print(len(self.df.columns))
-			print(trader_types)
-			print(self.df)
-			print(alist)
-			raise
 
 	def trade_stats_df3(self,expid, traders, dumpfile, time, lob, final=False):
 
@@ -354,136 +268,7 @@ class Market_session:
 			print(dumpfile)
 			self.df.to_csv(dumpfile)
 
-				
-	# def simulate_old(self,trade_stats=None,recording=False,replay_vars=None):
-		
-		# if trade_stats is None:
-			# trade_stats=self.trade_stats
-		
-		# orders_verbose = False
-		# lob_verbose = False
-		# process_verbose = False
-		# respond_verbose = False
-		# bookkeep_verbose = False
 
-		# self.pending_cust_orders = []
-
-		# time=self.time
-		# endtime=self.end_time
-		# verbose=self.verbose
-		# last_update=self.last_update
-		# traders=self.traders
-		# order_schedule=self.order_schedule
-		# exchange=self.exchange
-		
-		# pending_cust_orders=[]
-		# cancellations=[]
-		# recording_record={}
-		# replay=False
-		# if replay_vars is not None: replay=True
-		
-
-		# if verbose: print('\n%s;  ' % (self.sess_id))
-		# while self.time < endtime:
-			# time=self.time
-
-			
-			# # how much time left, as a percentage?
-			# self.time_left = (endtime - time) / self.duration
-
-			# # if verbose: print('\n\n%s; t=%08.2f (%4.1f/100) ' % (sess_id, time, time_left*100))
-
-			# trade = None
-			
-			# #for testing need to pass same historic values
-			# if replay:
-				# #customer_orders() passes orders to trades. we need to recreate that here. 
-				# kills =replay_vars[time]['kills']
-				# dispatched_orders=replay_vars[time]['dispatched_orders']
-				# #feed the dispatched orders to the set function
-				# set_customer_orders(dispatched_orders,kills,verbose=orders_verbose,time=time,traders=traders)
-				# pending_cust_orders=replay_vars[time]['pending_cust_orders']
-				
-			# else:
-				# [pending_cust_orders, kills,dispatched_orders] = customer_orders(time, last_update, traders, self.n_buyers, self.n_sellers,
-												 # order_schedule, pending_cust_orders, orders_verbose)
-											 
-			
-
-			# # if any newly-issued customer orders mean quotes on the LOB need to be cancelled, kill them
-			# if len(kills) > 0 :
-					# # if verbose : print('Kills: %s' % (kills))
-					# for kill in kills :
-							# if verbose : print('lastquote=%s' % traders[kill].lastquote)
-							# if traders[kill].lastquote != None :
-									# # if verbose : print('Killing order %s' % (str(traders[kill].lastquote)))
-									# exchange.del_order(time, traders[kill].lastquote, verbose)
-
-
-			# # get a limit-order quote (or None) from a randomly chosen trader
-			
-			# if replay:
-				# tid=replay_vars[time]['tid']
-			# else:
-				# random_idx=random.randint(0, len(traders) - 1)
-				# tid = list(traders.keys())[random_idx]
-			
-			# if replay:
-				# order=replay_vars[time]['order']
-				# #pretend that the trader was asked for an order
-				# traders[tid].setorder(order)
-			# else:
-				# order = traders[tid].getorder(time, self.time_left, exchange.publish_lob(time, lob_verbose))
-
-			# if verbose: print('Trader Quote: %s' % (order))
-
-			# if order != None:
-					# try:
-						# if order.otype == 'Ask' and order.price < traders[tid].orders[0].price: sys.exit('Bad ask')
-						# if order.otype == 'Bid' and order.price > traders[tid].orders[0].price: sys.exit('Bad bid')
-					# except IndexError:
-						# print('error here')
-						# recording_record[time]={'pending_cust_orders':pending_cust_orders,'kills':kills, 
-			# 'tid':tid, 'order':order,'dispatched_orders':dispatched_orders}
-						# self.replay_vars=recording_record
-						# return order, dispatched_orders
-						# break
-					
-					# # send order to exchange
-					# traders[tid].n_quotes = 1
-					# trade = exchange.process_order2(time, order, process_verbose)
-					# if trade != None:
-							# # trade occurred,
-							# # so the counterparties update order lists and blotters
-							# traders[trade['party1']].bookkeep(trade, order, bookkeep_verbose, time)
-							# traders[trade['party2']].bookkeep(trade, order, bookkeep_verbose, time)
-							# if self.dump_each_trade: 
-								# trade_stats(self.sess_id, traders, self.trade_file, time,
-																	  # exchange.publish_lob(time, lob_verbose))
-								
-					# # traders respond to whatever happened
-					# lob = exchange.publish_lob(time, lob_verbose)
-					# for t in traders:
-							# # NB respond just updates trader's internal variables
-							# # doesn't alter the LOB, so processing each trader in
-							# # sequence (rather than random/shuffle) isn't a problem
-							# traders[t].respond(time, lob, trade, respond_verbose)
-			
-			# if recording: 
-				# recording_record[time]={'pending_cust_orders':pending_cust_orders,'kills':kills, 
-			# 'tid':tid, 'order':order,'dispatched_orders':dispatched_orders}
-				# self.replay_vars=recording_record
-			
-			# self.time = time + self.timestep
-
-
-		# # end of an experiment -- dump the tape
-		# exchange.tape_dump(self.trade_record, 'w', 'keep')
-
-
-		# # write trade_stats for this experiment NB end-of-session summary only
-		# trade_stats(self.sess_id, traders, self.trade_file, time, exchange.publish_lob(time, lob_verbose))
-		# if recording: self.replay_vars=recording_record
 
 	def simulate(self,trade_stats=None,recording=False,replay_vars=None,orders_verbose = False,lob_verbose = False,
 	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,):
