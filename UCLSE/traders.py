@@ -85,14 +85,11 @@ class Trader:
 			
 			#also need to create a lookup method
 			self.orders_lookup[qid]=order.oid
-			
-			#if self.orders==[]:
-			#	self.orders=[order]
+
 
 
 		def del_order(self, oid):
 				#delete a customer order
-				#self.orders = []
 				self.orders_dic_hist[oid]=self.orders_dic[oid]
 				del(self.orders_dic[oid])
 				self.n_orders=len(self.orders_dic) 
@@ -102,22 +99,21 @@ class Trader:
 		def bookkeep(self, trade, order, verbose, time,active=True):
 				trade=copy.deepcopy(trade)
 				trade_qty=trade['qty']
-				#order_qty=order.qty
+				
 				if active:
 					qid=trade['p2_qid']
-					#oid=order.oid
-					#assert oid==self.orders_lookup[qid]
 					assert self.tid==trade['party2']
 				else:
 					qid=trade['p1_qid']
 					assert self.tid==trade['party1']
-					#use the lookup to get the oid for the trade
+				
+				#use the lookup to get the oid for the trade
 				oid=self.orders_lookup[qid]
 				order_qty=self.orders_dic[oid]['qty_remain']
 					
 				
-				outstr=""
-				for order in self.orders: outstr = outstr + str(order)
+				#outstr=""
+				#for order in self.orders: outstr = outstr + str(order)
 
 				  # add trade record to trader's blotter
 				
