@@ -545,7 +545,7 @@ class Market_session:
 
 			if verbose and order!=None:
 				print('replay',replay,self.traders[tid].ttype,' ',self.traders[tid].balance,self.traders[tid].blotter)
-				print('Trader Quote: %s' % (self.traders[tid].orders[0]))
+				print('Trader Quote: %s' % (self.traders[tid].orders_dic[order.oid]))
 				print('Trader Quote: %s' % (order))
 
 
