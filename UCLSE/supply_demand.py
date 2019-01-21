@@ -210,7 +210,7 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 
 						order = Order(tname, ordertype, orderprice, quantity(), issuetime, qid=None,oid=oid)
 						oid-=1
-						print('#######oid',oid)
+						
 						new_pending.append(order)
 		else:
 				# there are pending future orders: issue any whose timestamp is in the past
