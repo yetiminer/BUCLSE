@@ -57,9 +57,7 @@ class Market_session:
 			self.dump_each_trade=dump_each_trade
 			self.trade_record=trade_record
 			self.random_seed=random_seed
-			
-			#set random seed
-			#random.seed(random_seed)
+
 			
 			self.duration=float(self.end_time-self.start_time)
 			self.supply_schedule=[self.set_schedule(range_low=supply_price_low,range_high=supply_price_high)]
