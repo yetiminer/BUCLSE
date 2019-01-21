@@ -39,6 +39,7 @@ class Trader:
 				self.orders_dic={}		#customer orders currently being worked, key=OID
 				self.orders_dic_hist={}
 				self.orders_lookup={}
+				self.n_orders=0			# number of orders trader has been given
 				self.n_quotes = 0       # number of quotes live on LOB
 				self.birthtime = time   # used when calculating age of a trader/strategy
 				self.profitpertime = 0  # profit per unit time
@@ -52,19 +53,20 @@ class Trader:
 
 
 		def add_order(self, order, verbose):
-				# in this version, trader has at most one order,
-				# if allow more than one, this needs to be self.orders.append(order)
+				#this is adding an order from the perspective of a customer giving the trader an order to execute.
+				
 				if self.n_quotes > 0 :
 					# this trader has a live quote on the LOB, from a previous customer order
 					# need response to signal cancellation/withdrawal of that quote
 					response = 'LOB_Cancel'
 				else:
 					response = 'Proceed'
-				self.orders = [order]
+				#self.orders = [order]
 				self.orders_dic[order.oid]={}
 				self.orders_dic[order.oid]['Original']=order #should be immutable
 				self.orders_dic[order.oid]['submitted_quotes']=[] #history of trades sent to exchange
 				self.orders_dic[order.oid]['qty_remain']=order.qty #running total of how much to execute left
+				self.n_orders=len(self.orders_dic) 
 				
 				
 				if verbose : print('add_order < response=%s' % response)
@@ -94,6 +96,7 @@ class Trader:
 				self.orders = []
 				self.orders_dic_hist[order.oid]=self.orders_dic[order.oid]
 				del(self.orders_dic[order.oid])
+				self.n_orders=len(self.orders_dic) 
 
 
 
@@ -119,15 +122,21 @@ class Trader:
 				
 				transactionprice = trade['price']
 				
-				assert self.orders[0].otype==self.orders_dic[oid]['Original'].otype
-				assert self.orders[0].price==self.orders_dic[oid]['Original'].price
+				
+				#assert self.orders[0].otype==self.orders_dic[oid]['Original'].otype
+				#assert self.orders[0].price==self.orders_dic[oid]['Original'].price
 				
 				original_order=self.orders_dic[oid]['Original']
+				otype=original_order.otype
 				
-				if self.orders[0].otype == 'Bid':
+				#if self.orders[0].otype == 'Bid':
+				if otype == 'Bid':
+				
 						profit = (original_order.price - transactionprice)*trade_qty
 				else:
 						profit = (transactionprice - original_order.price)*trade_qty
+						
+						
 				self.balance += profit
 				self.n_trades += 1
 				self.profitpertime = self.balance/(time - self.birthtime)
@@ -160,7 +169,7 @@ class Trader:
 				
 				elif trade_qty<order_qty:
 					trade['status']='partial'
-					self.orders[0].qty=order_qty-trade_qty
+					#self.orders[0].qty=order_qty-trade_qty
 					
 					#self.orders_dic[oid].qty=order_qty-trade_qty #ammend the order 
 					#note that this is the same order object as found in self.orders[0], so qty changes here as well
@@ -197,7 +206,7 @@ class Trader:
 class Trader_Giveaway(Trader):
 
 		def getorder(self, time, countdown, lob):
-				if len(self.orders) < 1:
+				if self.n_orders < 1:
 						new_order = None
 				else:
 						
@@ -227,7 +236,7 @@ class Trader_Giveaway(Trader):
 class Trader_ZIC(Trader):
 
 		def getorder(self, time, countdown, lob):
-				if len(self.orders) < 1:
+				if self.n_orders < 1:
 						# no orders: return NULL
 						new_order = None
 				else:
@@ -267,7 +276,7 @@ class Trader_ZIC(Trader):
 class Trader_Shaver(Trader):
 
 		def getorder(self, time, countdown, lob):
-				if len(self.orders) < 1:
+				if self.n_orders < 1:
 						new_order = None
 				else:
 						listish=self.orders_dic.items()
@@ -310,7 +319,7 @@ class Trader_Sniper(Trader):
 				lurk_threshold = 0.2
 				shavegrowthrate = 3
 				shave = int(1.0 / (0.01 + countdown / (shavegrowthrate * lurk_threshold)))
-				if (len(self.orders) < 1) or (countdown > lurk_threshold):
+				if (self.n_orders < 1) or (countdown > lurk_threshold):
 						new_order = None
 				else:
 						listish=self.orders_dic.items()
@@ -379,7 +388,7 @@ class Trader_ZIP(Trader):
 
 
 		def getorder(self, time, countdown, lob):
-				if len(self.orders) < 1:
+				if self.n_orders < 1:
 						self.active = False
 						new_order = None
 				else:
@@ -414,7 +423,7 @@ class Trader_ZIP(Trader):
 		
 		def setorder(self,order):
 				self.lastquote=order
-				if len(self.orders) < 1:
+				if self.n_orders < 1:
 						self.active = False
 						
 				else:
