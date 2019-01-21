@@ -551,7 +551,7 @@ class Market_session:
 
 			if order != None:
 					#check the order makes sense
-					self._order_logic_check(order,tid)
+					#self._order_logic_check(order,tid)
 					
 					# send order to exchange
 					self.trade=self._send_order_to_exchange(tid,order,trade_stats)
