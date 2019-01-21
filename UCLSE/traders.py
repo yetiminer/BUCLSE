@@ -90,11 +90,11 @@ class Trader:
 			#	self.orders=[order]
 
 
-		def del_order(self, order):
+		def del_order(self, oid):
 				#delete a customer order
 				#self.orders = []
-				self.orders_dic_hist[order.oid]=self.orders_dic[order.oid]
-				del(self.orders_dic[order.oid])
+				self.orders_dic_hist[oid]=self.orders_dic[oid]
+				del(self.orders_dic[oid])
 				self.n_orders=len(self.orders_dic) 
 
 
@@ -102,18 +102,18 @@ class Trader:
 		def bookkeep(self, trade, order, verbose, time,active=True):
 				trade=copy.deepcopy(trade)
 				trade_qty=trade['qty']
-				order_qty=order.qty
+				#order_qty=order.qty
 				if active:
 					qid=trade['p2_qid']
-					oid=order.oid
-					assert oid==self.orders_lookup[qid]
+					#oid=order.oid
+					#assert oid==self.orders_lookup[qid]
 					assert self.tid==trade['party2']
 				else:
 					qid=trade['p1_qid']
 					assert self.tid==trade['party1']
 					#use the lookup to get the oid for the trade
-					oid=self.orders_lookup[qid]
-					order_qty=self.orders_dic[oid]['qty_remain']
+				oid=self.orders_lookup[qid]
+				order_qty=self.orders_dic[oid]['qty_remain']
 					
 				
 				outstr=""
@@ -172,7 +172,7 @@ class Trader:
 				
 				if trade_qty==order_qty:
 					trade['status']='full'
-					self.del_order(original_order)
+					self.del_order(oid)
 					  # delete the order
 				
 				elif trade_qty<order_qty:
