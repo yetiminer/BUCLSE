@@ -49,7 +49,7 @@ class Trader:
 
 		def __str__(self):
 				return '[TID %s type %s balance %s blotter %s orders %s n_trades %s profitpertime %s]' \
-					   % (self.tid, self.ttype, self.balance, self.blotter, self.orders, self.n_trades, self.profitpertime)
+					   % (self.tid, self.ttype, self.balance, self.blotter, self.orders_dic, self.n_trades, self.profitpertime)
 
 
 		def add_order(self, order, verbose):
@@ -91,8 +91,7 @@ class Trader:
 
 
 		def del_order(self, order):
-				# this is lazy: assumes each trader has only one customer order with quantity=1, so deleting sole order
-				# CHANGE TO DELETE THE HEAD OF THE LIST AND KEEP THE TAIL
+				#delete a customer order
 				self.orders = []
 				self.orders_dic_hist[order.oid]=self.orders_dic[order.oid]
 				del(self.orders_dic[order.oid])
@@ -127,6 +126,7 @@ class Trader:
 				#assert self.orders[0].price==self.orders_dic[oid]['Original'].price
 				
 				original_order=self.orders_dic[oid]['Original']
+				outstr=str(original_order)
 				otype=original_order.otype
 				
 				#if self.orders[0].otype == 'Bid':
