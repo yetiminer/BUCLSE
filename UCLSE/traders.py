@@ -30,7 +30,7 @@ from UCLSE.exchange import Order
 # all Traders have a trader id, bank balance, blotter, and list of orders to execute
 class Trader:
 
-		def __init__(self, ttype=None, tid=None, balance=0, time=None):
+		def __init__(self, ttype=None, tid=None, balance=0, time=None, n_quote_limit=1):
 				self.ttype = ttype      # what type / strategy this trader is
 				self.tid = tid          # trader unique ID code
 				self.balance = balance  # money in the bank
@@ -41,6 +41,7 @@ class Trader:
 				self.orders_lookup={}
 				self.n_orders=0			# number of orders trader has been given
 				self.n_quotes = 0       # number of quotes live on LOB
+				self.n_quote_limit=n_quote_limit	# how many quotes is this trader allowed on exchange
 				self.birthtime = time   # used when calculating age of a trader/strategy
 				self.profitpertime = 0  # profit per unit time
 				self.n_trades = 0       # how many trades has this trader done?
