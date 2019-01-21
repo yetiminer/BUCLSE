@@ -83,6 +83,7 @@ class Market_session:
 			self.set_sess_id()
 			self.stat_list=[]
 			self.first_open=True
+			self.latest_oid=-1
 			
 			#testing how changes in process_order effect things
 			self.process_order=self.exchange.process_order2
@@ -544,8 +545,8 @@ class Market_session:
 			order,tid=self._pick_trader_and_get_order(replay,replay_vars)
 
 			if verbose and order!=None:
-				print('replay',replay,self.traders[tid].ttype,' ',self.traders[tid].balance,self.traders[tid].blotter)
-				print('Trader Quote: %s' % (self.traders[tid].orders_dic[order.oid]))
+				#print('replay',replay,self.traders[tid].ttype,' ',self.traders[tid].balance,self.traders[tid].blotter)
+				print('Trader Quote: %s' % (self.traders[tid].orders_dic[order.oid]['Original']))
 				print('Trader Quote: %s' % (order))
 
 
@@ -578,9 +579,11 @@ class Market_session:
 				
 			else:
 				
-				[self.pending_cust_orders, self.kills,self.dispatched_orders] = customer_orders(self.time, self.last_update, self.traders, 
+				[self.pending_cust_orders, self.kills,self.dispatched_orders,latest_oid] = customer_orders(self.time, self.last_update, self.traders, 
 				self.n_buyers, self.n_sellers,
-												 order_schedule, self.pending_cust_orders, self.orders_verbose,quantity=self.quantity_f)
+												 order_schedule, self.pending_cust_orders, self.orders_verbose,quantity=self.quantity_f,
+												 oid=self.latest_oid)
+				self.latest_oid=latest_oid
 	def _cancel_existing_orders_for_traders_who_already_have_one_in_the_market(self):
 		# if any newly-issued customer orders mean quotes on the LOB need to be cancelled, kill them
 		if len(self.kills) > 0 :

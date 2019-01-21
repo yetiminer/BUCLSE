@@ -53,8 +53,8 @@ import sys
 def do_one():
 	return 1
 
-def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending, verbose,quantity=None):
-		oid=-1 #number we start at for unique oid codes. Will increase negatively (to quickly differentiate from qid)
+def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending, verbose,quantity=None,oid=-1):
+		 #oid=-1 number we start at for unique oid codes. Will increase negatively (to quickly differentiate from qid)
 
 		def sysmin_check(price):
 				if price < bse_sys_minprice:
@@ -210,6 +210,7 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 
 						order = Order(tname, ordertype, orderprice, quantity(), issuetime, qid=None,oid=oid)
 						oid-=1
+						print('#######oid',oid)
 						new_pending.append(order)
 		else:
 				# there are pending future orders: issue any whose timestamp is in the past
@@ -230,7 +231,7 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 						else:
 								# this order stays on the pending list
 								new_pending.append(order)
-		return [new_pending, cancellations, dispatched_orders]
+		return [new_pending, cancellations, dispatched_orders,oid]
 		
 def set_customer_orders(dispatched_orders,cancellations,verbose=False,time=None,traders=None):
 	for order in dispatched_orders:
