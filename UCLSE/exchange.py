@@ -417,7 +417,7 @@ class Exchange(Orderbook):
 
 
 		def _do_one_fill(self,time,order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,verbose=True,leg=0,qid=None):
-
+			order=copy.deepcopy(order)
 			pty1_tid = pty1_side.best_tid
 			pty1_qid=pty1_side.best_qid
 			counterparty = pty1_tid
@@ -490,6 +490,7 @@ class Exchange(Orderbook):
 
 				pty2_side.delete_best()
 				fill_q=quantity
+				quantity=0
 
 			fill=self.make_transaction_record(time=time,price=price,
 					p1_tid=counterparty,p2_tid=order.tid,
