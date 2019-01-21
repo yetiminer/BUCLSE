@@ -59,7 +59,11 @@ class Trader:
 				if self.n_orders >= self.n_quote_limit :
 					# this trader has a live quote on the LOB, from a previous customer order
 					# need response to signal cancellation/withdrawal of that quote
-					response = ('LOB_Cancel',self.get_oldest_order())
+					oldest_trade_dic=self.get_oldest_order()
+					response = ('LOB_Cancel',oldest_trade_dic)
+					self.del_order( oldest_trade_dic['oid'])
+					assert self.n_orders<=self.n_quote_limit
+					
 				else:
 					response = ('Proceed',None)
 				#self.orders = [order]
