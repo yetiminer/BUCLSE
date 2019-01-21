@@ -100,14 +100,17 @@ class Trader:
 
 
 		def bookkeep(self, trade, order, verbose, time,active=True):
-				
+				trade=copy.deepcopy(trade)
 				trade_qty=trade['qty']
 				order_qty=order.qty
 				if active:
 					qid=trade['p2_qid']
 					oid=order.oid
+					assert oid==self.orders_lookup[qid]
+					assert self.tid==trade['party2']
 				else:
 					qid=trade['p1_qid']
+					assert self.tid==trade['party1']
 					#use the lookup to get the oid for the trade
 					oid=self.orders_lookup[qid]
 					order_qty=self.orders_dic[oid]['qty_remain']
@@ -126,6 +129,11 @@ class Trader:
 				#assert self.orders[0].price==self.orders_dic[oid]['Original'].price
 				
 				original_order=self.orders_dic[oid]['Original']
+				
+				#if order_qty!=self.orders_dic[oid]['qty_remain']:
+				#	print('qty mismatch ', order_qty,self.orders_dic[oid]['qty_remain'])
+				#	raise AssertionError
+				
 				outstr=str(original_order)
 				otype=original_order.otype
 				
@@ -153,7 +161,7 @@ class Trader:
 				
 				
 				trade['oid']=oid
-				
+				trade['tid']=self.tid
 				
 				trade['order qty']=order_qty
 				trade['order_issue_time']=order.time
