@@ -72,7 +72,7 @@ class Trader:
 				
 		def add_order_exchange(self,order,qid):
 			order=copy.deepcopy(order)
-			print('this is the oid',order.oid)
+			
 			order.qid=qid
 			try: assert order.oid in self.orders_dic
 			except AssertionError:
@@ -374,20 +374,32 @@ class Trader_ZIP(Trader):
 						self.active = False
 						order = None
 				else:
+						
+						
 						self.active = True
-						self.limit = self.orders[0].price
-						self.job = self.orders[0].otype
-						if self.job == 'Bid':
-								# currently a buyer (working a bid order)
-								self.margin = self.margin_buy
-						else:
-								# currently a seller (working a sell order)
-								self.margin = self.margin_sell
-						quoteprice = int(self.limit * (1 + self.margin))
-						self.price = quoteprice
+						listish=self.orders_dic.items()
+						for oi,ord in listish:
+								limitprice=ord['Original'].price
+								otype = ord['Original'].otype
+								qty=ord['qty_remain']
+							
+								self.limit = limitprice
+								self.job = otype
+								if self.job == 'Bid':
+										# currently a buyer (working a bid order)
+										self.margin = self.margin_buy
+								elif self.job == 'Ask':
+										# currently a seller (working a sell order)
+										self.margin = self.margin_sell
+								else:
+										print('Unknown order type ',otype)
+										raise TypeError
+										
+								quoteprice = int(self.limit * (1 + self.margin))
+								self.price = quoteprice
 
-						order = Order(self.tid, self.job, quoteprice, self.orders[0].qty, time, qid=lob['QID'],oid=self.orders[0].oid)
-						self.lastquote = order
+								order = Order(self.tid, self.job, quoteprice, qty, time, qid=lob['QID'],oid=oi)
+								self.lastquote = order
 				return order
 		
 		def setorder(self,order):
@@ -397,21 +409,24 @@ class Trader_ZIP(Trader):
 						
 				else:
 						self.active = True
-						self.limit = self.orders[0].price
-						self.job = self.orders[0].otype
+						
+						listish=self.orders_dic.items()
+						for oi,ord in listish:
+								self.limit=ord['Original'].price
+								self.job = ord['Original'].otype
 				
 						
-						if self.job == 'Bid':
-								# currently a buyer (working a bid order)
-								self.margin = self.margin_buy
-						else:
-								# currently a seller (working a sell order)
-								self.margin = self.margin_sell
-						quoteprice = int(self.limit * (1 + self.margin))
-						self.price = quoteprice
+								if self.job == 'Bid':
+										# currently a buyer (working a bid order)
+										self.margin = self.margin_buy
+								else:
+										# currently a seller (working a sell order)
+										self.margin = self.margin_sell
+								quoteprice = int(self.limit * (1 + self.margin))
+								self.price = quoteprice
 
-						
-						self.lastquote = order
+								
+								self.lastquote = order
 
 
 
