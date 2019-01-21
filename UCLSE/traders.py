@@ -184,7 +184,11 @@ class Trader:
 				
 		def setorder(self,order):
 			self.lastquote=order
-
+			
+		def order_logic_check(self,oid,order):
+		#check before submission to exchange, that an order makes sense.
+			if order.otype == 'Ask' and order.price < self.orders_dic[oid]['Original'].price: sys.exit('Bad ask')
+			if order.otype == 'Bid' and order.price > self.orders_dic[oid]['Original'].price: sys.exit('Bad bid')
 
 
 # Trader subclass Giveaway
@@ -208,8 +212,10 @@ class Trader_Giveaway(Trader):
 										ord['qty_remain'],
 										time, qid=lob['QID'],oid=oi)
 							#assert new_order==order
-						
+							self.order_logic_check(oi,new_order)
+							
 						self.lastquote=new_order
+
 						
 				return new_order
 
@@ -223,7 +229,7 @@ class Trader_ZIC(Trader):
 		def getorder(self, time, countdown, lob):
 				if len(self.orders) < 1:
 						# no orders: return NULL
-						order = None
+						new_order = None
 				else:
 				
 						minprice = lob['bids']['worst']
@@ -248,9 +254,10 @@ class Trader_ZIC(Trader):
 								raise TypeError
 									
 									
-							order = Order(self.tid, otype, quoteprice, qty, time, qid=qid,oid=oi)
-							self.lastquote = order
-				return order
+							new_order = Order(self.tid, otype, quoteprice, qty, time, qid=qid,oid=oi)
+							self.order_logic_check(oi,new_order)
+							self.lastquote = new_order
+				return new_order
 
 
 
@@ -261,7 +268,7 @@ class Trader_Shaver(Trader):
 
 		def getorder(self, time, countdown, lob):
 				if len(self.orders) < 1:
-						order = None
+						new_order = None
 				else:
 						listish=self.orders_dic.items()
 						for oi,ord in listish:
@@ -286,9 +293,10 @@ class Trader_Shaver(Trader):
 													quoteprice = limitprice
 									else:
 											quoteprice = lob['asks']['worst']
-							order = Order(self.tid, otype, quoteprice, qty, time, qid=lob['QID'],oid=oi)
-							self.lastquote = order
-				return order
+							new_order = Order(self.tid, otype, quoteprice, qty, time, qid=lob['QID'],oid=oi)
+							self.order_logic_check(oi,new_order)
+							self.lastquote = new_order
+				return new_order
 
 
 
@@ -303,7 +311,7 @@ class Trader_Sniper(Trader):
 				shavegrowthrate = 3
 				shave = int(1.0 / (0.01 + countdown / (shavegrowthrate * lurk_threshold)))
 				if (len(self.orders) < 1) or (countdown > lurk_threshold):
-						order = None
+						new_order = None
 				else:
 						listish=self.orders_dic.items()
 						for oi,ord in listish:
@@ -329,9 +337,10 @@ class Trader_Sniper(Trader):
 									print('Unknown order type ',otype)
 									raise TypeError
 							
-							order = Order(self.tid, otype, quoteprice, qty, time, qid=lob['QID'],oid=oi)
-							self.lastquote = order
-				return order
+							new_order = Order(self.tid, otype, quoteprice, qty, time, qid=lob['QID'],oid=oi)
+							self.order_logic_check(oi,new_order)
+							self.lastquote = new_order
+				return new_order
 
 
 
@@ -372,7 +381,7 @@ class Trader_ZIP(Trader):
 		def getorder(self, time, countdown, lob):
 				if len(self.orders) < 1:
 						self.active = False
-						order = None
+						new_order = None
 				else:
 						
 						
@@ -398,9 +407,10 @@ class Trader_ZIP(Trader):
 								quoteprice = int(self.limit * (1 + self.margin))
 								self.price = quoteprice
 
-								order = Order(self.tid, self.job, quoteprice, qty, time, qid=lob['QID'],oid=oi)
-								self.lastquote = order
-				return order
+								new_order = Order(self.tid, self.job, quoteprice, qty, time, qid=lob['QID'],oid=oi)
+								self.order_logic_check(oi,new_order)
+								self.lastquote = new_order
+				return new_order
 		
 		def setorder(self,order):
 				self.lastquote=order
