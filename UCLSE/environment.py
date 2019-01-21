@@ -613,18 +613,18 @@ class Market_session:
 				
 				return order,tid
 				
-	def _order_logic_check(self,order,tid):
-		try:
+	# def _order_logic_check(self,order,tid):
+		# try:
 		
-			if order.otype == 'Ask' and order.price < self.traders[tid].orders[0].price: sys.exit('Bad ask')
-			if order.otype == 'Bid' and order.price > self.traders[tid].orders[0].price: sys.exit('Bad bid')
+			# if order.otype == 'Ask' and order.price < self.traders[tid].orders[0].price: sys.exit('Bad ask')
+			# if order.otype == 'Bid' and order.price > self.traders[tid].orders[0].price: sys.exit('Bad bid')
 			
-		except IndexError:
-			print('error here')
-			recording_record={'pending_cust_orders':self.pending_cust_orders,'kills':self.kills, 
-			'tid':tid, 'order':order,'dispatched_orders':self.dispatched_orders}
-			self.replay_vars[self.time]=recording_record
-			raise
+		# except IndexError:
+			# print('error here')
+			# recording_record={'pending_cust_orders':self.pending_cust_orders,'kills':self.kills, 
+			# 'tid':tid, 'order':order,'dispatched_orders':self.dispatched_orders}
+			# self.replay_vars[self.time]=recording_record
+			# raise
 			
 	def _send_order_to_exchange(self,tid,order,trade_stats):
 		# send order to exchange
