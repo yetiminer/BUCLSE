@@ -56,7 +56,7 @@ class Trader:
 		def add_order(self, order, verbose):
 				#this is adding an order from the perspective of a customer giving the trader an order to execute.
 				
-				if self.n_quotes > 0 :
+				if self.n_quotes >= self.n_quote_limit :
 					# this trader has a live quote on the LOB, from a previous customer order
 					# need response to signal cancellation/withdrawal of that quote
 					response = 'LOB_Cancel'
