@@ -334,8 +334,6 @@ class Market_session:
 
 
 			if order != None:
-					#check the order makes sense
-					#self._order_logic_check(order,tid)
 					
 					# send order to exchange
 					self.trade=self._send_order_to_exchange(tid,order,trade_stats)
@@ -372,16 +370,13 @@ class Market_session:
 		if len(self.kills) > 0 :
 				# if verbose : print('Kills: %s' % (kills))
 				for kill in self.kills :
-						
-						#print(self.traders[kill].ttype)
-						#print('Pre-Killing order %s' % (str(self.traders[kill].lastquote)))
-						if self.traders[kill].lastquote != None :
+
+						#check to see if this quote was submitted to exchange anyway
+						if kill['last_qid'] != None :
 								if self.process_verbose : print('killing lastquote=%s' % self.traders[kill].lastquote)
-								#wait = input("PRESS ENTER TO CONTINUE.")
-								self.exchange.del_order(self.time, self.traders[kill].lastquote, self.verbose)
-								if self.traders[kill].lastquote.qid is None:
-									print('delete trade not at exchange')
-									wait = input("PRESS ENTER TO CONTINUE.")
+
+								self.exchange.del_order(self.time, oid=kill['oid'], verbose=self.verbose)
+
 								
 	def _pick_trader_and_get_order(self,replay,replay_vars):
 				if replay:
