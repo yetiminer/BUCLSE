@@ -118,11 +118,11 @@ def yamlLoad(path):
 			print(exc)
 	return cfg		
     
-def build_lob_from_df(order_df,exch=None):
+def build_lob_from_df(order_df,exch=None,necessary_cols=['tid','otype','price','qty','time','qid']):
 	##adds orders from a df of orders, if supplied an exchange, will append them
 	#else will create blank exchange
 	#returns an exchange
-	necessary_cols=['tid','otype','price','qty','time','qid']
+	
 	order_df=order_df[necessary_cols]
 	if exch is None:
 		exch=Exchange()
