@@ -225,7 +225,8 @@ def customer_orders(time, last_update, traders, n_buyers,n_sellers, os, pending,
 								response = traders[tname].add_order(order, verbose)
 								if verbose: print('Customer order: %s %s' % (response[0], order) )
 								if response[0] == 'LOB_Cancel' :
-									cancellations.append(tname)
+									assert tname==response[1]['tid']
+									cancellations.append(response[1])
 									if verbose: print('Cancellations: %s' % (cancellations))
 								# and then don't add it to new_pending (i.e., delete it)
 						else:
