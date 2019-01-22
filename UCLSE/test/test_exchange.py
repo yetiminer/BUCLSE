@@ -11,9 +11,12 @@ def test_lob():
 	fixture_list=yamlLoad(fixture_name)
 	
 	for fixture_dic in fixture_list:
+		
 		order_df=build_df_from_dic_dic(fixture_dic['input'])
 		order_df.sort_values(['time','tid'],inplace=True)
-		exchange=build_lob_from_df(order_df)
+		order_df['oid']=order_df.index.values
+		necessary_cols=['tid','otype','price','qty','time','qid','oid']
+		exchange=build_lob_from_df(order_df,necessary_cols=necessary_cols)
 
 		new_order=order_from_dic(fixture_dic['new_trade'])
 
