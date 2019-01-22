@@ -14,18 +14,18 @@ def test_bookkeep():
 	for fixture_dic in fixture_list:
 		henry=Trader(tid='Henry',time=0,balance=0)
 
-		fix_num=0
-		fixture_dic=fixture_list[fix_num]
-
 		order_df=build_df_from_dic_dic(fixture_dic['input'])
 		order_df.sort_values(['time','tid'],inplace=True)
-		exchange=build_lob_from_df(order_df)
+		order_df['oid']=order_df.index.values
+		necessary_cols=['tid','otype','price','qty','time','qid','oid']
+		
+		exchange=build_lob_from_df(order_df,necessary_cols=necessary_cols)
 
 		new_order=order_from_dic(fixture_dic['new_trade'])
 		new_order.oid=1
 
 		qid,_=exchange.add_order(new_order,verbose=False)
-		
+
 		henry.add_order(new_order, True)
 		henry.add_order_exchange(new_order,qid)
 
@@ -36,12 +36,12 @@ def test_bookkeep():
 
 
 		for trade,ammended_order in zip(tr,ammended_orders):
-			
+
 			henry.bookkeep(trade,new_order,True,time=10)
-			
+
 			ammend_tid=ammended_order[0]
 			if ammend_tid=='Henry':
 				ammend_qid=ammended_order[1]
 				henry.add_order_exchange(ammended_order[2],ammend_qid)
-				
-		assert henry.balance==pd.DataFrame(henry.blotter).profit.sum()   
+
+		assert henry.balance==pd.DataFrame(henry.blotter).profit.sum()      
