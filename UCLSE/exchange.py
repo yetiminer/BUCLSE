@@ -68,8 +68,8 @@ class Orderbook_half:
 			# booktype: bids or asks?
 			self.booktype = booktype
 			# dictionary of orders received, indexed by Trader ID
-			self.orders = {}
-			self.q_orders={}
+			self.orders = {} #dictionary of trades indexed by oid 
+			self.q_orders={} #dictionary of trades indexed by qid
 			
 			# limit order book, dictionary indexed by price, with order info
 			self.lob = {}
@@ -100,8 +100,9 @@ class Orderbook_half:
 			# returns lob as a dictionary (i.e., unsorted)
 			# also builds anonymized version (just price/quantity, sorted, as a list) for publishing to traders
 			self.lob = {}
-			for tid in self.orders:
-					order = self.orders.get(tid)[0]
+			#for tid in self.orders:
+			for qid in self.q_orders:
+					order = self.q_orders.get(qid)
 					price = order.price
 					if price in self.lob:
 							# update existing entry
@@ -146,19 +147,18 @@ class Orderbook_half:
 			n_orders = self.n_orders
 			
 			
-			if order.tid in self.orders:
-					if overwrite:				#I want to explicitly show that previous orders are overwritten
-						self.book_del(self.orders[order.tid][0],rebuild=False)
-						self.orders[order.tid] = [order]
-					else:
-						self.orders[order.tid].append(order) #this will only work if I start putting them in lists
+			if order.oid in self.orders:
+						#I want to explicitly show that previous orders are overwritten
+						self.book_del(self.orders[order.oid],rebuild=False)
+						self.orders[order.oid] = order
+
 			else:
-				self.orders[order.tid] = [order]
+				self.orders[order.oid] = order
 
 			
 			self.q_orders[order.qid]=order
 			
-			self.n_orders = len(self.orders)
+			self.n_orders = len(self.q_orders)
 			self.build_lob()
 			assert len(self.orders)==len(self.q_orders)
 			#print('book_add < %s %s' % (order, self.orders))
@@ -174,10 +174,10 @@ class Orderbook_half:
 			# assumes max of one order per trader per list
 			# checks that the Trader ID does actually exist in the dict before deletion
 			# print('book_del %s',self.orders)
-			if self.orders.get(order.tid) != None :
-					del(self.orders[order.tid])
+			if self.orders.get(order.oid) != None :
+					del(self.orders[order.oid])
 					del(self.q_orders[order.qid])
-					self.n_orders = len(self.orders)
+					self.n_orders = len(self.q_orders)
 			if rebuild:
 				self.build_lob()
 			# print('book_del %s', self.orders)
@@ -190,10 +190,12 @@ class Orderbook_half:
 			best_price_qty = best_price_orders[0]
 			best_price_counterparty = best_price_orders[1][0][2]
 			best_price_counterparty_qid = best_price_orders[1][0][3]
+			best_price_oid=self.q_orders[best_price_counterparty_qid].oid
+			
 			if best_price_qty == 1:
 					# here the order deletes the best price
 					del(self.lob[self.best_price])
-					del(self.orders[best_price_counterparty])
+					del(self.orders[best_price_oid])
 					del(self.q_orders[best_price_counterparty_qid])
 					
 					self.n_orders = self.n_orders - 1
@@ -214,7 +216,7 @@ class Orderbook_half:
 					best_price_orders[1][1:]]
 
 					# update the bid list: counterparty's bid has been deleted
-					del(self.orders[best_price_counterparty])
+					del(self.orders[best_price_oid])
 					del(self.q_orders[best_price_counterparty_qid])
 					self.n_orders = self.n_orders - 1
 			self.build_lob()
@@ -265,8 +267,27 @@ class Exchange(Orderbook):
 				return [order.qid, response]
 
 
-		def del_order(self, time, order, verbose):
+		def del_order(self, time, order=None, verbose=False,oid=None,qid=None):
 				# delete a trader's quot/order from the exchange, update all internal records
+				try:
+					assert (order,oid,qid)!=(None,None,None)
+				except AssertionError:
+					print('one of order, oid, qid must not be none')
+					raise
+					
+				if order is None: #gnarly code
+					if oid is not None:
+						try: 
+							order=self.bids.orders[oid]
+						except KeyError:
+							order=self.asks.orders[oid]
+					else:
+						try:
+							order=self.bids.q_orders[qid]
+						except KeyError:
+							order=self.asks.q_orders[qid]
+						
+				
 				tid = order.tid
 				if order.otype == 'Bid':
 						self.bids.book_del(order)
@@ -423,15 +444,15 @@ class Exchange(Orderbook):
 			counterparty = pty1_tid
 			ammended_order=(None,None,None)
 
-			best_ask_order_old=pty1_side.orders.get(counterparty)[0] #Ready for multi trade environment
+			#best_ask_order_old=pty1_side.orders.get(counterparty)[0] #Ready for multi trade environment
 			best_ask_order=pty1_side.q_orders.get(pty1_qid)
 			
-			try:
-				assert best_ask_order_old==best_ask_order #this is only going to work when traders can only have one trade
+			#try:
+			#	assert best_ask_order_old==best_ask_order #this is only going to work when traders can only have one trade
 
-			except AssertionError:
-				print(best_ask_order_old,best_ask_order)
-				raise
+			#except AssertionError:
+			#	print(best_ask_order_old,best_ask_order)
+			#	raise
 			
 			
 			best_ask_order=copy.deepcopy(best_ask_order)
