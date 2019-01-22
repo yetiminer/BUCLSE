@@ -88,9 +88,9 @@ class Trader:
 				
 				last_qid=None
 				if len(listy[0][2])>0: #check if any quotes were submitted to exchange
-					last_qid=listy[0][2][-1]
+					last_qid=listy[0][2][-1].qid
 			
-				output= {'time':listy[0][0],'oid':listy[0][1],'last_qid':last_qid}
+				output= {'time':listy[0][0],'oid':listy[0][1],'last_qid':last_qid,'tid':self.tid}
 				
 			return output
 		
@@ -133,30 +133,18 @@ class Trader:
 				#use the lookup to get the oid for the trade
 				oid=self.orders_lookup[qid]
 				order_qty=self.orders_dic[oid]['qty_remain']
-					
-				
-				#outstr=""
-				#for order in self.orders: outstr = outstr + str(order)
 
 				  # add trade record to trader's blotter
 				
 				
 				transactionprice = trade['price']
 				
-				
-				#assert self.orders[0].otype==self.orders_dic[oid]['Original'].otype
-				#assert self.orders[0].price==self.orders_dic[oid]['Original'].price
-				
 				original_order=self.orders_dic[oid]['Original']
 				
-				#if order_qty!=self.orders_dic[oid]['qty_remain']:
-				#	print('qty mismatch ', order_qty,self.orders_dic[oid]['qty_remain'])
-				#	raise AssertionError
 				
 				outstr=str(original_order)
 				otype=original_order.otype
 				
-				#if self.orders[0].otype == 'Bid':
 				if otype == 'Bid':
 				
 						profit = (original_order.price - transactionprice)*trade_qty
@@ -196,10 +184,7 @@ class Trader:
 				
 				elif trade_qty<order_qty:
 					trade['status']='partial'
-					#self.orders[0].qty=order_qty-trade_qty
 					
-					#self.orders_dic[oid].qty=order_qty-trade_qty #ammend the order 
-					#note that this is the same order object as found in self.orders[0], so qty changes here as well
 				else:
 					print("shouldn't execute more than order?")
 					raise AssertionError
