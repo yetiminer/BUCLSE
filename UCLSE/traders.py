@@ -45,7 +45,7 @@ class Trader:
 				self.birthtime = time   # used when calculating age of a trader/strategy
 				self.profitpertime = 0  # profit per unit time
 				self.n_trades = 0       # how many trades has this trader done?
-				self.lastquote = None   # record of what its last quote was
+				self.lastquote = {}   # record of what its last quote was
 
 
 		def __str__(self):
@@ -203,8 +203,8 @@ class Trader:
 		def mutate(self, time, lob, trade, verbose):
 				return None
 				
-		def setorder(self,order):
-			self.lastquote=order
+		def setorder(self,order_dic):
+			self.lastquote=order_dic
 			
 		def order_logic_check(self,oid,order):
 		#check before submission to exchange, that an order makes sense.
@@ -218,6 +218,8 @@ class Trader:
 class Trader_Giveaway(Trader):
 
 		def getorder(self, time, countdown, lob):
+				new_order_dic={}
+				self.lastquote={}
 				if self.n_orders < 1:
 						new_order = None
 				else:
@@ -232,13 +234,15 @@ class Trader_Giveaway(Trader):
 										quoteprice,
 										ord['qty_remain'],
 										time, qid=lob['QID'],oid=oi)
-							#assert new_order==order
+							
 							self.order_logic_check(oi,new_order)
 							
-						self.lastquote=new_order
+						self.lastquote[oi]=new_order
+						#save this order in a dictionary with id as key
+						new_order_dic[oi]=new_order
 
 						
-				return new_order
+				return new_order_dic
 
 
 
@@ -248,6 +252,8 @@ class Trader_Giveaway(Trader):
 class Trader_ZIC(Trader):
 
 		def getorder(self, time, countdown, lob):
+				new_order_dic={}
+				self.lastquote={}
 				if self.n_orders < 1:
 						# no orders: return NULL
 						new_order = None
@@ -277,8 +283,9 @@ class Trader_ZIC(Trader):
 									
 							new_order = Order(self.tid, otype, quoteprice, qty, time, qid=qid,oid=oi)
 							self.order_logic_check(oi,new_order)
-							self.lastquote = new_order
-				return new_order
+							self.lastquote[oi] = new_order
+							new_order_dic[oi]=new_order
+				return new_order_dic
 
 
 
@@ -288,6 +295,8 @@ class Trader_ZIC(Trader):
 class Trader_Shaver(Trader):
 
 		def getorder(self, time, countdown, lob):
+				new_order_dic={}
+				self.lastquote={}
 				if self.n_orders < 1:
 						new_order = None
 				else:
@@ -316,8 +325,9 @@ class Trader_Shaver(Trader):
 											quoteprice = lob['asks']['worst']
 							new_order = Order(self.tid, otype, quoteprice, qty, time, qid=lob['QID'],oid=oi)
 							self.order_logic_check(oi,new_order)
-							self.lastquote = new_order
-				return new_order
+							self.lastquote[oi] = new_order
+							new_order_dic[oi]=new_order
+				return new_order_dic
 
 
 
@@ -328,6 +338,8 @@ class Trader_Shaver(Trader):
 class Trader_Sniper(Trader):
 
 		def getorder(self, time, countdown, lob):
+				new_order_dic={}
+				self.lastquote={}
 				lurk_threshold = 0.2
 				shavegrowthrate = 3
 				shave = int(1.0 / (0.01 + countdown / (shavegrowthrate * lurk_threshold)))
@@ -360,8 +372,9 @@ class Trader_Sniper(Trader):
 							
 							new_order = Order(self.tid, otype, quoteprice, qty, time, qid=lob['QID'],oid=oi)
 							self.order_logic_check(oi,new_order)
-							self.lastquote = new_order
-				return new_order
+							self.lastquote[oi] = new_order
+							new_order_dic[oi]=new_order
+				return new_order_dic
 
 
 
@@ -400,6 +413,8 @@ class Trader_ZIP(Trader):
 
 
 		def getorder(self, time, countdown, lob):
+				new_order_dic={}
+				self.lastquote={}
 				if self.n_orders < 1:
 						self.active = False
 						new_order = None
@@ -430,8 +445,11 @@ class Trader_ZIP(Trader):
 
 								new_order = Order(self.tid, self.job, quoteprice, qty, time, qid=lob['QID'],oid=oi)
 								self.order_logic_check(oi,new_order)
-								self.lastquote = new_order
-				return new_order
+								
+								new_order_dic[oi]=new_order
+								self.lastquote[oi] = new_order
+								
+				return new_order_dic
 		
 		def setorder(self,order):
 				self.lastquote=order
@@ -457,7 +475,7 @@ class Trader_ZIP(Trader):
 								self.price = quoteprice
 
 								
-								self.lastquote = order
+								#self.lastquote = order
 
 
 
