@@ -325,25 +325,29 @@ class Market_session:
 			self._cancel_existing_orders_for_traders_who_already_have_one_in_the_market()
 
 			# get a limit-order quote (or None) from a randomly chosen trader
-			order,tid=self._pick_trader_and_get_order(replay,replay_vars)
+			order_dic,tid=self._pick_trader_and_get_order(replay,replay_vars)
+			
 
-			if verbose and order!=None:
-				#print('replay',replay,self.traders[tid].ttype,' ',self.traders[tid].balance,self.traders[tid].blotter)
-				print('Trader Quote: %s' % (self.traders[tid].orders_dic[order.oid]['Original']))
-				print('Trader Quote: %s' % (order))
+			
+			if verbose and len(order_dic)>0:
+				for oi,order in order_dic.items():
+					#print('replay',replay,self.traders[tid].ttype,' ',self.traders[tid].balance,self.traders[tid].blotter)
+					print('Trader Quote: %s' % (self.traders[tid].orders_dic[order.oid]['Original']))
+					print('Trader Quote: %s' % (order))
 
 
-			if order != None:
+			if len(order_dic)>0:
+					for oi,order in order_dic.items():
 					
-					# send order to exchange
-					self.trade=self._send_order_to_exchange(tid,order,trade_stats)
+						# send order to exchange
+						self.trade=self._send_order_to_exchange(tid,order,trade_stats)
 
-					# traders respond to whatever happened
-					lob=self._traders_respond(self.trade)
+						# traders respond to whatever happened
+						lob=self._traders_respond(self.trade)
 
 			if recording:
 				#record the particulars of the period for subsequent recreation
-				self._record_period(tid=tid,lob=lob,order=order,trade=self.trade)
+				self._record_period(tid=tid,lob=lob,order_dic=order_dic,trade=self.trade)
 
 			
 			self.time = self.time + self.timestep
@@ -381,18 +385,20 @@ class Market_session:
 	def _pick_trader_and_get_order(self,replay,replay_vars):
 				if replay:
 					tid=replay_vars[self.time]['tid']
-					order=replay_vars[self.time]['order']
+					order_dic=replay_vars[self.time]['order']
 					#pretend that the trader was asked for an order
-					if order!=None:
-						self.traders[tid].setorder(order)
+					if order_dic!={}:
+						
+						self.traders[tid].setorder(order_dic)
 						#self.traders[tid].orders[0]=order
 				
 				else:
 					random_idx=random.randint(0, len(self.traders) - 1)
 					tid = list(self.traders.keys())[random_idx]
-					order = self.traders[tid].getorder(self.time, self.time_left, self.exchange.publish_lob(self.time, self.lob_verbose))
+					#note that traders will return a dictionary containing at least one order
+					order_dic = self.traders[tid].getorder(self.time, self.time_left, self.exchange.publish_lob(self.time, self.lob_verbose))
 				
-				return order,tid
+				return order_dic,tid
 				
 			
 	def _send_order_to_exchange(self,tid,order,trade_stats):
@@ -446,10 +452,10 @@ class Market_session:
 				self.traders[t].respond(self.time, lob, last_trade_leg, self.respond_verbose)
 		return lob
 		
-	def _record_period(self,lob=None,tid=None,order=None,trade=None):
+	def _record_period(self,lob=None,tid=None,order_dic=None,trade=None):
 		
 			recording_record={'pending_cust_orders':self.pending_cust_orders,'kills':self.kills, 
-		'tid':tid, 'order':order,'dispatched_orders':self.dispatched_orders,'trade':trade,'lob':lob}
+		'tid':tid, 'order':order_dic,'dispatched_orders':self.dispatched_orders,'trade':trade,'lob':lob}
 			try:
 				self.replay_vars[self.time]=recording_record
 			except AttributeError:
