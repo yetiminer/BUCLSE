@@ -393,8 +393,16 @@ class Market_session:
 						#self.traders[tid].orders[0]=order
 				
 				else:
-					random_idx=random.randint(0, len(self.traders) - 1)
-					tid = list(self.traders.keys())[random_idx]
+					
+					integer_period=round(self.time/self.timestep) #rounding error means that we can't rely on fraction to be int
+				
+					list_of_traders=np.array(list(self.traders.keys())) #is this always the same?
+					trader_latencies=np.array([self.traders[key].latency for key in list_of_traders]) 
+					max_latency=np.max(trader_latencies) #just at the beginning to ensure divisor is smaller than numerator
+					permitted_traders=list_of_traders[np.mod(integer_period+max_latency,trader_latencies)==0]
+					
+					tid = np.random.choice(permitted_traders)
+					#print('latencies',len(permitted_traders),tid)
 					#note that traders will return a dictionary containing at least one order
 					order_dic = self.traders[tid].getorder(self.time, self.time_left, self.exchange.publish_lob(self.time, self.lob_verbose))
 				
@@ -403,7 +411,7 @@ class Market_session:
 			
 	def _send_order_to_exchange(self,tid,order,trade_stats):
 		# send order to exchange
-		self.traders[tid].n_quotes = 1
+		
 		qid, trade,ammended_orders = self.process_order(self.time, order, self.process_verbose)
 		
 		#'inform' trader what qid is
