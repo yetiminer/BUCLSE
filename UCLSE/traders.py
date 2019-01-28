@@ -30,7 +30,7 @@ from UCLSE.exchange import Order
 # all Traders have a trader id, bank balance, blotter, and list of orders to execute
 class Trader:
 
-		def __init__(self, ttype=None, tid=None, balance=0, time=None, n_quote_limit=1):
+		def __init__(self, ttype=None, tid=None, balance=0, time=None, n_quote_limit=1,latency=1):
 				self.ttype = ttype      # what type / strategy this trader is
 				self.tid = tid          # trader unique ID code
 				self.balance = balance  # money in the bank
@@ -45,7 +45,9 @@ class Trader:
 				self.birthtime = time   # used when calculating age of a trader/strategy
 				self.profitpertime = 0  # profit per unit time
 				self.n_trades = 0       # how many trades has this trader done?
-				self.lastquote = {}   # record of what its last quote was
+				self.lastquote = {}     # record of what its last quote was
+				self.latency=latency    # integer=duration of periods between views of lob
+				self.total_quotes=0     # total number of quotes sent to exchange
 
 
 		def __str__(self):
@@ -108,6 +110,8 @@ class Trader:
 			
 			#also need to create a lookup method
 			self.orders_lookup[qid]=order.oid
+			self.n_quotes=min(self.n_quotes+1,len(self.orders_dic))
+			self.total_quotes+=1
 
 
 
@@ -115,7 +119,9 @@ class Trader:
 				#delete a customer order
 				self.orders_dic_hist[oid]=self.orders_dic[oid]
 				del(self.orders_dic[oid])
-				self.n_orders=len(self.orders_dic) 
+				self.n_orders=len(self.orders_dic)
+				self.n_quotes-=1
+				
 
 
 
