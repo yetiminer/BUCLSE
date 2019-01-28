@@ -1,5 +1,6 @@
 from UCLSE.environment import Market_session, yamlLoad
 from UCLSE.test.utils import identical_replay_vars,side_by_side_period_by_period_difference_checker
+from UCLSE.test.test_traders import _test_trader_attributes
 
 from pytest import approx, raises
 import copy
@@ -94,6 +95,8 @@ def test_multi_q_exchange():
 	except AssertionError:
 		print('multi q exchange failure')
 		raise
+		
+	_test_trader_attributes(sess)
 
 def test_multi_q_exchange_order_quantity():
 	#this one checks that no trades are executed more than the original order specified
