@@ -42,7 +42,8 @@ class Market_session:
 				 buyers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
 				 sellers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
 				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False,
-				 trade_record='transactions.csv', random_seed=22):
+				 trade_record='transactions.csv', random_seed=22,orders_verbose = False,lob_verbose = False,
+	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False):
 			self.start_time=start_time
 			self.end_time=end_time
 			self.interval=interval
@@ -90,6 +91,13 @@ class Market_session:
 			
 			#specify the quantity function for new orders
 			self.quantity_f=do_one
+			
+			self.orders_verbose = orders_verbose
+			self.lob_verbose = lob_verbose
+			self.process_verbose = process_verbose
+			self.respond_verbose = respond_verbose
+			self.bookkeep_verbose = bookkeep_verbose
+			self.latency_verbose=latency_verbose
 
 	def _reset_session(self):
 		#occasionally may want to test same session?
@@ -269,33 +277,33 @@ class Market_session:
 
 
 	def simulate(self,trade_stats=None,recording=False,replay_vars=None,orders_verbose = False,lob_verbose = False,
-	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,):
+	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False):
+	
+		self.orders_verbose = orders_verbose
+		self.lob_verbose = lob_verbose
+		self.process_verbose = process_verbose
+		self.respond_verbose = respond_verbose
+		self.bookkeep_verbose = bookkeep_verbose
+		self.latency_verbose=latency_verbose
 	
 		if trade_stats is None:
 			trade_stats=self.trade_stats
 	
 
 		while self.time<self.end_time:
-			self.simulate_one_period(trade_stats,recording,replay_vars,orders_verbose,lob_verbose ,
-				process_verbose,respond_verbose,bookkeep_verbose)
+			self.simulate_one_period(trade_stats,recording,replay_vars)
 				
 		trade_stats(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, lob_verbose))
 		
 		
 		self.exchange.tape_dump(self.trade_record, 'w', 'keep')
 	
-	def simulate_one_period(self,trade_stats=None,recording=False,replay_vars=None,orders_verbose = False,lob_verbose = False,
-	process_verbose = False,respond_verbose = False,bookkeep_verbose=False):
+	def simulate_one_period(self,trade_stats=None,recording=False,replay_vars=None):
 			
 			if trade_stats is None:
 				trade_stats=self.trade_stats
 			
-			self.orders_verbose = orders_verbose
-			self.lob_verbose = lob_verbose
-			self.process_verbose = process_verbose
-			self.respond_verbose = respond_verbose
-			self.bookkeep_verbose = bookkeep_verbose
-			
+
 			
 			if self.time==0:
 				self.pending_cust_orders = []
@@ -402,7 +410,9 @@ class Market_session:
 					permitted_traders=list_of_traders[np.mod(integer_period+max_latency,trader_latencies)==0]
 					
 					tid = np.random.choice(permitted_traders)
-					#print('latencies',len(permitted_traders),tid)
+					if self.latency_verbose: print('latencies: number of traders to pick from:',
+					len(permitted_traders),' pick trader :',
+					tid,' of type ',self.traders[tid].ttype)
 					#note that traders will return a dictionary containing at least one order
 					order_dic = self.traders[tid].getorder(self.time, self.time_left, self.exchange.publish_lob(self.time, self.lob_verbose))
 				
