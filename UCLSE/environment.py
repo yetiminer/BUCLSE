@@ -293,7 +293,7 @@ class Market_session:
 		while self.time<self.end_time:
 			self.simulate_one_period(trade_stats,recording,replay_vars)
 				
-		trade_stats(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, lob_verbose))
+		trade_stats(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, self.lob_verbose))
 		
 		
 		self.exchange.tape_dump(self.trade_record, 'w', 'keep')
@@ -398,7 +398,6 @@ class Market_session:
 					if order_dic!={}:
 						
 						self.traders[tid].setorder(order_dic)
-						#self.traders[tid].orders[0]=order
 				
 				else:
 					
@@ -415,6 +414,7 @@ class Market_session:
 					tid,' of type ',self.traders[tid].ttype)
 					#note that traders will return a dictionary containing at least one order
 					order_dic = self.traders[tid].getorder(self.time, self.time_left, self.exchange.publish_lob(self.time, self.lob_verbose))
+					if self.latency_verbose: print('Trader responds with ', len(order_dic), ' quotes to send to exchange')
 				
 				return order_dic,tid
 				
