@@ -121,7 +121,7 @@ class Trader:
 				del(self.orders_dic[oid])
 				self.n_orders=len(self.orders_dic)
 				self.n_quotes-=1
-				
+				self.n_quotes=max(0,self.n_quotes)
 
 
 
