@@ -133,7 +133,7 @@ def _test_traders_quote_history(sess):
     #checks that every submitted quote has been recorded
     df=make_trader_summary_df(sess)
     df_hist=traders_quote_history(sess)
-    df['check_quote_count']=df_hist.groupby(['tid'])['qid'].count()
+    df['check_quote_count']=df_hist.groupby(['tid'])['qid'].count().fillna(0)
     assert (df.total_quotes==df['check_quote_count']).all()
     
     #checks that every submitted quote in lookup appears in history
