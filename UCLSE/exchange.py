@@ -242,7 +242,7 @@ class Exchange(Orderbook):
 
 		def add_order(self, order, verbose,leg=0,qid=None):
 				# add a quote/order to the exchange and update all internal records; return unique i.d.
-				assert order.qid is not None
+				assert order.oid is not None
 				
 				if leg==0:
 					order.qid = self.quote_id
@@ -536,6 +536,7 @@ class Exchange(Orderbook):
 
 									  }
 				self.tape.append(transaction_record)
+				self.last_transaction_price=price
 				return transaction_record
 
 		def tape_dump(self, fname, fmode, tmode):
@@ -563,6 +564,11 @@ class Exchange(Orderbook):
 									 'lob':self.asks.lob_anon}
 				public_data['QID'] = self.quote_id
 				public_data['tape'] = self.tape
+				try:
+					public_data['last_transaction_price']=self.last_transaction_price
+				except AttributeError: #no trade yet
+					pass
+				
 				if verbose:
 						print('publish_lob: t=%d' % time)
 						print('BID_lob=%s' % public_data['bids']['lob'])

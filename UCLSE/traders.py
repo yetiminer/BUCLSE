@@ -28,6 +28,8 @@ from UCLSE.exchange import Order
 
 # Trader superclass
 # all Traders have a trader id, bank balance, blotter, and list of orders to execute
+buy_sell_bid_ask_dic={'Bid':'Buy','Ask':'Sell'}
+
 class Trader:
 
 		def __init__(self, ttype=None, tid=None, balance=0, time=None, n_quote_limit=1,latency=1):
@@ -48,6 +50,7 @@ class Trader:
 				self.lastquote = {}     # record of what its last quote was
 				self.latency=latency    # integer=duration of periods between views of lob
 				self.total_quotes=0     # total number of quotes sent to exchange
+				self.inventory=0        # how many shares does a trader have on their own book
 
 
 		def __str__(self):
@@ -140,7 +143,7 @@ class Trader:
 				oid=self.orders_lookup[qid]
 				order_qty=self.orders_dic[oid]['qty_remain']
 
-				  # add trade record to trader's blotter
+				 # add trade record to trader's blotter
 				
 				
 				transactionprice = trade['price']
@@ -154,6 +157,7 @@ class Trader:
 				if otype == 'Bid':
 				
 						profit = (original_order.price - transactionprice)*trade_qty
+						
 				else:
 						profit = (transactionprice - original_order.price)*trade_qty
 						
@@ -172,13 +176,13 @@ class Trader:
 				
 				#add some supplementary information to the blotter
 				
-				
+				trade['type']=otype
 				trade['oid']=oid
 				trade['tid']=self.tid
-				
 				trade['order qty']=order_qty
 				trade['order_issue_time']=order.time
 				trade['profit']=profit
+				trade['BS']=buy_sell_bid_ask_dic[otype]
 				
 				#update the qty remaining in the order
 				self.orders_dic[oid]['qty_remain']=order_qty-trade_qty
@@ -197,6 +201,7 @@ class Trader:
 					
 				
 				self.blotter.append(trade)
+				return trade
 
 
 		# specify how trader responds to events in the market
@@ -216,6 +221,48 @@ class Trader:
 		#check before submission to exchange, that an order makes sense.
 			if order.otype == 'Ask' and order.price < self.orders_dic[oid]['Original'].price: sys.exit('Bad ask')
 			if order.otype == 'Bid' and order.price > self.orders_dic[oid]['Original'].price: sys.exit('Bad bid')
+			
+		def calc_cost_to_liquidate(self,lob,quantity_left):
+			
+			if quantity_left<0:
+				lob=lob['asks']['lob']
+			else:
+				lob=lob['bids']['lob']
+				
+			quantity_left=abs(quantity_left)
+			
+			i=0
+			running_cost=0
+			while quantity_left>0 and i<len(lob):
+				running_cost=running_cost+min(lob[i][1],quantity_left)*lob[i][0]
+
+				quantity_left=quantity_left-lob[i][1]
+				i+=1
+			return running_cost,quantity_left
+				
+			
+
+
+		def calc_cost_to_liquidate3(self,lob,quantity_left):
+			if quantity_left<0:
+				lob=lob['asks']['lob']
+			else:
+				lob=lob['bids']['lob']
+				
+			quantity_left=abs(quantity_left)
+			
+			
+			list_of_lists=([[p for i in range(k)] for p,k in lob])
+			unit_lob=[y for x in list_of_lists for y in x]
+			
+			if quantity_left>len(unit_lob):
+				running_cost=sum(unit_lob)
+				quantity_left=quantity_left-len(unit_lob)
+			else:
+				running_cost=sum(unit_lob[0:quantity_left])
+				quantity_left=0
+			
+			return running_cost,quantity_left
 
 
 # Trader subclass Giveaway
