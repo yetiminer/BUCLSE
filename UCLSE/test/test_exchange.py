@@ -4,7 +4,7 @@ from UCLSE.test.utils import identical_replay_vars, side_by_side_period_by_perio
 import os
 import copy
 
-def test_lob():
+def test_lob(verbose=False):
 	cwd=os.getcwd()
 	fixture_name=os.path.join(cwd,'UCLSE','test','fixtures','exchange_fix.yml')
 	
@@ -18,8 +18,8 @@ def test_lob():
 		necessary_cols=['tid','otype','price','qty','time','qid','oid']
 		exchange=build_lob_from_df(order_df,necessary_cols=necessary_cols)
 
-		new_order=order_from_dic(fixture_dic['new_trade'])
-
+		new_order=order_from_dic(fixture_dic['new_trade'],necessary_cols=necessary_cols)
+		if verbose: print(new_order)
 		exchange.add_order(new_order,verbose=False)
 		pretty_lob_print(exchange)
 
