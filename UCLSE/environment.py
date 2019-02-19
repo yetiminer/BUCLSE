@@ -27,6 +27,8 @@ random.seed(22)
 from UCLSE.exchange import Exchange
 from UCLSE.traders import (Trader_Giveaway, Trader_ZIC, Trader_Shaver,
                            Trader_Sniper, Trader_ZIP)
+from UCLSE.market_makers import  MarketMakerSpread
+						   
 from UCLSE.supply_demand import customer_orders,set_customer_orders, do_one
 
 
@@ -43,7 +45,7 @@ class Market_session:
 				 sellers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
 				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False,
 				 trade_record='transactions.csv', random_seed=22,orders_verbose = False,lob_verbose = False,
-	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False):
+	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,market_makers_spec=None):
 			self.start_time=start_time
 			self.end_time=end_time
 			self.interval=interval
@@ -73,6 +75,15 @@ class Market_session:
 			#populate exchange with traders
 			traders={}
 			self.trader_stats=self.populate_market(self.traders_spec,traders,True,self.verbose)
+			
+			#populate market with market makers
+			self.market_makers={}
+			if market_makers_spec is not None:
+				self.market_makers_spec=market_makers_spec
+				self.add_market_makers(self.verbose)
+			
+			#create dictionary of participants in market
+			self.create_participant_dic()
 			
 			# timestep set so that can process all traders in one second
 			# NB minimum interarrival time of customer orders may be much less than this!! 
@@ -182,7 +193,35 @@ class Market_session:
 		self.n_buyers=n_buyers
 		self.n_sellers=n_sellers
 		self.traders=traders
+	
+	def add_market_makers(self,verbose=False):
+			
+			
+			def market_maker_type(robottype, name,market_maker_dic):
+				if robottype == 'SIMPLE_SPREAD':
+						return MarketMakerSpread('SIMPLE_SPREAD', name, 0.00, 0,**market_maker_dic)
 
+				else:
+						sys.exit('FATAL: don\'t know robot type %s\n' % robottype)
+
+			n_market_makers=0
+			self.market_makers={}
+			for market_maker_dic in self.market_makers_spec:
+				mmtype = market_maker_dic['mmtype']
+				tname = 'MM%02d' % n_market_makers  # buyer i.d. string
+				self.market_makers[tname] = market_maker_type(mmtype, tname,market_maker_dic['config'])
+				n_market_makers +=1
+				
+			if verbose:
+				for _,market_maker in self.market_makers.items():
+					print(market_maker)
+			
+	def create_participant_dic(self):
+		#creates a dictionary of all participants in a market
+		self.participants={**self.traders,**self.market_makers}
+		
+	
+	
 	def trade_stats(self,expid, traders, dumpfile, time, lob):
 		trader_types = {}
 		n_traders = len(traders)
@@ -351,11 +390,29 @@ class Market_session:
 						self.trade=self._send_order_to_exchange(tid,order,trade_stats)
 
 						# traders respond to whatever happened
-						lob=self._traders_respond(self.trade)
+						lob=self._traders_respond(self.trade) #does this need to happen for every update?
 
+						
+			if len(self.market_makers)>0: # and self.time_left>0.9:
+				for mm_id,market_maker in self.market_makers.items():
+					lob=self.exchange.publish_lob(self.time,verbose=False)
+					mm_order_dic=market_maker.update_order_schedule( time=self.time,delta=1,exchange=self.exchange,lob=lob,verbose=False)
+					for oi,order in mm_order_dic.items():
+					
+						# send order to exchange
+						self.trade=self._send_order_to_exchange(mm_id,order,trade_stats)
+
+						# traders respond to whatever happened
+						lob=self._traders_respond(self.trade) #does this need to happen for every update?
+			
+						
+						
 			if recording:
 				#record the particulars of the period for subsequent recreation
 				self._record_period(tid=tid,lob=lob,order_dic=order_dic,trade=self.trade)
+				
+				
+			
 
 			
 			self.time = self.time + self.timestep
@@ -425,8 +482,8 @@ class Market_session:
 		qid, trade,ammended_orders = self.process_order(self.time, order, self.process_verbose)
 		
 		#'inform' trader what qid is
-		self.traders[tid].add_order_exchange(order,qid)
-		
+		#self.traders[tid].add_order_exchange(order,qid)
+		self.participants[tid].add_order_exchange(order,qid)
 		
 		if trade != None:
 				print(trade)
@@ -434,8 +491,8 @@ class Market_session:
 					# trade occurred,
 					# so the counterparties update order lists and blotters
 					print(trade_leg['party1'],trade_leg['party2'])
-					self.traders[trade_leg['party1']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time,active=False)
-					self.traders[trade_leg['party2']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
+					self.participants[trade_leg['party1']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time,active=False)
+					self.participants[trade_leg['party2']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
 					
 					ammend_tid=ammended_order[0]
 					if ammend_tid is not None:
@@ -443,7 +500,7 @@ class Market_session:
 						
 						print('ammend trade ', ammended_order[2])
 						
-						self.traders[ammend_tid].add_order_exchange(ammended_order[2],ammend_qid)
+						self.participants[ammend_tid].add_order_exchange(ammended_order[2],ammend_qid)
 					
 					
 					if self.dump_each_trade: 
@@ -458,7 +515,7 @@ class Market_session:
 
 	def _traders_respond(self,trade):
 		lob = self.exchange.publish_lob(self.time, self.lob_verbose)
-		for t in self.traders:
+		for t in self.participants:
 				# NB respond just updates trader's internal variables
 				# doesn't alter the LOB, so processing each trader in
 				# sequence (rather than random/shuffle) isn't a problem
@@ -467,7 +524,7 @@ class Market_session:
 					last_trade_leg=trade[-1] #henry: we only see the state of the lob after a multileg trade is executed. 
 				else: last_trade_leg=None
 				
-				self.traders[t].respond(self.time, lob, last_trade_leg, self.respond_verbose)
+				self.participants[t].respond(self.time, lob, last_trade_leg, self.respond_verbose)
 		return lob
 		
 	def _record_period(self,lob=None,tid=None,order_dic=None,trade=None):
