@@ -87,8 +87,8 @@ def build_df_from_yaml(path):
 
     return order_df
 
-def order_from_dic(dic):
-    necessary_cols=['tid','otype','price','qty','time','qid']
+def order_from_dic(dic,necessary_cols=['tid','otype','price','qty','time','qid']):
+    #should add oid into necessary_cols
     o_data=[]
     for c in necessary_cols:
         o_data.append(dic[c])
