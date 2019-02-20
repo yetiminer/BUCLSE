@@ -45,7 +45,7 @@ class Market_session:
 				 sellers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
 				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False,
 				 trade_record='transactions.csv', random_seed=22,orders_verbose = False,lob_verbose = False,
-	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,market_makers_spec=None):
+	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,market_makers_spec=None,rl_traders={}):
 			self.start_time=start_time
 			self.end_time=end_time
 			self.interval=interval
@@ -81,6 +81,8 @@ class Market_session:
 			if market_makers_spec is not None:
 				self.market_makers_spec=market_makers_spec
 				self.add_market_makers(self.verbose)
+			
+			self.rl_traders=rl_traders
 			
 			#create dictionary of participants in market
 			self.create_participant_dic()
@@ -218,7 +220,7 @@ class Market_session:
 			
 	def create_participant_dic(self):
 		#creates a dictionary of all participants in a market
-		self.participants={**self.traders,**self.market_makers}
+		self.participants={**self.traders,**self.market_makers,**self.rl_traders}
 		
 	
 	
@@ -476,7 +478,7 @@ class Market_session:
 				return order_dic,tid
 				
 			
-	def _send_order_to_exchange(self,tid,order,trade_stats):
+	def _send_order_to_exchange(self,tid,order,trade_stats=None):
 		# send order to exchange
 		
 		qid, trade,ammended_orders = self.process_order(self.time, order, self.process_verbose)
@@ -504,6 +506,8 @@ class Market_session:
 					
 					
 					if self.dump_each_trade: 
+						if trade_stats is None:
+							trade_stats=self.trade_stats
 						
 						trade_stats(self.sess_id, self.traders, self.trade_file, self.time,
 															  self.exchange.publish_lob(self.time, self.lob_verbose))
