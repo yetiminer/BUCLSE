@@ -139,4 +139,4 @@ def _test_traders_quote_history(sess):
     #checks that every submitted quote in lookup appears in history
     for _,trader in sess.traders.items():
         for q in trader.orders_lookup:
-            assert q in df_hist.qid
+            assert q in df_hist.qid.values #upgrade to pandas 24.1 requires addition of value here?
