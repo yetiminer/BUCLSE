@@ -146,7 +146,7 @@ def test_trade_stats_methods():
 	sess1.simulate(sess1.trade_stats,replay_vars=sess.replay_vars,recording=True)
 
 	cols=pd.MultiIndex(levels=[['GVWY', 'SHVR', 'ZIC', 'ZIP', 'best_ask', 'best_bid', 'expid', 'time'], ['', 'balance_sum', 'n', 'pc']],
-			   labels=[[6, 7, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 5, 4], [0, 0, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 0, 0]])
+			   codes=[[6, 7, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 5, 4], [0, 0, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 0, 0]])
 	d=pd.read_csv(environ_dic['trade_file'],header=None,usecols=[0,1,3,4,5,7,8,9,11,12,13,15,16,17,18,19])
 	d.columns=cols
 	#the csv method truncates accuracy of time value
@@ -154,7 +154,7 @@ def test_trade_stats_methods():
 
 
 	cols=pd.MultiIndex(levels=[['GVWY', 'SHVR', 'ZIC', 'ZIP', 'best_ask', 'best_bid'], ['', 'balance_sum', 'n', 'pc']],
-			   labels=[[ 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 5, 4], [ 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 0, 0]])
+			   codes=[[ 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 5, 4], [ 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 0, 0]])
 
 	#check the data is the same
 	assert (d[cols].replace(' N',0).astype('float64')==sess.df[cols].fillna(0)).all().all()
