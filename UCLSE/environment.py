@@ -488,7 +488,7 @@ class Market_session:
 		self.participants[tid].add_order_exchange(order,qid)
 		
 		if trade != None:
-				print(trade)
+				if self.process_verbose: print(trade)
 				for trade_leg,ammended_order in zip(trade,ammended_orders):
 					# trade occurred,
 					# so the counterparties update order lists and blotters
@@ -500,7 +500,7 @@ class Market_session:
 					if ammend_tid is not None:
 						ammend_qid=ammended_order[1]
 						
-						print('ammend trade ', ammended_order[2])
+						if self.process_verbose: print('ammend trade ', ammended_order[2])
 						
 						self.participants[ammend_tid].add_order_exchange(ammended_order[2],ammend_qid)
 					

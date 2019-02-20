@@ -423,7 +423,7 @@ class Exchange(Orderbook):
 			while pty1_side.n_orders > 0 and self.bids.best_price >= self.asks.best_price and quantity>0:
 					#do enough fills until the remaining order quantity is zero
 					
-					quantity,fill, ammended_order=self._do_one_fill(time,temp_order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid)
+					quantity,fill, ammended_order=self._do_one_fill(time,temp_order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid,verbose=verbose)
 					
 					tr.append(fill)
 					ammended_orders.append(ammended_order)
@@ -495,9 +495,9 @@ class Exchange(Orderbook):
 					self.add_order(order,verbose,leg=leg+1,qid=qid)
 					ammend_qid=order.qid
 					ammended_order=(order.tid,ammend_qid,order)
-					print('order partially filled, new ammended one ',leg,order.qid,order)
+					if verbose: print('order partially filled, new ammended one ',leg,order.qid,order)
 			else: 
-				print('Partial fill situation')
+				if verbose: print('Partial fill situation')
 				#delete the bid that was the latest order
 
 				pty1_side.delete_best()
@@ -506,7 +506,7 @@ class Exchange(Orderbook):
 
 				[best_ask_order.qid,response]=self.add_order(best_ask_order,verbose,leg=1,qid=best_ask_order.qid)
 				
-				print('partial fill passive side ', best_ask_order.qid,best_ask_order)
+				if verbose: print('partial fill passive side ', best_ask_order.qid,best_ask_order)
 				ammended_order=(counterparty,best_ask_order.qid,best_ask_order)
 
 				pty2_side.delete_best()

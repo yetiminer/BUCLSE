@@ -140,7 +140,7 @@ class MarketMaker(Trader):
 		profit=self.trade_manager.execute_with_total_pnl(trade['BS'],trade['qty'],trade['price'],trade['oid'])
 		trade['profit']=profit
 		self.balance=self.balance+profit
-
+		self.inventory=self.trade_manager.inventory
 		
 	def respond(self, time, lob, trade, verbose):
 		self.cash=self.trade_manager.cash
