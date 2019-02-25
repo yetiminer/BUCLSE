@@ -103,7 +103,9 @@ class Trader:
 		def add_order_exchange(self,order,qid):
 			order=copy.deepcopy(order)
 			
-			order.qid=qid
+			#order.qid=qid
+			order=order._replace(qid=qid)
+			
 			try: assert order.oid in self.orders_dic
 			except AssertionError:
 				print(order.oid,' in ',self.orders_dic)
