@@ -22,17 +22,20 @@ def test_bookkeep():
 		exchange=build_lob_from_df(order_df,necessary_cols=necessary_cols)
 
 		new_order=order_from_dic(fixture_dic['new_trade'])
-		new_order.oid=1
+		#new_order.oid=1
+		new_order=new_order._replace(oid=1)
 
 		qid,_=exchange.add_order(new_order,verbose=False)
 
 		henry.add_order(new_order, True)
 		henry.add_order_exchange(new_order,qid)
+		order_at_exchange=henry.orders_dic[1]['submitted_quotes'][0]
 
 		#pretty_lob_print(exchange)
 
 		time=10
-		tr, ammended_orders=exchange.process_order3(order=new_order,time=time,verbose=True)
+		#tr, ammended_orders=exchange.process_order3(order=new_order,time=time,verbose=True)
+		tr, ammended_orders=exchange.process_order3(order=order_at_exchange,time=time,verbose=True)
 
 
 		for trade,ammended_order in zip(tr,ammended_orders):
@@ -94,26 +97,29 @@ def make_trader_dic(trader):
 
 
 def make_trader_summary_df(sess):
-    #constructs df from list of trader dictionaries made in make_trader_dic
-    new_df_list=[]
-    for t,trader in sess.traders.items():
+	#constructs df from list of trader dictionaries made in make_trader_dic
+	new_df_list=[]
+	for t,trader in sess.traders.items():
 
-        new_df_list.append(make_trader_dic(trader).copy())
-    return pd.DataFrame(new_df_list).set_index('tid')
+		new_df_list.append(make_trader_dic(trader).copy())
+	return pd.DataFrame(new_df_list).set_index('tid')
 
 def traders_quote_history(sess):
-    #puts all trader's quote history (quotes sent to exchange current and completeted) into a df 
-    listy=[]
-    #listy2=[]
-    for t,trader in sess.traders.items():
-            
-            for q,qu in trader.orders_dic.items():
-                listy=listy+[ququ.__dict__ for ququ in qu['submitted_quotes']]
-            
-            for q,qu in trader.orders_dic_hist.items():
-                
-                    listy=listy+[ququ.__dict__ for ququ in qu['submitted_quotes']]
-    return pd.DataFrame(listy)  
+	#puts all trader's quote history (quotes sent to exchange current and completeted) into a df 
+	listy=[]
+	#listy2=[]
+	for t,trader in sess.traders.items():
+			
+			for q,qu in trader.orders_dic.items():
+				#listy=listy+[ququ.__dict__ for ququ in qu['submitted_quotes']]
+				listy=listy+[ququ for ququ in qu['submitted_quotes']]
+			
+			for q,qu in trader.orders_dic_hist.items():
+				
+					#listy=listy+[ququ.__dict__ for ququ in qu['submitted_quotes']]
+					listy=listy+[ququ for ququ in qu['submitted_quotes']]
+					
+	return pd.DataFrame(listy)  
 
 
 def _test_traders_n_orders_greater_n_quotes(sess):
