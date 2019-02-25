@@ -50,6 +50,13 @@ class OrderList(_OrderList):
 	@property
 	def qty(self):
 		return sum([k.qty for k in self.orders])
+		
+#_OrderList=deque('_OrderList',['orders'])
+class OrderList(deque):
+	@property
+	def qty(self):
+		#return sum([k.qty for k in self.orders])
+		return sum([k.qty for k in self])
 
 # Orderbook_half is one side of the book: a list of bids or a list of asks, each sorted best-first
 
@@ -88,7 +95,7 @@ class Orderbook_half:
 			# returns lob as a dictionary (i.e., unsorted)
 			# also builds anonymized version (just price/quantity, sorted, as a list) for publishing to traders
 			self.lob = {}
-			#for tid in self.orders:
+
 			for qid in self.q_orders:
 					order = self.q_orders.get(qid)
 					price = order.price
@@ -97,19 +104,25 @@ class Orderbook_half:
 
 							#qty = self.lob[price].qty
 							
-							orderlist=self.lob[price].orders
+							#orderlist=self.lob[price].orders
+							orderlist=self.lob[price].append(order)
 
-							orderlist.append(order)
+							#orderlist.append(order)
 
-							self.lob[price]=OrderList(orders=orderlist)
+							#self.lob[price]=OrderList(orders=orderlist)
+							
 							
 					else:
 
-							self.lob[price]=OrderList(orders=deque([order]))
+							#self.lob[price]=OrderList(orders=deque([order]))
+							self.lob[price]=OrderList([order])
 			
 			try:	
 				for k,val in self.lob.items():
-					val=val._replace(orders=sorted(val.orders,key=lambda x:x.time))
+					#val=val._replace(orders=sorted(val.orders,key=lambda x:x.time))
+					#val=val._replace(orders=sorted(val,key=lambda x:x.time))
+					val=sorted(val,key=lambda x:x.time)
+					
 			except AttributeError:
 				print(k,val)
 				raise
@@ -157,8 +170,11 @@ class Orderbook_half:
 			self.orders[order.oid] = order
 			self.q_orders[order.qid]=order
 
-			self.lob[order.price].orders.popleft()
-			self.lob[order.price].orders.appendleft(order)
+			#self.lob[order.price].orders.popleft()
+			self.lob[order.price].popleft()
+			
+			#self.lob[order.price].orders.appendleft(order)
+			self.lob[order.price].appendleft(order)
 
 			#self.build_lob()
 			assert len(self.orders)==len(self.q_orders)
@@ -186,9 +202,11 @@ class Orderbook_half:
 			best_price_orders = self.lob[self.best_price]
 			best_price_qty = best_price_orders.qty
 			
-			best_price_counterparty = best_price_orders.orders[0].tid
+			#best_price_counterparty = best_price_orders.orders[0].tid
+			best_price_counterparty = best_price_orders[0].tid
 			
-			best_price_counterparty_qid = best_price_orders.orders[0].qid
+			#best_price_counterparty_qid = best_price_orders.orders[0].qid
+			best_price_counterparty_qid = best_price_orders[0].qid
 			
 			best_price_oid=self.q_orders[best_price_counterparty_qid].oid
 			
@@ -200,9 +218,11 @@ class Orderbook_half:
 					
 
 			else:
-					best_price_orders.orders.popleft()
+					#best_price_orders.orders.popleft()
+					best_price_orders.popleft()
 
-					self.lob[self.best_price]=OrderList(orders=best_price_orders.orders)
+					#self.lob[self.best_price]=OrderList(orders=best_price_orders.orders)
+					self.lob[self.best_price]=OrderList(best_price_orders)
 
 					# update the bid list: counterparty's bid has been deleted
 					del(self.orders[best_price_oid])
@@ -214,7 +234,9 @@ class Orderbook_half:
 	@property
 	def best_tid(self):
 		if len(self.lob)>0:
-			ans=self.lob[self.best_price].orders[0].tid
+			#ans=self.lob[self.best_price].orders[0].tid
+			ans=self.lob[self.best_price][0].tid
+			
 		else:
 			ans=None
 		return ans
@@ -222,15 +244,18 @@ class Orderbook_half:
 	@property
 	def best_qid(self):
 		if len(self.lob)>0:
-			ans=self.lob[self.best_price].orders[0].qid
+			#ans=self.lob[self.best_price].orders[0].qid
+			ans=self.lob[self.best_price][0].qid
 		else:
 			ans=None
 		return ans
 		
 	@property
 	def n_orders(self):
-		ans=sum([len(self.lob[price].orders) for price in self.lob])
-		if ans is None: ans=0
+		#ans=sum([len(self.lob[price].orders) for price in self.lob])
+		ans=sum([len(self.lob[price]) for price in self.lob])
+		ans=len(self.orders)
+		
 		return ans
 	
 	@property
@@ -510,7 +535,8 @@ class Exchange(Orderbook):
 			price = pty1_side.best_price  # bid crossed ask, so use ask price
 			if verbose: print('counterparty',counterparty, 'price',  price)
 			
-			best_ask_q=pty1_side.lob[pty1_side.best_price].orders[0].qty
+			#best_ask_q=pty1_side.lob[pty1_side.best_price].orders[0].qty
+			best_ask_q=pty1_side.lob[pty1_side.best_price][0].qty
 			
 			best_ask_q1=best_ask_order.qty
 			assert best_ask_q1==best_ask_q

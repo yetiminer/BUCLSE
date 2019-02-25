@@ -46,10 +46,14 @@ def test_lob(verbose=False):
 			
 def recover_old_order_list(exchange,side='bids'):
 	side_dic={'bids':exchange.bids,'asks':exchange.asks}
-	dic={price:[sum([(k.qty) for k in side_dic[side].lob[price].orders])] for price in side_dic[side].lob}
+	#dic={price:[sum([(k.qty) for k in side_dic[side].lob[price].orders])] for price in side_dic[side].lob}
+	dic={price:[sum([(k.qty) for k in side_dic[side].lob[price]])] for price in side_dic[side].lob}
+	
 	for k,val in dic.items():
-		val.append([[k.time,k.qty,k.tid,k.qid] for k in side_dic[side].lob[k].orders])
+		#val.append([[k.time,k.qty,k.tid,k.qid] for k in side_dic[side].lob[k].orders])
+		val.append([[k.time,k.qty,k.tid,k.qid] for k in side_dic[side].lob[k]])
 		val[1]=sorted(val[1], key=itemgetter(0))
+		#val=sorted(val, key=lambda x:x.time)
 	
 	return dic
 			
