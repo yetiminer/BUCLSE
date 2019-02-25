@@ -33,32 +33,37 @@ bse_sys_maxprice=1000
 
 
 # an Order/quote has a trader id, a type (buy/sell) price, quantity, timestamp, and unique i.d.
-class Order:
+# class Order:
 
-		def __init__(self, tid, otype, price, qty, time, qid=None, oid=None):
-				self.tid = tid      # trader i.d.
-				self.otype = otype  # order type
-				self.price = price  # price
-				self.qty = qty      # quantity
-				self.time = time    # timestamp
-				self.qid = qid      # quote i.d. (unique to each quote)
-				self.oid=oid
+		# def __init__(self, tid, otype, price, qty, time, qid=None, oid=None):
+				# self.tid = tid      # trader i.d.
+				# self.otype = otype  # order type
+				# self.price = price  # price
+				# self.qty = qty      # quantity
+				# self.time = time    # timestamp
+				# self.qid = qid      # quote i.d. (unique to each quote)
+				# self.oid=oid
 
-		def __str__(self):
-				return '[%s %s P=%03d Q=%s T=%5.2f QID:%s OID:%s]' % \
-					   (self.tid, self.otype, self.price, self.qty, self.time, str(self.qid),str(self.oid))
+		# def __str__(self):
+				# return '[%s %s P=%03d Q=%s T=%5.2f QID:%s OID:%s]' % \
+					   # (self.tid, self.otype, self.price, self.qty, self.time, str(self.qid),str(self.oid))
 					   
-		def __eq__(self,other): 
-		#a method override so that we can check for equality between orders
-			if isinstance(other, self.__class__):
-				return self.__dict__ == other.__dict__
-			else:
-				return False
+		# def __eq__(self,other): 
+		# #a method override so that we can check for equality between orders
+			# if isinstance(other, self.__class__):
+				# return self.__dict__ == other.__dict__
+			# else:
+				# return False
 				
-		def __ne__(self, other):
-			return not self.__eq__(other)
+		# def __ne__(self, other):
+			# return not self.__eq__(other)
 
-
+#I suspect this is much more memory efficient, moreover, attributes are much harder to set after instantiation
+from collections import namedtuple
+fields=['tid','otype','price','qty','time','qid','oid']
+#Order=namedtuple('Order',fields,defaults=(None,)*2) python 3.7!
+Order=namedtuple('Order',fields)
+Order.__new__.__defaults__ = (None,) * 2
 
 	# Orderbook_half is one side of the book: a list of bids or a list of asks, each sorted best-first
 
@@ -244,10 +249,12 @@ class Exchange(Orderbook):
 				# add a quote/order to the exchange and update all internal records; return unique i.d.
 				assert order.oid is not None
 				
-				if leg==0:
-					order.qid = self.quote_id
+				if leg==0 and qid is None:
+					#order.qid = self.quote_id
+					order=order._replace(qid=self.quote_id)
 				else:
-					order.qid=qid+0.000001*leg
+					order=order._replace(qid=qid+0.000001*leg)
+					#order.qid=qid+0.000001*leg
 				
 				self.quote_id = self.quote_id + 1
 				# if verbose : print('QUID: order.quid=%d self.quote.id=%d' % (order.qid, self.quote_id))
@@ -329,7 +336,8 @@ class Exchange(Orderbook):
 				counterparty = None
 				
 				[qid, response] = self.add_order(order, verbose)  # add it to the order lists -- overwriting any previous order
-				order.qid = qid
+				#order.qid = qid
+				order=order._replace(qid=qid)
 				
 				if verbose :
 						print('QUID: order.quid=%d' % order.qid)
@@ -390,7 +398,8 @@ class Exchange(Orderbook):
 		
 		def process_order3w(self,time=None,order=None,verbose=False):
 			[qid, response] = self.add_order(order, verbose)  # add it to the order lists -- overwriting any previous order
-			order.qid = qid
+			#order.qid = qid
+			order=order._replace(qid=qid)
 			if verbose :
 						print('QUID: order.quid=%d' % order.qid)
 						print('RESPONSE: %s' % response)
@@ -399,6 +408,8 @@ class Exchange(Orderbook):
 		
 		def process_order3(self,time=None,order=None,verbose=False):
 			temp_order=copy.deepcopy(order) #Need this to stop original order quantity mutating outside this method
+			#temp_order=order
+			
 			oprice=temp_order.price
 			leg=0
 			tr=[]
@@ -487,24 +498,33 @@ class Exchange(Orderbook):
 				# delete the bid(ask) that was the latest order
 				pty2_side.delete_best()
 
-				order.qty=quantity
+				#order.qty=quantity
+				order=order._replace(qty=quantity)
 				fill_q=best_ask_q
 
 				if quantity>0:
 					#[order.qid,response]=self.add_order(order,verbose,leg=leg,qid=qid)
-					self.add_order(order,verbose,leg=leg+1,qid=qid)
-					ammend_qid=order.qid
+					#ammend_qid=order.qid
+					[ammend_qid,response]=self.add_order(order,verbose,leg=leg+1,qid=qid)
+					order=order._replace(qid=ammend_qid)
+					
+					
 					ammended_order=(order.tid,ammend_qid,order)
-					if verbose: print('order partially filled, new ammended one ',leg,order.qid,order)
+					#if verbose: print('order partially filled, new ammended one ',leg,order.qid,order)
+					if verbose: print('order partially filled, new ammended one ',leg,ammend_qid,order)
 			else: 
 				if verbose: print('Partial fill situation')
 				#delete the bid that was the latest order
 
 				pty1_side.delete_best()
 				#adjust the quantity of the best ask left on the book
-				best_ask_order.qty=best_ask_q-quantity
+				#best_ask_order.qty=best_ask_q-quantity
+				best_ask_order=best_ask_order._replace(qty=best_ask_q-quantity)
 
-				[best_ask_order.qid,response]=self.add_order(best_ask_order,verbose,leg=1,qid=best_ask_order.qid)
+				#[best_ask_order.qid,response]=self.add_order(best_ask_order,verbose,leg=1,qid=best_ask_order.qid)
+				[best_ask_order_qid,response]=self.add_order(best_ask_order,verbose,leg=1,qid=best_ask_order.qid)
+				best_ask_order=best_ask_order._replace(qid=best_ask_order_qid)
+				
 				
 				if verbose: print('partial fill passive side ', best_ask_order.qid,best_ask_order)
 				ammended_order=(counterparty,best_ask_order.qid,best_ask_order)
