@@ -521,22 +521,24 @@ class Exchange(Orderbook):
 
 				# delete the ask(bid) just crossed
 				pty1_side.delete_best()
-				# delete the bid(ask) that was the latest order
-				pty2_side.delete_best()
 
-				#order.qty=quantity
 				order=order._replace(qty=quantity)
 				fill_q=best_ask_q
 
-				if quantity>0:
+				if quantity>0: #active order has been partially filled but quantity remains
 
 					
-					[ammend_qid,response]=self.add_order(order,verbose,leg=leg+1,qid=qid)
+					[ammend_qid,response]=self.ammend_order(order,verbose,leg=leg+1,qid=qid)
 					order=order._replace(qid=ammend_qid)
 					
 					
 					ammended_order=(order.tid,ammend_qid,order)
 					if verbose: print('order partially filled, new ammended one ',leg,ammend_qid,order)
+					
+				else:
+					#active order is depleted
+					pty2_side.delete_best()
+				
 			else: 
 				if verbose: print('Partial fill situation')
 				#delete the bid that was the latest order
