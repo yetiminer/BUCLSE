@@ -20,7 +20,7 @@ def test_lob(verbose=False):
 
 		new_order=order_from_dic(fixture_dic['new_trade'],necessary_cols=necessary_cols)
 		if verbose: print(new_order)
-		exchange.add_order(new_order,verbose=False)
+		exchange.add_order(new_order,verbose=False,qid=new_order.qid)
 		pretty_lob_print(exchange)
 
 		time=10
