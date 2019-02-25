@@ -3,6 +3,7 @@ from UCLSE.environment import Market_session, yamlLoad
 from UCLSE.test.utils import identical_replay_vars, side_by_side_period_by_period_difference_checker
 import os
 import copy
+from operator import itemgetter
 
 def test_lob(verbose=False):
 	cwd=os.getcwd()
@@ -28,12 +29,12 @@ def test_lob(verbose=False):
 		
 		
 		try: 
-			assert fixture_dic['output']['bids']==exchange.bids.lob
+			assert fixture_dic['output']['bids']==recover_old_order_list(exchange,side='bids')
 		except AssertionError:
 			print('bid lob mismatch')
 			raise
 		try:
-			assert fixture_dic['output']['asks']==exchange.asks.lob
+			assert fixture_dic['output']['asks']==recover_old_order_list(exchange,side='asks')
 		except AssertionError:
 			print('ask lob mismatch')
 			raise
@@ -42,6 +43,15 @@ def test_lob(verbose=False):
 		except AssertionError:
 			print('trade record mismatch')
 			raise
+			
+def recover_old_order_list(exchange,side='bids'):
+	side_dic={'bids':exchange.bids,'asks':exchange.asks}
+	dic={price:[sum([(k.qty) for k in side_dic[side].lob[price].orders])] for price in side_dic[side].lob}
+	for k,val in dic.items():
+		val.append([[k.time,k.qty,k.tid,k.qid] for k in side_dic[side].lob[k].orders])
+		val[1]=sorted(val[1], key=itemgetter(0))
+	
+	return dic
 			
 def test_different_process_order_function():
 	pa=os.getcwd()
