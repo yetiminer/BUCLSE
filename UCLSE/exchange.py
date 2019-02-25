@@ -67,8 +67,14 @@ Order=namedtuple('Order',fields)
 Order.__new__.__defaults__ = (None,) * 2
 
 # OrderList is the contents of an orderbook at a given price
-OrderList=namedtuple('OrderList',['qty','orders'])
 
+		
+#_OrderList=namedtuple('_OrderList',['qty','orders'])
+_OrderList=namedtuple('_OrderList',['orders'])
+class OrderList(_OrderList):
+	@property
+	def qty(self):
+		return sum([k.qty for k in self.orders])
 
 # Orderbook_half is one side of the book: a list of bids or a list of asks, each sorted best-first
 
@@ -127,11 +133,14 @@ class Orderbook_half:
 							orderlist.append(order)
 							
 							#self.lob[price] = [qty + order.qty, orderlist]
-							self.lob[price]=OrderList(qty=qty+order.qty,orders=orderlist)
+							#self.lob[price]=OrderList(qty=qty+order.qty,orders=orderlist)
+							self.lob[price]=OrderList(orders=orderlist)
+							
 					else:
 							# create a new dictionary entry
 							#self.lob[price] = [order.qty, [[order.time, order.qty, order.tid, order.qid]]]
-							self.lob[price]=OrderList(qty=order.qty,orders=deque([order])) #double ended queue
+							#self.lob[price]=OrderList(qty=order.qty,orders=deque([order])) #double ended queue
+							self.lob[price]=OrderList(orders=deque([order]))
 			
 			#sorts the list of orders at any price in ascending time order
 			#for k,val in self.lob.items():
@@ -251,9 +260,9 @@ class Orderbook_half:
 					#best_price_orders[1][1:]]
 					
 					best_price_orders.orders.popleft()
-					new_qty=sum([k.qty for k in best_price_orders.orders])
-					self.lob[self.best_price]=OrderList(qty=new_qty,orders=best_price_orders.orders)
-					
+					#new_qty=sum([k.qty for k in best_price_orders.orders])
+					#self.lob[self.best_price]=OrderList(qty=new_qty,orders=best_price_orders.orders)
+					self.lob[self.best_price]=OrderList(orders=best_price_orders.orders)
 
 					# update the bid list: counterparty's bid has been deleted
 					del(self.orders[best_price_oid])

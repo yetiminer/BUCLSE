@@ -170,7 +170,7 @@ def lob_to_dic(exchange,df=False,side_dic=None):
 		tid=[]
 		time=[]
 		for k,val in side_dic[side].items():
-			for order in val[1]:
+			for order in val[0]:
 				otype.append(side)
 				price.append(k)
 				time.append(order[0])
