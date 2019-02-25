@@ -34,32 +34,7 @@ bse_sys_maxprice=1000
 
 
 # an Order/quote has a trader id, a type (buy/sell) price, quantity, timestamp, and unique i.d.
-# class Order:
-
-		# def __init__(self, tid, otype, price, qty, time, qid=None, oid=None):
-				# self.tid = tid      # trader i.d.
-				# self.otype = otype  # order type
-				# self.price = price  # price
-				# self.qty = qty      # quantity
-				# self.time = time    # timestamp
-				# self.qid = qid      # quote i.d. (unique to each quote)
-				# self.oid=oid
-
-		# def __str__(self):
-				# return '[%s %s P=%03d Q=%s T=%5.2f QID:%s OID:%s]' % \
-					   # (self.tid, self.otype, self.price, self.qty, self.time, str(self.qid),str(self.oid))
-					   
-		# def __eq__(self,other): 
-		# #a method override so that we can check for equality between orders
-			# if isinstance(other, self.__class__):
-				# return self.__dict__ == other.__dict__
-			# else:
-				# return False
-				
-		# def __ne__(self, other):
-			# return not self.__eq__(other)
-
-#I suspect this is much more memory efficient, moreover, attributes are much harder to set after instantiation
+#I suspect this is much more memory efficient than a custom class, moreover, attributes are much harder to set after instantiation
 from collections import namedtuple
 fields=['tid','otype','price','qty','time','qid','oid']
 #Order=namedtuple('Order',fields,defaults=(None,)*2) python 3.7!
@@ -92,12 +67,8 @@ class Orderbook_half:
 			# anonymized LOB, lists, with only price/qty info
 			self.lob_anon = []
 			# summary stats
-			#self.best_price = None
-			#self.best_tid = None
-			#self.best_qid=None
 			self.worstprice = worstprice
-			#self.n_orders = 0  # how many orders?
-			self.lob_depth = 0  # how many different prices on lob?
+			#self.lob_depth = 0  # how many different prices on lob?
 
 
 	def anonymize_lob(self):
@@ -123,28 +94,19 @@ class Orderbook_half:
 					price = order.price
 					if price in self.lob:
 							# update existing entry
-							#qty = self.lob[price][0]
-							qty = self.lob[price].qty
+
+							#qty = self.lob[price].qty
 							
-							#orderlist = self.lob[price][1]
 							orderlist=self.lob[price].orders
-							
-							#orderlist.append([order.time, order.qty, order.tid, order.qid])
+
 							orderlist.append(order)
-							
-							#self.lob[price] = [qty + order.qty, orderlist]
-							#self.lob[price]=OrderList(qty=qty+order.qty,orders=orderlist)
+
 							self.lob[price]=OrderList(orders=orderlist)
 							
 					else:
-							# create a new dictionary entry
-							#self.lob[price] = [order.qty, [[order.time, order.qty, order.tid, order.qid]]]
-							#self.lob[price]=OrderList(qty=order.qty,orders=deque([order])) #double ended queue
+
 							self.lob[price]=OrderList(orders=deque([order]))
 			
-			#sorts the list of orders at any price in ascending time order
-			#for k,val in self.lob.items():
-			#	val[1]=sorted(val[1], key=itemgetter(0))
 			try:	
 				for k,val in self.lob.items():
 					val=val._replace(orders=sorted(val.orders,key=lambda x:x.time))
@@ -155,21 +117,7 @@ class Orderbook_half:
 			
 			# create anonymized version
 			self.anonymize_lob()
-			# record best price and associated trader-id
-			# if len(self.lob) > 0 :
-					# if self.booktype == 'Bid':
-							# self.best_price = self.lob_anon[-1][0]
-					# else :
-							# self.best_price = self.lob_anon[0][0]
-					# #self.best_tid = self.lob[self.best_price][1][0][2]
-					# #self.best_tid=self.lob[self.best_price].orders[0].tid
-					
-					# #self.best_qid = self.lob[self.best_price][1][0][3]
-					# #self.best_qid=self.lob[self.best_price].orders[0].qid
-			# else :
-					# self.best_price = None
-					# self.best_tid = None
-					# self.best_qid = None
+
 
 			if lob_verbose : print(self.lob)
 
@@ -178,31 +126,44 @@ class Orderbook_half:
 			# add order to the dictionary holding the list of orders
 			# either overwrites old order from this trader
 			# or dynamically creates new entry in the dictionary
-			# so, max of one order per trader per list
 			# checks whether length or order list has changed, to distinguish addition/overwrite
-			#print('book_add > %s %s' % (order, self.orders))
 			n_orders = self.n_orders
 			
 			
 			if order.oid in self.orders:
 						#I want to explicitly show that previous orders are overwritten
 						self.book_del(self.orders[order.oid],rebuild=False)
-						self.orders[order.oid] = order
 
-			else:
-				self.orders[order.oid] = order
-
-			
+			self.orders[order.oid] = order
 			self.q_orders[order.qid]=order
-			
-			#self.n_orders = len(self.q_orders)
+
 			self.build_lob()
 			assert len(self.orders)==len(self.q_orders)
-			#print('book_add < %s %s' % (order, self.orders))
+
 			if n_orders != self.n_orders :
 				return('Addition')
 			else:
 				return('Overwrite')
+				
+	def book_ammend(self,order):
+			#may need to ammend an order without losing its order in LOB
+			# add order to the dictionary holding the list of orders
+			# either overwrites old order from this trader
+			# or dynamically creates new entry in the dictionary
+			# checks whether length or order list has changed, to distinguish addition/overwrite
+
+			if order.oid in self.orders: self.book_del(self.orders[order.oid],rebuild=False)
+
+			self.orders[order.oid] = order
+			self.q_orders[order.qid]=order
+
+			self.lob[order.price].orders.popleft()
+			self.lob[order.price].orders.appendleft(order)
+
+			#self.build_lob()
+			assert len(self.orders)==len(self.q_orders)
+		
+		
 
 
 
@@ -210,31 +171,26 @@ class Orderbook_half:
 			# delete order from the dictionary holding the orders
 			# assumes max of one order per oid per list
 			# checks that the Trade OID does actually exist in the dict before deletion
-			# print('book_del %s',self.orders)
 			if self.orders.get(order.oid) != None :
 					del(self.orders[order.oid])
 					del(self.q_orders[order.qid])
-					#self.n_orders = len(self.q_orders)
+
 			if rebuild:
 				self.build_lob()
-			# print('book_del %s', self.orders)
+
 
 
 	def delete_best(self):
 			# delete order: when the best bid/ask has been hit, delete it from the book
 			# the TraderID of the deleted order is return-value, as counterparty to the trade
 			best_price_orders = self.lob[self.best_price]
-			#best_price_qty = best_price_orders[0]
 			best_price_qty = best_price_orders.qty
 			
-			#best_price_counterparty = best_price_orders[1][0][2]
 			best_price_counterparty = best_price_orders.orders[0].tid
 			
-			#best_price_counterparty_qid = best_price_orders[1][0][3]
 			best_price_counterparty_qid = best_price_orders.orders[0].qid
 			
 			best_price_oid=self.q_orders[best_price_counterparty_qid].oid
-			#best_price_counterparty_qid = best_price_orders.orders[0].oid
 			
 			if best_price_qty == 1:
 					# here the order deletes the best price
@@ -242,32 +198,16 @@ class Orderbook_half:
 					del(self.orders[best_price_oid])
 					del(self.q_orders[best_price_counterparty_qid])
 					
-					#self.n_orders = self.n_orders - 1
-					if self.n_orders > 0:
-							if self.booktype == 'Bid':
-									# self.best_price = max(self.lob.keys())
-							# else:
-									# self.best_price = min(self.lob.keys())
-								self.lob_depth = len(self.lob.keys())
-					else:
-							# self.best_price = self.worstprice
-							self.lob_depth = 0
+
 			else:
-					# best_bid_qty>1 so the order decrements the quantity of the best bid
-					# update the lob with the decremented order data
-					#self.lob[self.best_price] = [best_price_qty - 1, best_price_orders[1][1:]]
-					#self.lob[self.best_price] = [sum([k[1] for k in best_price_orders[1][1:]]),
-					#best_price_orders[1][1:]]
-					
 					best_price_orders.orders.popleft()
-					#new_qty=sum([k.qty for k in best_price_orders.orders])
-					#self.lob[self.best_price]=OrderList(qty=new_qty,orders=best_price_orders.orders)
+
 					self.lob[self.best_price]=OrderList(orders=best_price_orders.orders)
 
 					# update the bid list: counterparty's bid has been deleted
 					del(self.orders[best_price_oid])
 					del(self.q_orders[best_price_counterparty_qid])
-					#self.n_orders = self.n_orders - 1
+					
 			self.build_lob()
 			return best_price_counterparty
 
@@ -292,6 +232,7 @@ class Orderbook_half:
 		ans=sum([len(self.lob[price].orders) for price in self.lob])
 		if ans is None: ans=0
 		return ans
+	
 	@property
 	def best_price(self):
 		if self.booktype=='Bid':
@@ -309,7 +250,10 @@ class Orderbook_half:
 				ans=self.worstprice
 				ans=None
 		return ans
+	@property
+	def lob_depth(self):
 
+		return len(self.lob.keys())
 			
 
 # Orderbook for a single instrument: list of bids and list of asks
@@ -333,36 +277,47 @@ class Exchange(Orderbook):
 				assert order.oid is not None
 				
 				if leg==0 and qid is None:
-					#order.qid = self.quote_id
+
 					order=order._replace(qid=self.quote_id)
 				else:
 					order=order._replace(qid=qid+0.000001*leg)
-					#order.qid=qid+0.000001*leg
+
 				
 				self.quote_id = self.quote_id + 1
 				# if verbose : print('QUID: order.quid=%d self.quote.id=%d' % (order.qid, self.quote_id))
 				tid = order.tid
 				if order.otype == 'Bid':
 						response=self.bids.book_add(order)
-						#best_price = self.bids.lob_anon[-1][0]
-						#self.bids.best_price = best_price
-						#self.bids.best_tid = self.bids.lob[best_price][1][0][2]
-						#self.bids.best_tid = self.bids.lob[best_price].orders[0].tid
-						
-						#self.bids.best_qid = self.bids.lob[best_price][1][0][3]
-						#self.bids.best_qid = self.bids.lob[best_price].orders[0].qid
+
 				else:
 						response=self.asks.book_add(order)
-						#best_price = self.asks.lob_anon[0][0]
-						
-						#self.asks.best_price = best_price
-						#self.asks.best_tid = self.asks.lob[best_price][1][0][2]
-						#self.asks.best_tid = self.asks.lob[best_price].orders[0].tid
-						
-						#self.asks.best_qid = self.asks.lob[best_price][1][0][3]
-						#self.asks.best_qid = self.asks.lob[best_price].orders[0].qid
 						
 				return [order.qid, response]
+				
+		def ammend_order(self,order,verbose=False,leg=0,qid=None):
+				# add a quote/order to the exchange and update all internal records; return unique i.d.
+				#maintain order on LOB
+				
+				assert order.oid is not None
+				
+				if leg==0 and qid is None:
+	
+					order=order._replace(qid=self.quote_id)
+				else:
+					order=order._replace(qid=qid+0.000001*leg)
+
+				
+				self.quote_id = self.quote_id + 1
+
+				tid = order.tid
+				if order.otype == 'Bid':
+						self.bids.book_ammend(order)
+
+				else:
+						self.asks.book_ammend(order)
+						
+				return [order.qid,'ammend']
+		
 
 
 		def del_order(self, time, order=None, verbose=False,oid=None,qid=None):
@@ -389,35 +344,13 @@ class Exchange(Orderbook):
 				tid = order.tid
 				if order.otype == 'Bid':
 						self.bids.book_del(order)
-						# if self.bids.n_orders > 0 :
-								# best_price = self.bids.lob_anon[-1][0]
-								# self.bids.best_price = best_price
-								# #self.bids.best_tid = self.bids.lob[best_price][1][0][2]
-								# #self.bids.best_tid = self.bids.lob[best_price].orders[0].tid
-								
-								# #self.bids.best_qid = self.bids.lob[best_price][1][0][3]
-								# #self.bids.best_qid = self.bids.lob[best_price].orders[0].qid
-						# else: # this side of book is empty
-								# self.bids.best_price = None
-								# self.bids.best_tid = None
-								# self.bids.best_qid = None
+
 						cancel_record = { 'type': 'Cancel', 'time': time, 'order': order }
 						self.tape.append(cancel_record)
 
 				elif order.otype == 'Ask':
 						self.asks.book_del(order)
-						# if self.asks.n_orders > 0 :
-								# best_price = self.asks.lob_anon[0][0]
-								# self.asks.best_price = best_price
-								# #self.asks.best_tid = self.asks.lob[best_price][1][0][2]
-								# self.asks.best_tid = self.asks.lob[best_price].orders[0].tid
-								# #self.asks.best_qid = self.asks.lob[best_price][1][0][3]
-								# self.asks.best_qid = self.asks.lob[best_price].orders[0].qid
-								
-						# else: # this side of book is empty
-								# self.asks.best_price = None
-								# self.asks.best_tid = None
-								# self.asks.best_qid = None
+
 						cancel_record = { 'type': 'Cancel', 'time': time, 'order': order }
 						self.tape.append(cancel_record)
 				else:
@@ -556,17 +489,8 @@ class Exchange(Orderbook):
 			counterparty = pty1_tid
 			ammended_order=(None,None,None)
 
-			#best_ask_order_old=pty1_side.orders.get(counterparty)[0] #Ready for multi trade environment
 			best_ask_order=pty1_side.q_orders.get(pty1_qid)
-			
-			#try:
-			#	assert best_ask_order_old==best_ask_order #this is only going to work when traders can only have one trade
 
-			#except AssertionError:
-			#	print(best_ask_order_old,best_ask_order)
-			#	raise
-			
-			
 			best_ask_order=copy.deepcopy(best_ask_order)
 			
 
@@ -586,7 +510,6 @@ class Exchange(Orderbook):
 			price = pty1_side.best_price  # bid crossed ask, so use ask price
 			if verbose: print('counterparty',counterparty, 'price',  price)
 			
-			#best_ask_q=pty1_side.lob[pty1_side.best_price][1][0][1]
 			best_ask_q=pty1_side.lob[pty1_side.best_price].orders[0].qty
 			
 			best_ask_q1=best_ask_order.qty
@@ -606,26 +529,24 @@ class Exchange(Orderbook):
 				fill_q=best_ask_q
 
 				if quantity>0:
-					#[order.qid,response]=self.add_order(order,verbose,leg=leg,qid=qid)
-					#ammend_qid=order.qid
+
+					
 					[ammend_qid,response]=self.add_order(order,verbose,leg=leg+1,qid=qid)
 					order=order._replace(qid=ammend_qid)
 					
 					
 					ammended_order=(order.tid,ammend_qid,order)
-					#if verbose: print('order partially filled, new ammended one ',leg,order.qid,order)
 					if verbose: print('order partially filled, new ammended one ',leg,ammend_qid,order)
 			else: 
 				if verbose: print('Partial fill situation')
 				#delete the bid that was the latest order
 
-				pty1_side.delete_best()
+				#pty1_side.delete_best()
 				#adjust the quantity of the best ask left on the book
-				#best_ask_order.qty=best_ask_q-quantity
 				best_ask_order=best_ask_order._replace(qty=best_ask_q-quantity)
 
-				#[best_ask_order.qid,response]=self.add_order(best_ask_order,verbose,leg=1,qid=best_ask_order.qid)
-				[best_ask_order_qid,response]=self.add_order(best_ask_order,verbose,leg=1,qid=best_ask_order.qid)
+
+				[best_ask_order_qid,response]=self.ammend_order(best_ask_order,verbose,leg=1,qid=best_ask_order.qid)
 				best_ask_order=best_ask_order._replace(qid=best_ask_order_qid)
 				
 				
@@ -695,8 +616,7 @@ class Exchange(Orderbook):
 				if verbose:
 						print('publish_lob: t=%d' % time)
 						print('BID_lob=%s' % public_data['bids']['lob'])
-						# print('best=%s; worst=%s; n=%s ' % (self.bids.best_price, self.bids.worstprice, self.bids.n_orders))
+
 						print('ASK_lob=%s' % public_data['asks']['lob'])
-						# print('qid=%d' % self.quote_id)
 
 				return public_data
