@@ -592,8 +592,12 @@ class Trader_ZIP(Trader):
 				bid_improved = False
 				bid_hit = False
 				lob_best_bid_p = lob['bids']['best']
+				#lob_worst_bid_p=lob['bids']['worst']
+				
 				lob_best_bid_q = None
 				if lob_best_bid_p != None:
+				#if lob_best_bid_p != lob_worst_bid_p:
+				
 						# non-empty bid LOB
 						lob_best_bid_q = lob['bids']['lob'][-1][1]
 						##if self.prev_best_bid_p < lob_best_bid_p : #python 3 port
@@ -616,8 +620,11 @@ class Trader_ZIP(Trader):
 				ask_improved = False
 				ask_lifted = False
 				lob_best_ask_p = lob['asks']['best']
+				#lob_worst_ask_p=lob['asks']['worst']
+				
 				lob_best_ask_q = None
 				if lob_best_ask_p != None:
+				#if lob_best_ask_p != lob_worst_ask_p:
 						# non-empty ask LOB
 						lob_best_ask_q = lob['asks']['lob'][0][1]
 						#if self.prev_best_ask_p > lob_best_ask_p : #python3 port

@@ -92,11 +92,11 @@ class Orderbook_half:
 			# anonymized LOB, lists, with only price/qty info
 			self.lob_anon = []
 			# summary stats
-			self.best_price = None
-			self.best_tid = None
-			self.best_qid=None
+			#self.best_price = None
+			#self.best_tid = None
+			#self.best_qid=None
 			self.worstprice = worstprice
-			self.n_orders = 0  # how many orders?
+			#self.n_orders = 0  # how many orders?
 			self.lob_depth = 0  # how many different prices on lob?
 
 
@@ -156,20 +156,20 @@ class Orderbook_half:
 			# create anonymized version
 			self.anonymize_lob()
 			# record best price and associated trader-id
-			if len(self.lob) > 0 :
-					if self.booktype == 'Bid':
-							self.best_price = self.lob_anon[-1][0]
-					else :
-							self.best_price = self.lob_anon[0][0]
-					#self.best_tid = self.lob[self.best_price][1][0][2]
-					self.best_tid=self.lob[self.best_price].orders[0].tid
+			# if len(self.lob) > 0 :
+					# if self.booktype == 'Bid':
+							# self.best_price = self.lob_anon[-1][0]
+					# else :
+							# self.best_price = self.lob_anon[0][0]
+					# #self.best_tid = self.lob[self.best_price][1][0][2]
+					# #self.best_tid=self.lob[self.best_price].orders[0].tid
 					
-					#self.best_qid = self.lob[self.best_price][1][0][3]
-					self.best_qid=self.lob[self.best_price].orders[0].qid
-			else :
-					self.best_price = None
-					self.best_tid = None
-					self.best_qid = None
+					# #self.best_qid = self.lob[self.best_price][1][0][3]
+					# #self.best_qid=self.lob[self.best_price].orders[0].qid
+			# else :
+					# self.best_price = None
+					# self.best_tid = None
+					# self.best_qid = None
 
 			if lob_verbose : print(self.lob)
 
@@ -195,7 +195,7 @@ class Orderbook_half:
 			
 			self.q_orders[order.qid]=order
 			
-			self.n_orders = len(self.q_orders)
+			#self.n_orders = len(self.q_orders)
 			self.build_lob()
 			assert len(self.orders)==len(self.q_orders)
 			#print('book_add < %s %s' % (order, self.orders))
@@ -214,7 +214,7 @@ class Orderbook_half:
 			if self.orders.get(order.oid) != None :
 					del(self.orders[order.oid])
 					del(self.q_orders[order.qid])
-					self.n_orders = len(self.q_orders)
+					#self.n_orders = len(self.q_orders)
 			if rebuild:
 				self.build_lob()
 			# print('book_del %s', self.orders)
@@ -242,15 +242,15 @@ class Orderbook_half:
 					del(self.orders[best_price_oid])
 					del(self.q_orders[best_price_counterparty_qid])
 					
-					self.n_orders = self.n_orders - 1
+					#self.n_orders = self.n_orders - 1
 					if self.n_orders > 0:
 							if self.booktype == 'Bid':
-									self.best_price = max(self.lob.keys())
-							else:
-									self.best_price = min(self.lob.keys())
-							self.lob_depth = len(self.lob.keys())
+									# self.best_price = max(self.lob.keys())
+							# else:
+									# self.best_price = min(self.lob.keys())
+								self.lob_depth = len(self.lob.keys())
 					else:
-							self.best_price = self.worstprice
+							# self.best_price = self.worstprice
 							self.lob_depth = 0
 			else:
 					# best_bid_qty>1 so the order decrements the quantity of the best bid
@@ -267,11 +267,50 @@ class Orderbook_half:
 					# update the bid list: counterparty's bid has been deleted
 					del(self.orders[best_price_oid])
 					del(self.q_orders[best_price_counterparty_qid])
-					self.n_orders = self.n_orders - 1
+					#self.n_orders = self.n_orders - 1
 			self.build_lob()
 			return best_price_counterparty
 
+	@property
+	def best_tid(self):
+		if len(self.lob)>0:
+			ans=self.lob[self.best_price].orders[0].tid
+		else:
+			ans=None
+		return ans
+	
+	@property
+	def best_qid(self):
+		if len(self.lob)>0:
+			ans=self.lob[self.best_price].orders[0].qid
+		else:
+			ans=None
+		return ans
+		
+	@property
+	def n_orders(self):
+		ans=sum([len(self.lob[price].orders) for price in self.lob])
+		if ans is None: ans=0
+		return ans
+	@property
+	def best_price(self):
+		if self.booktype=='Bid':
+			if len(self.lob)>0:
+				
+				ans=max(self.lob.keys())
+			else:
+				ans=self.worstprice
+				ans=None
+		else: #ask side
+			if len(self.lob)>0:
+				
+				ans=min(self.lob.keys())
+			else:
+				ans=self.worstprice
+				ans=None
+		return ans
 
+			
 
 # Orderbook for a single instrument: list of bids and list of asks
 
@@ -305,23 +344,23 @@ class Exchange(Orderbook):
 				tid = order.tid
 				if order.otype == 'Bid':
 						response=self.bids.book_add(order)
-						best_price = self.bids.lob_anon[-1][0]
-						self.bids.best_price = best_price
+						#best_price = self.bids.lob_anon[-1][0]
+						#self.bids.best_price = best_price
 						#self.bids.best_tid = self.bids.lob[best_price][1][0][2]
-						self.bids.best_tid = self.bids.lob[best_price].orders[0].tid
+						#self.bids.best_tid = self.bids.lob[best_price].orders[0].tid
 						
 						#self.bids.best_qid = self.bids.lob[best_price][1][0][3]
-						self.bids.best_qid = self.bids.lob[best_price].orders[0].qid
+						#self.bids.best_qid = self.bids.lob[best_price].orders[0].qid
 				else:
 						response=self.asks.book_add(order)
-						best_price = self.asks.lob_anon[0][0]
+						#best_price = self.asks.lob_anon[0][0]
 						
-						self.asks.best_price = best_price
+						#self.asks.best_price = best_price
 						#self.asks.best_tid = self.asks.lob[best_price][1][0][2]
-						self.asks.best_tid = self.asks.lob[best_price].orders[0].tid
+						#self.asks.best_tid = self.asks.lob[best_price].orders[0].tid
 						
 						#self.asks.best_qid = self.asks.lob[best_price][1][0][3]
-						self.asks.best_qid = self.asks.lob[best_price].orders[0].qid
+						#self.asks.best_qid = self.asks.lob[best_price].orders[0].qid
 						
 				return [order.qid, response]
 
@@ -350,35 +389,35 @@ class Exchange(Orderbook):
 				tid = order.tid
 				if order.otype == 'Bid':
 						self.bids.book_del(order)
-						if self.bids.n_orders > 0 :
-								best_price = self.bids.lob_anon[-1][0]
-								self.bids.best_price = best_price
-								#self.bids.best_tid = self.bids.lob[best_price][1][0][2]
-								self.bids.best_tid = self.bids.lob[best_price].orders[0].tid
+						# if self.bids.n_orders > 0 :
+								# best_price = self.bids.lob_anon[-1][0]
+								# self.bids.best_price = best_price
+								# #self.bids.best_tid = self.bids.lob[best_price][1][0][2]
+								# #self.bids.best_tid = self.bids.lob[best_price].orders[0].tid
 								
-								#self.bids.best_qid = self.bids.lob[best_price][1][0][3]
-								self.bids.best_qid = self.bids.lob[best_price].orders[0].qid
-						else: # this side of book is empty
-								self.bids.best_price = None
-								self.bids.best_tid = None
-								self.bids.best_qid = None
+								# #self.bids.best_qid = self.bids.lob[best_price][1][0][3]
+								# #self.bids.best_qid = self.bids.lob[best_price].orders[0].qid
+						# else: # this side of book is empty
+								# self.bids.best_price = None
+								# self.bids.best_tid = None
+								# self.bids.best_qid = None
 						cancel_record = { 'type': 'Cancel', 'time': time, 'order': order }
 						self.tape.append(cancel_record)
 
 				elif order.otype == 'Ask':
 						self.asks.book_del(order)
-						if self.asks.n_orders > 0 :
-								best_price = self.asks.lob_anon[0][0]
-								self.asks.best_price = best_price
-								#self.asks.best_tid = self.asks.lob[best_price][1][0][2]
-								self.asks.best_tid = self.asks.lob[best_price].orders[0].tid
-								#self.asks.best_qid = self.asks.lob[best_price][1][0][3]
-								self.asks.best_qid = self.asks.lob[best_price].orders[0].qid
+						# if self.asks.n_orders > 0 :
+								# best_price = self.asks.lob_anon[0][0]
+								# self.asks.best_price = best_price
+								# #self.asks.best_tid = self.asks.lob[best_price][1][0][2]
+								# self.asks.best_tid = self.asks.lob[best_price].orders[0].tid
+								# #self.asks.best_qid = self.asks.lob[best_price][1][0][3]
+								# self.asks.best_qid = self.asks.lob[best_price].orders[0].qid
 								
-						else: # this side of book is empty
-								self.asks.best_price = None
-								self.asks.best_tid = None
-								self.asks.best_qid = None
+						# else: # this side of book is empty
+								# self.asks.best_price = None
+								# self.asks.best_tid = None
+								# self.asks.best_qid = None
 						cancel_record = { 'type': 'Cancel', 'time': time, 'order': order }
 						self.tape.append(cancel_record)
 				else:
@@ -488,18 +527,22 @@ class Exchange(Orderbook):
 
 			quantity=temp_order.qty
 
-			
-			while pty1_side.n_orders > 0 and self.bids.best_price >= self.asks.best_price and quantity>0:
-					#do enough fills until the remaining order quantity is zero
-					
-					quantity,fill, ammended_order=self._do_one_fill(time,temp_order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid,verbose=verbose)
-					
-					tr.append(fill)
-					ammended_orders.append(ammended_order)
-					
-					if pty2_side.n_orders==0: break #check that one side of the LOB is not empty
-					
-					leg+=1
+			try:
+				while pty1_side.n_orders > 0 and self.bids.best_price >= self.asks.best_price and quantity>0:
+						#do enough fills until the remaining order quantity is zero
+						
+						quantity,fill, ammended_order=self._do_one_fill(time,temp_order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid,verbose=verbose)
+						
+						tr.append(fill)
+						ammended_orders.append(ammended_order)
+						
+						if pty2_side.n_orders==0: break #check that one side of the LOB is not empty
+						
+						leg+=1
+			except TypeError:
+				print(pty1_side.n_orders, self.bids.best_price,self.asks.best_price,quantity)
+						
+				raise
 			if len(tr)==0:
 				return None,None
 			else: 
