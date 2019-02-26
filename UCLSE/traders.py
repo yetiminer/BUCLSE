@@ -208,7 +208,7 @@ class Trader:
 
 		# specify how trader responds to events in the market
 		# this is a null action, expect it to be overloaded by specific algos
-		def respond(self, time, lob, trade, verbose):
+		def respond(self, time, lob, trade, verbose=False,tape=None):
 				return None
 
 		# specify how trader mutates its parameter values
@@ -535,7 +535,7 @@ class Trader_ZIP(Trader):
 
 
 		# update margin on basis of what happened in market
-		def respond(self, time, lob, trade, verbose):
+		def respond(self, time, lob, trade, verbose=False,tape=None):
 				# ZIP trader responds to market events, altering its margin
 				# does this whether it currently has an order to work or not
 
@@ -610,7 +610,7 @@ class Trader_ZIP(Trader):
 								bid_hit = True
 				elif self.prev_best_bid_p != None:
 						# the bid LOB has been emptied: was it cancelled or hit?
-						last_tape_item = lob['tape'][-1]
+						last_tape_item = tape[-1]
 						if last_tape_item['type'] == 'Cancel' :
 								bid_hit = False
 						else:
@@ -636,7 +636,7 @@ class Trader_ZIP(Trader):
 								ask_lifted = True
 				elif self.prev_best_ask_p != None:
 						# the ask LOB is empty now but was not previously: canceled or lifted?
-						last_tape_item = lob['tape'][-1]
+						last_tape_item = tape[-1]
 						if last_tape_item['type'] == 'Cancel' :
 								ask_lifted = False
 						else:
