@@ -29,13 +29,14 @@ from UCLSE.traders import (Trader_Giveaway, Trader_ZIC, Trader_Shaver,
                            Trader_Sniper, Trader_ZIP)
 from UCLSE.market_makers import  MarketMakerSpread
 						   
-from UCLSE.supply_demand import customer_orders,set_customer_orders, do_one
+#from UCLSE.supply_demand import customer_orders,set_customer_orders, do_one
+from UCLSE.supply_demand_mod import SupplyDemand
 
 
 import pandas as pd
 import numpy as np
 import yaml
-import math
+#import math
 from functools import reduce
 
 class Market_session:
@@ -96,14 +97,17 @@ class Market_session:
 			self.stat_list=[]
 			self.first_open=True
 			
-			#the starting number for the order numbers
-			self.latest_oid=-1
 			
 			#testing how changes in process_order effect things
 			self.process_order=self.exchange.process_order2
 			
 			#specify the quantity function for new orders
-			self.quantity_f=do_one
+			self.quantity_f=SupplyDemand.do_one
+			
+			#initiate supply demand module
+			self.sd=SupplyDemand(supply_schedule=self.supply_schedule,demand_schedule=self.demand_schedule,
+			interval=self.interval,timemode=self.timemode,pending=None,n_buyers=self.n_buyers,n_sellers=self.n_sellers,
+			traders=self.traders,quantity_f=self.quantity_f)#sys_minprice=self.exchange.bids.worstprice,sys_maxprice=self.exchange.asks.worstprice)
 			
 			self.orders_verbose = orders_verbose
 			self.lob_verbose = lob_verbose
@@ -112,15 +116,15 @@ class Market_session:
 			self.bookkeep_verbose = bookkeep_verbose
 			self.latency_verbose=latency_verbose
 
-	def _reset_session(self):
-		#occasionally may want to test same session?
-		self.time=0
-		self.first_open=True
-		self.last_update=-1.0
+	# def _reset_session(self):
+		# #occasionally may want to test same session?
+		# self.time=0
+		# self.first_open=True
+		# self.last_update=-1.0
 			
 	def set_schedule(self,range_low=0,range_high=0):
 		   return {'from':self.start_time,'to':self.end_time,
-			'stepmode':self.stepmode,'ranges':[(range_low,range_high,schedule_offsetfn)]}
+			'stepmode':self.stepmode,'ranges':[(range_low,range_high,SupplyDemand.schedule_offsetfn)]}
 		
 	def set_sess_id(self):
 		self.sess_id = 'trial%04d' % self.trial
@@ -336,22 +340,16 @@ class Market_session:
 				
 		trade_stats(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, self.lob_verbose))
 		
-		
+		#if recording: self.replay_vars[self.time]['tape']=self.exchange.publish_tape()
 		self.exchange.tape_dump(self.trade_record, 'w', 'keep')
 	
 	def simulate_one_period(self,trade_stats=None,recording=False,replay_vars=None):
 			
 			if trade_stats is None:
 				trade_stats=self.trade_stats
-			
-
-			
-			if self.time==0:
-				self.pending_cust_orders = []
 
 			verbose=self.verbose
-			cancellations=[]
-			self.cancellations=cancellations
+
 			lob={}
 			
 			replay=False
@@ -413,10 +411,6 @@ class Market_session:
 				#record the particulars of the period for subsequent recreation
 				self._record_period(tid=tid,lob=lob,order_dic=order_dic,trade=self.trade)
 				
-				
-			
-
-			
 			self.time = self.time + self.timestep
 			
 	def _get_demand(self,replay_vars=None,replay=False,order_schedule=None):
@@ -426,16 +420,14 @@ class Market_session:
 				self.kills =replay_vars[self.time]['kills']
 				self.dispatched_orders=replay_vars[self.time]['dispatched_orders']
 				#feed the dispatched orders to the set function
-				set_customer_orders(self.dispatched_orders,self.cancellations,verbose=self.orders_verbose,time=self.time,traders=self.traders)
+				self.sd.set_customer_orders(self.dispatched_orders,self.kills,verbose=self.orders_verbose,time=self.time)
 				self.pending_cust_orders=replay_vars[self.time]['pending_cust_orders']
 				
 			else:
 				
-				[self.pending_cust_orders, self.kills,self.dispatched_orders,latest_oid] = customer_orders(self.time, self.last_update, self.traders, 
-				self.n_buyers, self.n_sellers,
-												 order_schedule, self.pending_cust_orders, self.orders_verbose,quantity=self.quantity_f,
-												 oid=self.latest_oid)
-				self.latest_oid=latest_oid
+				[self.pending_cust_orders, self.kills,self.dispatched_orders] = self.sd.customer_orders(self.time, 
+												   self.orders_verbose)
+				
 	def _cancel_existing_orders_for_traders_who_already_have_one_in_the_market(self):
 		# if any newly-issued customer orders mean quotes on the LOB need to be cancelled, kill them
 		if len(self.kills) > 0 :
@@ -489,6 +481,8 @@ class Market_session:
 		
 		if trade != None:
 				if self.process_verbose: print(trade)
+				lob=self.exchange.publish_lob(self.time, self.lob_verbose)
+				
 				for trade_leg,ammended_order in zip(trade,ammended_orders):
 					# trade occurred,
 					# so the counterparties update order lists and blotters
@@ -496,21 +490,23 @@ class Market_session:
 					self.participants[trade_leg['party1']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time,active=False)
 					self.participants[trade_leg['party2']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
 					
-					ammend_tid=ammended_order[0]
+					#ammend_tid=ammended_order[0]
+					ammend_tid=ammended_order.tid
+					
 					if ammend_tid is not None:
-						ammend_qid=ammended_order[1]
+						#ammend_qid=ammended_order[1]
+						ammend_qid=ammended_order.qid
 						
-						if self.process_verbose: print('ammend trade ', ammended_order[2])
+						if self.process_verbose: print('ammend trade ', ammended_order.order)
 						
-						self.participants[ammend_tid].add_order_exchange(ammended_order[2],ammend_qid)
+						self.participants[ammend_tid].add_order_exchange(ammended_order.order,ammend_qid)
 					
 					
 					if self.dump_each_trade: 
 						if trade_stats is None:
 							trade_stats=self.trade_stats
 						
-						trade_stats(self.sess_id, self.traders, self.trade_file, self.time,
-															  self.exchange.publish_lob(self.time, self.lob_verbose))
+						trade_stats(self.sess_id, self.traders, self.trade_file, self.time,lob)
 															  
 					
 															  
@@ -519,6 +515,7 @@ class Market_session:
 
 	def _traders_respond(self,trade):
 		lob = self.exchange.publish_lob(self.time, self.lob_verbose)
+		tape=self.exchange.publish_tape()
 		for t in self.participants:
 				# NB respond just updates trader's internal variables
 				# doesn't alter the LOB, so processing each trader in
@@ -528,7 +525,7 @@ class Market_session:
 					last_trade_leg=trade[-1] #henry: we only see the state of the lob after a multileg trade is executed. 
 				else: last_trade_leg=None
 				
-				self.participants[t].respond(self.time, lob, last_trade_leg, self.respond_verbose)
+				self.participants[t].respond(self.time, lob, last_trade_leg, verbose=self.respond_verbose,tape=tape)
 		return lob
 		
 	def _record_period(self,lob=None,tid=None,order_dic=None,trade=None):
@@ -537,21 +534,23 @@ class Market_session:
 		'tid':tid, 'order':order_dic,'dispatched_orders':self.dispatched_orders,'trade':trade,'lob':lob}
 			try:
 				self.replay_vars[self.time]=recording_record
-			except AttributeError:
+			except AttributeError: #first period of recording
 				self.replay_vars={}
 				self.replay_vars[self.time]=recording_record
 
         
 
 # schedule_offsetfn returns time-dependent offset on schedule prices
-def schedule_offsetfn(t):
-        pi2 = math.pi * 2
-        c = math.pi * 3000
-        wavelength = t / c
-        gradient = 100 * t / (c / pi2)
-        amplitude = 100 * t / (c / pi2)
-        offset = gradient + amplitude * math.sin(wavelength * t)
-        return int(round(offset, 0))
+#ie alters the equilibrium price of the exchange in a time dependent way
+
+# def schedule_offsetfn(t):
+        # pi2 = math.pi * 2
+        # c = math.pi * 3000
+        # wavelength = t / c
+        # gradient = 100 * t / (c / pi2)
+        # amplitude = 100 * t / (c / pi2)
+        # offset = gradient + amplitude * math.sin(wavelength * t)
+        # return int(round(offset, 0))
 
 def yamlLoad(path):
 	
