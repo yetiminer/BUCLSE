@@ -58,6 +58,9 @@ class OrderList(deque):
 		#return sum([k.qty for k in self.orders])
 		return sum([k.qty for k in self])
 
+#this is to help reporting of executions		
+AmmendedOrderRecord=namedtuple('AmmendedOrderRecord',['tid','qid','order'])
+		
 # Orderbook_half is one side of the book: a list of bids or a list of asks, each sorted best-first
 
 class Orderbook_half:
@@ -253,7 +256,7 @@ class Orderbook_half:
 	@property
 	def n_orders(self):
 		#ans=sum([len(self.lob[price].orders) for price in self.lob])
-		ans=sum([len(self.lob[price]) for price in self.lob])
+		#ans=sum([len(self.lob[price]) for price in self.lob])
 		ans=len(self.orders)
 		
 		return ans
@@ -447,7 +450,7 @@ class Exchange(Orderbook):
 											   'p2_qid':qid
 											  }
 						self.tape.append(transaction_record)
-						return qid,[transaction_record],[[None]] #note as a one length array to make forward compatible with multi leg trades
+						return qid,[transaction_record],[AmmendedOrderRecord(None,None,None)] #note as a one length array to make forward compatible with multi leg trades
 				else:
 						return qid, None, None
 		
@@ -505,14 +508,16 @@ class Exchange(Orderbook):
 				return None,None
 			else: 
 				return tr,ammended_orders
-
+		
+		
 
 		def _do_one_fill(self,time,order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,verbose=True,leg=0,qid=None):
 			order=copy.deepcopy(order)
 			pty1_tid = pty1_side.best_tid
 			pty1_qid=pty1_side.best_qid
 			counterparty = pty1_tid
-			ammended_order=(None,None,None)
+			#ammended_order=(None,None,None)
+			ammended_order=AmmendedOrderRecord(tid=None,qid=None,order=None)
 
 			best_ask_order=pty1_side.q_orders.get(pty1_qid)
 
@@ -558,7 +563,8 @@ class Exchange(Orderbook):
 					order=order._replace(qid=ammend_qid)
 					
 					
-					ammended_order=(order.tid,ammend_qid,order)
+					#ammended_order=(order.tid,ammend_qid,order)
+					ammended_order=AmmendedOrderRecord(tid=order.tid,qid=ammend_qid,order=order)
 					if verbose: print('order partially filled, new ammended one ',leg,ammend_qid,order)
 					
 				else:
@@ -579,7 +585,8 @@ class Exchange(Orderbook):
 				
 				
 				if verbose: print('partial fill passive side ', best_ask_order.qid,best_ask_order)
-				ammended_order=(counterparty,best_ask_order.qid,best_ask_order)
+				#ammended_order=(counterparty,best_ask_order.qid,best_ask_order)
+				ammended_order=AmmendedOrderRecord(tid=counterparty,qid=best_ask_order.qid,order=best_ask_order)
 
 				pty2_side.delete_best()
 				fill_q=quantity
@@ -635,7 +642,7 @@ class Exchange(Orderbook):
 									 'n': self.asks.n_orders,
 									 'lob':self.asks.lob_anon}
 				public_data['QID'] = self.quote_id
-				public_data['tape'] = self.tape
+				#public_data['tape'] = self.tape
 				try:
 					public_data['last_transaction_price']=self.last_transaction_price
 				except AttributeError: #no trade yet
@@ -648,3 +655,6 @@ class Exchange(Orderbook):
 						print('ASK_lob=%s' % public_data['asks']['lob'])
 
 				return public_data
+				
+		def publish_tape(self):
+			return self.tape
