@@ -341,7 +341,7 @@ class Trader_ZIC(Trader):
 								raise TypeError
 									
 									
-							new_order = Order(self.tid, otype, quoteprice, qty, time, qid=qid,oid=oi)
+							new_order = Order(self.tid, otype, quoteprice, qty, self.time, qid=qid,oid=oi)
 							self.order_logic_check(oi,new_order)
 							self.lastquote[oi] = new_order
 							new_order_dic[oi]=new_order
@@ -383,7 +383,7 @@ class Trader_Shaver(Trader):
 													quoteprice = limitprice
 									else:
 											quoteprice = lob['asks']['worst']
-							new_order = Order(self.tid, otype, quoteprice, qty, time, qid=lob['QID'],oid=oi)
+							new_order = Order(self.tid, otype, quoteprice, qty, self.time, qid=lob['QID'],oid=oi)
 							self.order_logic_check(oi,new_order)
 							self.lastquote[oi] = new_order
 							new_order_dic[oi]=new_order
@@ -430,7 +430,7 @@ class Trader_Sniper(Trader):
 									print('Unknown order type ',otype)
 									raise TypeError
 							
-							new_order = Order(self.tid, otype, quoteprice, qty, time, qid=lob['QID'],oid=oi)
+							new_order = Order(self.tid, otype, quoteprice, qty, self.time, qid=lob['QID'],oid=oi)
 							self.order_logic_check(oi,new_order)
 							self.lastquote[oi] = new_order
 							new_order_dic[oi]=new_order
@@ -503,7 +503,7 @@ class Trader_ZIP_old(Trader):
 								quoteprice = int(self.limit * (1 + self.margin))
 								self.price = quoteprice
 
-								new_order = Order(self.tid, self.job, quoteprice, qty, time, qid=lob['QID'],oid=oi)
+								new_order = Order(self.tid, self.job, quoteprice, qty, self.time, qid=lob['QID'],oid=oi)
 								self.order_logic_check(oi,new_order)
 								
 								new_order_dic[oi]=new_order
@@ -749,7 +749,7 @@ class Trader_ZIP(Trader):
 								quoteprice = int(self.limit * (1 + self.margin))
 								self.price = quoteprice
 
-								new_order = Order(self.tid, self.job, quoteprice, qty, time, qid=lob['QID'],oid=oi)
+								new_order = Order(self.tid, self.job, quoteprice, qty, self.time, qid=lob['QID'],oid=oi)
 								self.order_logic_check(oi,new_order)
 								
 								new_order_dic[oi]=new_order

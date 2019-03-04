@@ -141,6 +141,9 @@ class Market_session:
 	@property #really important - define the time of the environment to be whatever the custom timer says
 	def time(self): 
 		return self.timer.get_time
+		
+	def time_left(self):
+		return self.timer.get_time_left
 			
 	def set_schedule(self,range_low=0,range_high=0):
 		   return {'from':self.start_time,'to':self.end_time,
@@ -394,8 +397,6 @@ class Market_session:
 			if verbose: print('\n%s;  ' % (self.sess_id))
 
 			# how much time left, as a percentage?
-			self.time_left = (self.end_time - self.time) / self.duration
-
 			# if verbose: print('\n\n%s; t=%08.2f (%4.1f/100) ' % (sess_id, time, time_left*100))
 
 			self.trade = None
