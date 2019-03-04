@@ -27,7 +27,7 @@ def identical_replay_vars(sess,sess1,verbose=True):
 			#return err_dict
 			#raise AssertionError
 		return err_dict
-		
+
 def side_by_side_period_by_period_difference_checker(sess,sess1):
 	#input two market_sessions, function will highlight differences in the replay_vars dictionary.
 	#checking is done per period. This is primarily for easier debugging.
@@ -35,7 +35,8 @@ def side_by_side_period_by_period_difference_checker(sess,sess1):
 	assert isinstance(sess,Market_session)
 	assert isinstance(sess1,Market_session)
 	lob_verbose=False
-	while sess.time<sess.end_time:
+	#while sess.time<sess.end_time:
+	while sess.timer.next_period() and sess1.timer.next_period():
 
 		sess.simulate_one_period(sess.trade_stats_df3,recording=True)
 

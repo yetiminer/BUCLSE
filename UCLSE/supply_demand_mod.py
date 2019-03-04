@@ -9,7 +9,7 @@ import math
 
 class SupplyDemand():
 	def __init__(self,supply_schedule=None,demand_schedule=None,interval=None,timemode=None,pending=None,sys_minprice=0,sys_maxprice=1000,
-	n_buyers=0,n_sellers=0,traders=None,quantity_f=None):
+	n_buyers=0,n_sellers=0,traders=None,quantity_f=None,timer=None):
 		self.supply_schedule=supply_schedule
 		self.demand_schedule=demand_schedule
 		self.interval=interval
@@ -23,6 +23,7 @@ class SupplyDemand():
 		self.quantity_f=quantity_f
 		self.oid=-1
 		self.pending_orders=[]
+		self.timer=timer
 	
 	@staticmethod
 	def do_one():

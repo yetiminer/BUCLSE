@@ -83,7 +83,7 @@ class Market_session:
 			
 			#init Timer
 			self.timer=CustomTimer(start=self.start_time,end=self.end_time,step=self.timestep)
-			self.time=self.timer.get_time
+			
 			
 
 			
@@ -123,7 +123,7 @@ class Market_session:
 			#initiate supply demand module
 			self.sd=SupplyDemand(supply_schedule=self.supply_schedule,demand_schedule=self.demand_schedule,
 			interval=self.interval,timemode=self.timemode,pending=None,n_buyers=self.n_buyers,n_sellers=self.n_sellers,
-			traders=self.traders,quantity_f=self.quantity_f)#sys_minprice=self.exchange.bids.worstprice,sys_maxprice=self.exchange.asks.worstprice)
+			traders=self.traders,quantity_f=self.quantity_f,timer=self.timer)#sys_minprice=self.exchange.bids.worstprice,sys_maxprice=self.exchange.asks.worstprice)
 			
 			self.orders_verbose = orders_verbose
 			self.lob_verbose = lob_verbose
@@ -137,6 +137,10 @@ class Market_session:
 		# self.time=0
 		# self.first_open=True
 		# self.last_update=-1.0
+		
+	@property #really important - define the time of the environment to be whatever the custom timer says
+	def time(self): 
+		return self.timer.get_time
 			
 	def set_schedule(self,range_low=0,range_high=0):
 		   return {'from':self.start_time,'to':self.end_time,
@@ -364,7 +368,9 @@ class Market_session:
 			trade_stats=self.trade_stats
 	
 
-		while self.time<self.end_time:
+		#while self.time<self.end_time:
+		while self.timer.next_period():
+		
 			self.simulate_one_period(trade_stats,recording,replay_vars)
 				
 		trade_stats(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, self.lob_verbose))
@@ -440,7 +446,7 @@ class Market_session:
 				#record the particulars of the period for subsequent recreation
 				self._record_period(tid=tid,lob=lob,order_dic=order_dic,trade=self.trade)
 				
-			self.time = self.time + self.timestep
+			#self.time = self.time + self.timestep
 			
 	def _get_demand(self,replay_vars=None,replay=False,order_schedule=None):
 	
