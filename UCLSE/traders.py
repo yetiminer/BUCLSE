@@ -61,6 +61,10 @@ class Trader:
 		@property
 		def time(self):
 			return self.timer.get_time
+			
+		@property
+		def time_left(self):
+			return self.timer.get_time_left
 
 
 		def add_order(self, order, verbose):
@@ -277,7 +281,7 @@ class Trader:
 # (but never makes a loss)
 class Trader_Giveaway(Trader):
 
-		def getorder(self, time, countdown, lob):
+		def getorder(self, time=None, countdown=None, lob=None):
 				new_order_dic={}
 				self.lastquote={}
 				if self.n_orders < 1:
@@ -311,7 +315,7 @@ class Trader_Giveaway(Trader):
 # After Gode & Sunder 1993
 class Trader_ZIC(Trader):
 
-		def getorder(self, time, countdown, lob):
+		def getorder(self, time=None, countdown=None, lob=None):
 				new_order_dic={}
 				self.lastquote={}
 				if self.n_orders < 1:
@@ -354,7 +358,7 @@ class Trader_ZIC(Trader):
 # if there is no best price, creates "stub quote" at system max/min
 class Trader_Shaver(Trader):
 
-		def getorder(self, time, countdown, lob):
+		def getorder(self, time=None, countdown=None, lob=None):
 				new_order_dic={}
 				self.lastquote={}
 				if self.n_orders < 1:
@@ -397,13 +401,13 @@ class Trader_Shaver(Trader):
 # then gets increasing aggressive, increasing "shave thickness" as time runs out
 class Trader_Sniper(Trader):
 
-		def getorder(self, time, countdown, lob):
+		def getorder(self, time=None, countdown=None, lob=None):
 				new_order_dic={}
 				self.lastquote={}
 				lurk_threshold = 0.2
 				shavegrowthrate = 3
-				shave = int(1.0 / (0.01 + countdown / (shavegrowthrate * lurk_threshold)))
-				if (self.n_orders < 1) or (countdown > lurk_threshold):
+				shave = int(1.0 / (0.01 + self.time_left / (shavegrowthrate * lurk_threshold)))
+				if (self.n_orders < 1) or (self.time_left > lurk_threshold):
 						new_order = None
 				else:
 						listish=self.orders_dic.items()
@@ -472,7 +476,7 @@ class Trader_ZIP_old(Trader):
 				self.prev_best_ask_q = None
 
 
-		def getorder(self, time, countdown, lob):
+		def getorder(self, time=None, countdown=None, lob=None):
 				new_order_dic={}
 				self.lastquote={}
 				if self.n_orders < 1:
@@ -513,6 +517,28 @@ class Trader_ZIP_old(Trader):
 		
 
 
+		def setorder(self,order):
+				self.lastquote=order
+				if self.n_orders < 1:
+						self.active = False
+						
+				else:
+						self.active = True
+						
+						listish=self.orders_dic.items()
+						for oi,ord in listish:
+								self.limit=ord['Original'].price
+								self.job = ord['Original'].otype
+				
+						
+								if self.job == 'Bid':
+										# currently a buyer (working a bid order)
+										self.margin = self.margin_buy
+								else:
+										# currently a seller (working a sell order)
+										self.margin = self.margin_sell
+								quoteprice = int(self.limit * (1 + self.margin))
+								self.price = quoteprice
 								
 
 		# update margin on basis of what happened in market
@@ -718,7 +744,7 @@ class Trader_ZIP(Trader):
 				self.reset_class_variables()
 
 
-		def getorder(self, time, countdown, lob):
+		def getorder(self, time=None, countdown=None, lob=None):
 				new_order_dic={}
 				self.lastquote={}
 				if self.n_orders < 1:
