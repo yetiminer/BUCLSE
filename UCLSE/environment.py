@@ -500,7 +500,7 @@ class Market_session:
 					len(permitted_traders),' pick trader :',
 					tid,' of type ',self.traders[tid].ttype)
 					#note that traders will return a dictionary containing at least one order
-					order_dic = self.traders[tid].getorder(self.time, self.time_left, self.exchange.publish_lob(self.time, self.lob_verbose))
+					order_dic = self.traders[tid].getorder(lob=self.exchange.publish_lob(self.time, self.lob_verbose))
 					if self.latency_verbose: print('Trader responds with ', len(order_dic), ' quotes to send to exchange')
 				
 				return order_dic,tid
