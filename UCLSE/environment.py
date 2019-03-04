@@ -28,6 +28,7 @@ from UCLSE.exchange import Exchange
 from UCLSE.traders import (Trader_Giveaway, Trader_ZIC, Trader_Shaver,
                            Trader_Sniper, Trader_ZIP)
 from UCLSE.market_makers import  MarketMakerSpread
+from UCLSE.custom_timer import CustomTimer
 						   
 #from UCLSE.supply_demand import customer_orders,set_customer_orders, do_one
 from UCLSE.supply_demand_mod import SupplyDemand
@@ -70,6 +71,8 @@ class Market_session:
 				   'interval':self.interval, 'timemode':self.timemode}
 			self.traders_spec = {'sellers':sellers_spec, 'buyers':buyers_spec}
 			
+
+			
 			#init exchange
 			self.exchange=Exchange()
 			
@@ -92,7 +95,15 @@ class Market_session:
 			# NB minimum interarrival time of customer orders may be much less than this!! 
 			self.timestep = 1.0 / (self.n_buyers+self.n_sellers)
 			self.last_update=-1.0
-			self.time=start_time
+			
+			
+			
+			#init Timer
+			self.timer=CustomTimer(start=self.start_time,end=self.end_time,step=self.timestep)
+			self.time=self.timer.get_time
+			
+			
+
 			self.set_sess_id()
 			self.stat_list=[]
 			self.first_open=True

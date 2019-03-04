@@ -288,11 +288,12 @@ class Orderbook_half:
 
 class Orderbook(Orderbook_half):
 
-        def __init__(self):
-                self.bids = Orderbook_half('Bid', bse_sys_minprice)
-                self.asks = Orderbook_half('Ask', bse_sys_maxprice)
-                self.tape = []
-                self.quote_id = 0  #unique ID code for each quote accepted onto the book
+		def __init__(self,timer=None):
+				self.bids = Orderbook_half('Bid', bse_sys_minprice)
+				self.asks = Orderbook_half('Ask', bse_sys_maxprice)
+				self.tape = []
+				self.quote_id = 0  #unique ID code for each quote accepted onto the book
+				self.timer=timer
 
 
 
