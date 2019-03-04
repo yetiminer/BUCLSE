@@ -57,6 +57,10 @@ class Trader:
 		def __str__(self):
 				return '[TID %s type %s balance %s blotter %s orders %s n_trades %s profitpertime %s]' \
 					   % (self.tid, self.ttype, self.balance, self.blotter, self.orders_dic, self.n_trades, self.profitpertime)
+					   
+		@property
+		def time(self):
+			return self.timer.get_time
 
 
 		def add_order(self, order, verbose):
@@ -289,7 +293,7 @@ class Trader_Giveaway(Trader):
 										ord['Original'].otype,
 										quoteprice,
 										ord['qty_remain'],
-										time, qid=lob['QID'],oid=oi)
+										self.time, qid=lob['QID'],oid=oi)
 							
 							self.order_logic_check(oi,new_order)
 							
