@@ -71,10 +71,24 @@ class Market_session:
 				   'interval':self.interval, 'timemode':self.timemode}
 			self.traders_spec = {'sellers':sellers_spec, 'buyers':buyers_spec}
 			
+			self.n_buyers,self.n_sellers=self.get_buyer_seller_numbers()
+			
+			# timestep set so that can process all traders in one second
+			# NB minimum interarrival time of customer orders may be much less than this!! 
+			self.timestep = 1.0 / (self.n_buyers+self.n_sellers)
+			self.last_update=-1.0
+			
+			
+			#assert a+b==self.n_buyers+self.n_sellers
+			
+			#init Timer
+			self.timer=CustomTimer(start=self.start_time,end=self.end_time,step=self.timestep)
+			self.time=self.timer.get_time
+			
 
 			
 			#init exchange
-			self.exchange=Exchange()
+			self.exchange=Exchange(timer=self.timer)
 			
 			#populate exchange with traders
 			traders={}
@@ -91,16 +105,7 @@ class Market_session:
 			#create dictionary of participants in market
 			self.create_participant_dic()
 			
-			# timestep set so that can process all traders in one second
-			# NB minimum interarrival time of customer orders may be much less than this!! 
-			self.timestep = 1.0 / (self.n_buyers+self.n_sellers)
-			self.last_update=-1.0
-			
-			
-			
-			#init Timer
-			self.timer=CustomTimer(start=self.start_time,end=self.end_time,step=self.timestep)
-			self.time=self.timer.get_time
+
 			
 			
 
@@ -207,9 +212,22 @@ class Market_session:
 						print(traders[bname])
 
 
-		self.n_buyers=n_buyers
-		self.n_sellers=n_sellers
+		assert self.n_buyers==n_buyers
+		assert self.n_sellers==n_sellers
 		self.traders=traders
+		
+	def get_buyer_seller_numbers(self):
+		n_buyers=0
+		n_sellers=0
+		for _,val in self.traders_spec['buyers'].items():
+			n_buyers=n_buyers+val
+		for _,val in self.traders_spec['sellers'].items():
+			n_sellers=n_sellers+val
+			
+		return n_buyers,n_sellers
+			
+
+		
 	
 	def add_market_makers(self,verbose=False):
 			
