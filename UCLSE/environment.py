@@ -47,7 +47,8 @@ class Market_session:
 				 sellers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
 				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False,
 				 trade_record='transactions.csv', random_seed=22,orders_verbose = False,lob_verbose = False,
-	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,market_makers_spec=None,rl_traders={}):
+	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,
+	market_makers_spec=None,rl_traders={},exchange=None):
 			self.start_time=start_time
 			self.end_time=end_time
 			self.interval=interval
@@ -88,7 +89,11 @@ class Market_session:
 
 			
 			#init exchange
-			self.exchange=Exchange(timer=self.timer)
+			if exchange is None:
+				self.exchange=Exchange(timer=self.timer)
+			else:
+				self.exchange=exchange
+				self.exchange.timer=self.timer
 			
 			#populate exchange with traders
 			traders={}
@@ -141,7 +146,8 @@ class Market_session:
 	@property #really important - define the time of the environment to be whatever the custom timer says
 	def time(self): 
 		return self.timer.get_time
-		
+	
+	@property
 	def time_left(self):
 		return self.timer.get_time_left
 			
