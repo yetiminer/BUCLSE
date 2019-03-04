@@ -294,6 +294,10 @@ class Orderbook(Orderbook_half):
 				self.tape = []
 				self.quote_id = 0  #unique ID code for each quote accepted onto the book
 				self.timer=timer
+				
+		@property
+		def time(self):
+			return self.timer.get_time
 
 
 
@@ -349,7 +353,7 @@ class Exchange(Orderbook):
 		
 
 
-		def del_order(self, time, order=None, verbose=False,oid=None,qid=None):
+		def del_order(self, time=None, order=None, verbose=False,oid=None,qid=None):
 				# delete a trader's quot/order from the exchange, update all internal records
 				try:
 					assert (order,oid,qid)!=(None,None,None)
@@ -374,13 +378,13 @@ class Exchange(Orderbook):
 				if order.otype == 'Bid':
 						self.bids.book_del(order)
 
-						cancel_record = { 'type': 'Cancel', 'time': time, 'order': order }
+						cancel_record = { 'type': 'Cancel', 'time': self.time, 'order': order }
 						self.tape.append(cancel_record)
 
 				elif order.otype == 'Ask':
 						self.asks.book_del(order)
 
-						cancel_record = { 'type': 'Cancel', 'time': time, 'order': order }
+						cancel_record = { 'type': 'Cancel', 'time': self.time, 'order': order }
 						self.tape.append(cancel_record)
 				else:
 						# neither bid nor ask?
@@ -388,11 +392,12 @@ class Exchange(Orderbook):
 
 
 
-		def process_order2(self, time, order, verbose):
+		def process_order2(self, order, verbose):
 				# receive an order and either add it to the relevant LOB (ie treat as limit order)
 				# or if it crosses the best counterparty offer, execute it (treat as a market order)
 				oprice = order.price
 				counterparty = None
+				time=self.time
 				
 				[qid, response] = self.add_order(order, verbose)  # add it to the order lists -- overwriting any previous order
 				#order.qid = qid
@@ -455,10 +460,11 @@ class Exchange(Orderbook):
 				else:
 						return qid, None, None
 		
-		def process_order3w(self,time=None,order=None,verbose=False):
+		def process_order3w(self,order=None,verbose=False):
 			[qid, response] = self.add_order(order, verbose)  # add it to the order lists -- overwriting any previous order
 			#order.qid = qid
 			order=order._replace(qid=qid)
+			time=self.time #freeze time
 			if verbose :
 						print('QUID: order.quid=%d' % order.qid)
 						print('RESPONSE: %s' % response)
@@ -632,6 +638,7 @@ class Exchange(Orderbook):
 		# this returns the LOB data "published" by the exchange,
 		# i.e., what is accessible to the traders
 		def publish_lob(self, time, verbose):
+				time=self.time
 				public_data = {}
 				public_data['time'] = time
 				public_data['bids'] = {'best':self.bids.best_price,

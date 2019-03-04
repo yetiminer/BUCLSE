@@ -461,7 +461,7 @@ class Market_session:
 				
 			else:
 				
-				[self.pending_cust_orders, self.kills,self.dispatched_orders] = self.sd.customer_orders(self.time, 
+				[self.pending_cust_orders, self.kills,self.dispatched_orders] = self.sd.customer_orders(verbose= 
 												   self.orders_verbose)
 				
 	def _cancel_existing_orders_for_traders_who_already_have_one_in_the_market(self):
@@ -509,7 +509,7 @@ class Market_session:
 	def _send_order_to_exchange(self,tid,order,trade_stats=None):
 		# send order to exchange
 		
-		qid, trade,ammended_orders = self.process_order(self.time, order, self.process_verbose)
+		qid, trade,ammended_orders = self.process_order(order, self.process_verbose)
 		
 		#'inform' trader what qid is
 		#self.traders[tid].add_order_exchange(order,qid)

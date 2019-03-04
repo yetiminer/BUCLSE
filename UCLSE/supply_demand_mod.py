@@ -24,6 +24,11 @@ class SupplyDemand():
 		self.oid=-1
 		self.pending_orders=[]
 		self.timer=timer
+		
+	@property #really important - define the time of the environment to be whatever the custom timer says
+	def time(self): 
+		return self.timer.get_time	
+	
 	
 	@staticmethod
 	def do_one():
@@ -163,7 +168,8 @@ class SupplyDemand():
 				response = self.traders[tname].add_order(order, verbose)
 				if verbose: print('Cancellations: %s' % (cancellations))
 				
-	def customer_orders(self,time, verbose):
+	def customer_orders(self,time=None, verbose=False):
+		time=self.time
 		
 		pending=self.pending_orders
 		shuffle_times = True
