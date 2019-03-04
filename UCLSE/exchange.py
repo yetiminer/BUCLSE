@@ -28,6 +28,8 @@ import copy
 
 from operator import itemgetter
 from collections import deque
+import json
+import paho.mqtt.client as mqtt
 
 bse_sys_minprice=0
 bse_sys_maxprice=1000
@@ -666,3 +668,26 @@ class Exchange(Orderbook):
 				
 		def publish_tape(self):
 			return self.tape
+
+			
+class RemoteExchange(Exchange):
+	def __init__(self,timer=None):
+		super().__init__(timer=timer)
+		self.connect_to_client()
+
+	def connect_to_client(self):
+		self.client = mqtt.Client()
+		self.client.connect("localhost",1883,60)
+		
+		
+	def make_transaction_record(self,time=None,price=None,p1_tid=None,
+									p2_tid=None,transact_qty=None,verbose=False,p1_qid=None,p2_qid=None):
+		transaction_record=super().make_transaction_record(time,price,p1_tid,
+									p2_tid,transact_qty,verbose,p1_qid,p2_qid)
+		data_out=json.dumps(transaction_record)
+		
+		
+		self.client.publish("topic/fills",data_out)
+		#self.client.disconnect()
+		
+		return transaction_record
