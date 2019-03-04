@@ -709,6 +709,7 @@ class Trader_ZIP(Trader):
 				self.price = None
 				self.limit = None
 				# memory of best price & quantity of best bid and ask, on LOB on previous update
+				# this should be reset whenever a new set of traders is instantiated.
 				self.reset_class_variables()
 
 
@@ -943,7 +944,7 @@ class Trader_ZIP(Trader):
 						##if cls.prev_best_bid_p < lob_best_bid_p : #python 3 port
 						if cls.prev_best_bid_p is None or cls.prev_best_bid_p < lob_best_bid_p:
 								# best bid has improved
-								# NB doesn't check if the improvement was by cls
+								# NB doesn't check if the improvement was by self
 								bid_improved = True
 						elif trade != None and ((cls.prev_best_bid_p > lob_best_bid_p) or ((cls.prev_best_bid_p == lob_best_bid_p) and (cls.prev_best_bid_q > lob_best_bid_q))): #henry: check logic here on multileg trade
 								# previous best bid was hit
@@ -975,7 +976,7 @@ class Trader_ZIP(Trader):
 						lob_best_ask_q = lob['asks']['lob'][0][1]
 						#if cls.prev_best_ask_p > lob_best_ask_p : #python3 port
 						if cls.prev_best_ask_p is not None and cls.prev_best_ask_p > lob_best_ask_p :
-								# best ask has improved -- NB doesn't check if the improvement was by cls
+								# best ask has improved -- NB doesn't check if the improvement was by self
 								ask_improved = True
 						elif trade != None and ((cls.prev_best_ask_p < lob_best_ask_p) or ((cls.prev_best_ask_p == lob_best_ask_p) and (cls.prev_best_ask_q > lob_best_ask_q))):
 								# trade happened and best ask price has got worse, or stayed same but quantity reduced -- assume previous best ask was lifted
