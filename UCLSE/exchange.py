@@ -181,7 +181,7 @@ class Orderbook_half:
 			#self.lob[order.price].orders.appendleft(order)
 			self.lob[order.price].appendleft(order)
 
-			#self.build_lob()
+			self.build_lob() #not sure if necessary, but needed to ensure anon lob is correct
 			assert len(self.orders)==len(self.q_orders)
 		
 		
@@ -671,23 +671,123 @@ class Exchange(Orderbook):
 
 			
 class RemoteExchange(Exchange):
-	def __init__(self,timer=None):
+	def __init__(self,timer=None,logger=None):
 		super().__init__(timer=timer)
+		self.logger=logger
 		self.connect_to_client()
+		self.msgs=[]
 
 	def connect_to_client(self):
 		self.client = mqtt.Client()
+		self.client.enable_logger(self.logger)
 		self.client.connect("localhost",1883,60)
+
+	def configure_client(self):
+		self.client.on_log=self.on_log
+		self.client.on_connect=self.on_connect
+		self.client.on_message=self.on_message
 		
-		
-	def make_transaction_record(self,time=None,price=None,p1_tid=None,
-									p2_tid=None,transact_qty=None,verbose=False,p1_qid=None,p2_qid=None):
-		transaction_record=super().make_transaction_record(time,price,p1_tid,
-									p2_tid,transact_qty,verbose,p1_qid,p2_qid)
-		data_out=json.dumps(transaction_record)
-		
-		
-		self.client.publish("topic/fills",data_out)
-		#self.client.disconnect()
-		
-		return transaction_record
+	def begin(self):
+		self.client.loop_forever()
+		#self.client.loop_start()
+		#time.sleep(10)
+		#self.client.loop_stop()
+	def on_log(client, userdata, level, buf):
+		print("log: ",buf)
+
+
+	def on_connect(self,client, userdata, flags, rc):
+		print("Connected with result code "+str(rc))
+		topic_list=[("topic/trades",0),("topic/cancels",0),
+					("topic/time",0),("topic/lob/req",0)]
+		client.subscribe(topic_list)
+
+	def on_message(self,client, userdata, msg):
+
+		if msg.topic=="topic/trades":
+			m_decode=str(msg.payload.decode("utf-8","ignore"))
+			m_in=json.loads(m_decode)
+			
+			order_in=Order(**m_in)
+			print(order_in)
+			self.msgs.append(order_in)
+			self.process_order3w(order_in)
+			
+		elif msg.topic=="topic/cancels":
+			m_decode=str(msg.payload.decode("utf-8","ignore"))        
+			m_in=json.loads(m_decode)
+			order_in=Order(**m_in)
+			self.del_order(order=order_in)
+			
+		elif msg.topic=="topic/lob/req":
+			print(msg.payload.decode())
+			lob=self.publish_lob(self.time,False)
+			lob=json.dumps(lob)
+			print(lob)
+			self.client.publish("topic/lob",lob)
+
+		elif msg.topic=="topic/time":
+			
+			msg=json.loads(msg.payload.decode("utf-8","ignore"))
+			#msg is a time,time_left tuple
+			if float(msg[1])<=0:
+				print('time up!')
+				#time.sleep(2)
+				print('disconnecting')
+				self.client.disconnect()
+			
+
+
+	def process_order3w(self,order=None,verbose=True):
+			
+			[qid, response] = self.add_order(order, verbose)  # add it to the order lists -- overwriting any previous order
+			print('this is qid',qid)
+			if verbose: print(qid,response)
+			order=order._replace(qid=qid)
+			print('this is new _order',order)
+			#tell trader what qid is
+			self.publish_qid(order)
+			
+
+			time=self.time #freeze time
+			if verbose :
+						print('QUID: order.quid=%d' % order.qid)
+						print('RESPONSE: %s' % response)
+		   
+			trade,ammended_orders=self.process_order3(time=time,order=order,verbose=verbose)
+			
+			#inform the traders of fills and ammended orders
+			self.publish_trade_fills(trade,ammended_orders)
+			
+			return qid,trade,ammended_orders
+
+	def publish_qid(self,order,verbose=False):
+		#on receipt of a trade, exchange informs trader what the qid is
+			
+			topic="topic/"+str(order.tid)+"/new_orders"
+			
+			#tell the trader what their qid is 
+			if verbose: print(topic)
+			self.client.publish(topic,json.dumps(order))
+
+
+	def publish_trade_fills(self,trade,ammended_orders,verbose=False):
+		#on transaction, exchange informs traders of fills and ammends
+			
+			if trade is not None:
+				for trade_leg,ammended_order in zip(trade,ammended_orders):
+					if verbose: print('trade leg',trade_leg)
+					#party1
+					tid=trade_leg['party1']
+					topic="topic/"+str(tid)+"/fills"
+
+					self.client.publish(topic,json.dumps(trade_leg))
+					#party2
+					tid=trade_leg['party2']
+					topic="topic/"+str(tid)+"/fills"
+					self.client.publish(topic,json.dumps(trade_leg))
+
+					ammend_tid=ammended_order.tid
+					if ammend_tid is not None:
+						topic="topic/"+str(tid)+"/ammends"
+						self.client.publish(topic,json.dumps(ammended_order))
