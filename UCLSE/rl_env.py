@@ -17,9 +17,10 @@ from collections import OrderedDict
 class RLEnv(gym.Env):
 	metadata = {'render.modes': ['human']}
 
-	def __init__(self,ID='henry',RL_trader=None,inventory_limit=1,time_limit=50):
+	def __init__(self,ID='henry',RL_trader=None,inventory_limit=1,time_limit=50,environ_dic=None):
 		
 		self.trader=RL_trader
+		self.environ_dic=environ_dic #this is the config dict for the trading environment
 		self.sess=self.sess_init()
 		self.ID=ID
 		self.time=self.sess.time
@@ -29,6 +30,7 @@ class RLEnv(gym.Env):
 		self.add_lob(self.sess.exchange.publish_lob(self.time,False))
 		self.inventory_limit=inventory_limit
 		self.setup_actions()
+		
 	 
 	def __str__(self):
 
@@ -100,24 +102,19 @@ class RLEnv(gym.Env):
 
 	def sess_init(self):
 
-		pa=os.getcwd()
-		config_name='UCLSE\\test\\fixtures\\mkt_cfg.yml'
-		config_path=os.path.join(pa,config_name)
 
-		environ_dic=yamlLoad(config_path)
-		environ_dic['end_time']=50
 
 		def geometric_q():
 			return np.random.geometric(0.6)
 		
-		environ_dic['rl_traders']={self.trader.tid:self.trader}
+		self.environ_dic['rl_traders']={self.trader.tid:self.trader}
 		
-		sess=Market_session(**environ_dic)
+		sess=Market_session(**self.environ_dic)
 		sess.process_order=sess.exchange.process_order3w
 		sess.quantity_f=geometric_q
 
 		order_thresh=4
-		while len(sess.exchange.tape)<2 and min(sess.exchange.bids.n_orders,sess.exchange.asks.n_orders)<order_thresh:
+		while len(sess.exchange.tape)<2 and min(sess.exchange.bids.n_orders,sess.exchange.asks.n_orders)<order_thresh and sess.timer.next_period():
 			sess.simulate_one_period(sess.trade_stats_df3,recording=False)
 		
 		return sess
@@ -130,7 +127,7 @@ class RLEnv(gym.Env):
 	def step(self, action):
 		#action should be converted into an order dic.
 		order_dic=self.action_converter(action)
-		
+		self.sess.timer.next_period()
 		self.sess.simulate_one_period(self.sess.trade_stats_df3,recording=False)
 		self.period_count+=1
 		self.time=self.sess.time
@@ -166,16 +163,16 @@ class RLEnv(gym.Env):
 	def setup_actions(self):
 		time=self.time
 		self.action_dic={
-			1: self.cancel_bids, 							#Cancel bid
-			-1:self.do_order_wrap(time,otype='Bid',spread=-1,qty=1), #add bid at best ask
+			-1: self.cancel_bids, 							#Cancel bid
+			1:self.do_order_wrap(time,otype='Bid',spread=-1,qty=1), #add bid at best ask
 			10:self.do_order_wrap(time,otype='Bid',spread=0,qty=1), # 'Add bid at best_bid-spread',
 			11:self.do_order_wrap(time,otype='Bid',spread=1,qty=1),
 			12:self.do_order_wrap(time,otype='Bid',spread=2,qty=1),
 			13:self.do_order_wrap(time,otype='Bid',spread=3,qty=1),
 			14:self.do_order_wrap(time,otype='Bid',spread=4,qty=1),
 			15:self.do_order_wrap(time,otype='Bid',spread=1,qty=1),                   
-			2: self.cancel_asks, 							#Cancel ask
-			-2:self.do_order_wrap(time,otype='Ask',spread=-1,qty=1),#add ask at best bid (hit the bid)
+			-2: self.cancel_asks, 							#Cancel ask
+			2:self.do_order_wrap(time,otype='Ask',spread=-1,qty=1),#add ask at best bid (hit the bid)
 			20:self.do_order_wrap(time,otype='Ask',spread=0,qty=1), # Add ask at best_bid+spread
 			21:self.do_order_wrap(time,otype='Ask',spread=1,qty=1),
 			22:self.do_order_wrap(time,otype='Ask',spread=2,qty=1),
