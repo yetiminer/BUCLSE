@@ -48,9 +48,8 @@ class Market_session:
 				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False,
 				 trade_record='transactions.csv', random_seed=22,orders_verbose = False,lob_verbose = False,
 	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,
-	market_makers_spec=None,rl_traders={},exchange=None):
-			self.start_time=start_time
-			self.end_time=end_time
+	market_makers_spec=None,rl_traders={},exchange=None,timer=None):
+
 			self.interval=interval
 			self.timemode=timemode
 			self.buyers_dic=buyers_spec
@@ -65,7 +64,19 @@ class Market_session:
 			self.random_seed=random_seed
 
 			
-			self.duration=float(self.end_time-self.start_time)
+			#coordinate times
+			if timer  is None:
+				self.start_time=start_time
+				self.end_time=end_time
+				self.duration=float(self.end_time-self.start_time)
+			else:
+				#given a timer, so override ignore start, end time in input and use timer settings instead
+				self.timer=timer
+				self.start_time=timer.start_time
+				self.end_time=timer.end_time
+				
+				print('using timer start time=%d, end time=%d, instead'%(self.start_time,self.end_time))
+			
 			self.supply_schedule=[self.set_schedule(range_low=supply_price_low,range_high=supply_price_high)]
 			self.demand_schedule=[self.set_schedule(range_low=demand_price_low,range_high=demand_price_high)]
 			self.order_schedule = {'sup':self.supply_schedule, 'dem':self.demand_schedule,
@@ -74,16 +85,22 @@ class Market_session:
 			
 			self.n_buyers,self.n_sellers=self.get_buyer_seller_numbers()
 			
+			#init timer
 			# timestep set so that can process all traders in one second
 			# NB minimum interarrival time of customer orders may be much less than this!! 
 			self.timestep = 1.0 / (self.n_buyers+self.n_sellers)
 			self.last_update=-1.0
+			if timer is None:
+				self.timer=CustomTimer(start=self.start_time,end=self.end_time,step=self.timestep)
+				
+			else:
+				old_step=self.timer.step
+				self.timer.set_step(self.timestep)
+				print('overwriting timer step size from: %d to %d' %(str(round(old_step,2)),str(round(self.timestep,2))))
 			
+
 			
-			#assert a+b==self.n_buyers+self.n_sellers
-			
-			#init Timer
-			self.timer=CustomTimer(start=self.start_time,end=self.end_time,step=self.timestep)
+
 			
 			
 
