@@ -24,6 +24,7 @@ class SupplyDemand():
 		self.oid=-1
 		self.pending_orders=[]
 		self.timer=timer
+		self.schedrange=None
 		
 	@property #really important - define the time of the environment to be whatever the custom timer says
 	def time(self): 
@@ -62,29 +63,9 @@ class SupplyDemand():
 		return price
 		
 	def getorderprice(self,i, sched, n, mode, issuetime):
-				# does the first schedule range include optional dynamic offset function(s)?
-				if len(sched[0]) > 2:
-						offsetfn = sched[0][2]
-						if callable(offsetfn):
-								# same offset for min and max
-								offset_min = offsetfn(issuetime)
-								offset_max = offset_min
-						else:
-								sys.exit('FAIL: 3rd argument of sched in getorderprice() not callable')
-						if len(sched[0]) > 3:
-								# if second offset function is specfied, that applies only to the max value
-								offsetfn = sched[0][3]
-								if callable(offsetfn):
-										# this function applies to max
-										offset_max = offsetfn(issuetime)
-								else:
-										sys.exit('FAIL: 4th argument of sched in getorderprice() not callable')
-				else:
-						offset_min = 0.0
-						offset_max = 0.0
 
-				pmin = self.sysmin_check(offset_min + min(sched[0][0], sched[0][1]))
-				pmax = self.sysmax_check(offset_max + max(sched[0][0], sched[0][1]))
+				pmin = self.sysmin_check(self.offset_min(issuetime) + min(sched[0][0], sched[0][1]))
+				pmax = self.sysmax_check(self.offset_max(issuetime) + max(sched[0][0], sched[0][1]))
 				prange = pmax - pmin
 				stepsize = prange / (n - 1)
 				halfstep = round(stepsize / 2.0)
@@ -157,8 +138,47 @@ class SupplyDemand():
 						break  # jump out the loop -- so the first matching timezone has priority over any others
 		if not got_one:
 				sys.exit('Fail: time=%5.2f not within any timezone in os=%s' % (time, os))
+				
+		if schedrange!=self.schedrange:
+			self.schedrange=schedrange
+			self.set_offset_function(schedrange)
+				
 		return (schedrange, mode)
 
+		
+	def return_constant_function(self,constant):
+			def constant_function(constant):
+				return constant
+			return constant_function
+		
+
+	def set_offset_function(self,sched):
+			if len(sched[0]) > 2:
+				offsetfn = sched[0][2]
+				if callable(offsetfn):
+
+							# same offset for min and max
+							self.offset_min = offsetfn
+							self.offset_max = offsetfn
+				else:
+						sys.exit('FAIL: 3rd argument of sched in getorderprice() not callable')
+						
+						
+						
+				if len(sched[0]) > 3:
+						# if second offset function is specified, that applies only to the max value
+						offsetfn = sched[0][3]
+						if callable(offsetfn):
+								# this function applies to max only, set min to constant function
+								self.offset_max=offsetfn
+								self.offset_min=self.return_constant_function(sched[0][0])
+
+						else:
+								sys.exit('FAIL: 4th argument of sched in getorderprice() not callable')
+			else:
+					self.offset_min = self.return_constant_function(0.0)
+					self.offset_max = self.return_constant_function(0.0)
+		
 		
 	def set_customer_orders(self,dispatched_orders,cancellations,verbose=False,time=None):
 		for order in dispatched_orders:
