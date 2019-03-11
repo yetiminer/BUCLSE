@@ -32,7 +32,7 @@ buy_sell_bid_ask_dic={'Bid':'Buy','Ask':'Sell'}
 
 class Trader:
 
-		def __init__(self, ttype=None, tid=None, balance=0, time=None, n_quote_limit=1,latency=1,timer=None):
+		def __init__(self, ttype=None, tid=None, balance=0, time=None, n_quote_limit=1,latency=1,timer=None,exchange=None):
 				self.ttype = ttype      # what type / strategy this trader is
 				self.tid = tid          # trader unique ID code
 				self.balance = balance  # money in the bank
@@ -52,6 +52,7 @@ class Trader:
 				self.total_quotes=0     # total number of quotes sent to exchange
 				self.inventory=0        # how many shares does a trader have on their own book
 				self.timer=timer		# the reference time source for the trader
+				self.exchange=exchange  # trader needs exchange address
 
 
 		def __str__(self):
@@ -67,7 +68,7 @@ class Trader:
 			return self.timer.get_time_left
 
 
-		def add_order(self, order, verbose):
+		def add_order(self, order, verbose,inform_exchange=False):
 				#this is adding an order from the perspective of a customer giving the trader an order to execute.
 				
 				if self.n_orders >= self.n_quote_limit :
@@ -76,6 +77,10 @@ class Trader:
 					oldest_trade_dic=self.get_oldest_order()
 					response = ('LOB_Cancel',oldest_trade_dic)
 					self.del_order( oldest_trade_dic['oid'])
+					if inform_exchange and oldest_trade_dic['last_qid'] is not None:
+						self.cancel_with_exchange(oid=oldest_trade_dic['oid'])
+						
+						
 					assert self.n_orders<=self.n_quote_limit
 					
 				else:
@@ -90,6 +95,14 @@ class Trader:
 				
 				if verbose : print('add_order < response=%s (time,oid,qid) %s' % (response[0],response[1]))
 				return response
+				
+		def cancel_with_exchange(self,oid=None,verbose=False):
+			#trader contacts exchange directly to inform of cancellation
+			
+			if verbose : print('killing lastquote=%s' % self.orders_dic_hist[oid]['Original'])
+
+			self.exchange.del_order(oid=oid, verbose=verbose)
+				
 		
 		def get_oldest_order(self):
 			#retrieves the oldest order in the order_dic, return tuple (time,oid,current_qid)
@@ -722,10 +735,10 @@ class Trader_ZIP(Trader):
 		#    so a single trader can both buy AND sell
 		#    -- in the original, traders were either buyers OR sellers
 
-		def __init__(self, ttype, tid, balance, time,timer=None): #can I use parent init function and then modify?
+		def __init__(self, ttype, tid, balance, time,timer=None,exchange=None): #can I use parent init function and then modify?
 				
 				#DRY: use parent instantiation before adding child specific properties
-				super().__init__(ttype=ttype,tid=tid,balance=balance,time=time,timer=timer)
+				super().__init__(ttype=ttype,tid=tid,balance=balance,time=time,timer=timer,exchange=exchange)
 				
 				self.job = None  # this gets switched to 'Bid' or 'Ask' depending on order-type
 				self.active = False  # gets switched to True while actively working an order
