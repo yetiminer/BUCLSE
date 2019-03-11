@@ -203,28 +203,37 @@ class SupplyDemand():
 			 new_pending=self.generate_new_pending_orders(shuffle_times=shuffle_times,time=time)
 		else:
 				# there are pending future orders: issue any whose timestamp is in the past
-				new_pending = []
-				
-				for order in pending:
-						if order.time < time:
-								dispatched_orders.append(order)
-								# this order should have been issued by now
-								# issue it to the trader
-								tname = order.tid
-								response = self.traders[tname].add_order(order, verbose,inform_exchange=True)
-								if verbose: print('Customer order: %s %s' % (response[0], order) )
-								if response[0] == 'LOB_Cancel' :
-									assert tname==response[1]['tid']
-									cancellations.append(response[1])
-									if verbose: print('Cancellations: %s' % (cancellations))
-								# and then don't add it to new_pending (i.e., delete it)
-						else:
-								# this order stays on the pending list
-								new_pending.append(order)
+				#tell the traders about these
+
+				dispatched_orders,cancellations,new_pending=self.generate_orders_for_dispatch(pending,time,verbose=verbose)
 		self.pending_orders=new_pending
 		return [new_pending, cancellations, dispatched_orders]
 		
 
+	def generate_orders_for_dispatch(self,pending,time,verbose=False):
+		new_pending = []
+		cancellations=[]
+		dispatched_orders=[]
+		
+		for order in pending:
+				if order.time < time:
+						dispatched_orders.append(order)
+						# this order should have been issued by now
+						# issue it to the trader
+						tname = order.tid
+						response = self.traders[tname].add_order(order, verbose,inform_exchange=True)
+						if verbose: print('Customer order: %s %s' % (response[0], order) )
+						if response[0] == 'LOB_Cancel' :
+							assert tname==response[1]['tid']
+							cancellations.append(response[1])
+							if verbose: print('Cancellations: %s' % (cancellations))
+						# and then don't add it to new_pending (i.e., delete it)
+				else:
+						# this order stays on the pending list
+						new_pending.append(order)
+		return dispatched_orders,cancellations,new_pending
+		
+		
 	def  generate_new_pending_orders(self,time=None,shuffle_times=True): 
 		# list of pending (to-be-issued) customer orders is empty, so generate a new one
 					new_pending = []
