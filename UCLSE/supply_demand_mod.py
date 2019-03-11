@@ -43,8 +43,13 @@ class SupplyDemand():
 		wavelength = t / c
 		gradient = 100 * t / (c / pi2)
 		amplitude = 100 * t / (c / pi2)
-		offset = gradient + amplitude * math.sin(wavelength * t)
-		return int(round(offset, 0))
+		if type(amplitude)==np.ndarray:
+			offset = gradient + amplitude * np.sin(wavelength * t)
+			ans=np.round(offset,0)
+		else:
+			offset = gradient + amplitude * math.sin(wavelength * t)
+			ans=int(round(offset, 0))
+		return  ans
 	
 	@property
 	def latest_oid(self): #oid=-1 number we start at for unique oid codes. Will increase negatively (to quickly differentiate from qid)
@@ -63,29 +68,54 @@ class SupplyDemand():
 				price = self.sys_maxprice
 		return price
 		
-	def getorderprice(self,i, sched, n, mode, issuetime):
+	# def getorderprice(self,i, sched, n, mode, issuetime):
 
-				pmin = self.sysmin_check(self.offset_min(issuetime) + min(sched[0][0], sched[0][1]))
-				pmax = self.sysmax_check(self.offset_max(issuetime) + max(sched[0][0], sched[0][1]))
-				prange = pmax - pmin
-				stepsize = prange / (n - 1)
-				halfstep = round(stepsize / 2.0)
+				# pmin = self.sysmin_check(self.offset_min(issuetime) + min(sched[0][0], sched[0][1]))
+				# pmax = self.sysmax_check(self.offset_max(issuetime) + max(sched[0][0], sched[0][1]))
+				# prange = pmax - pmin
+				# stepsize = prange / (n - 1)
+				# halfstep = round(stepsize / 2.0)
 
-				if mode == 'fixed':
-						orderprice = pmin + int(i * stepsize) 
-				elif mode == 'jittered':
-						orderprice = pmin + int(i * stepsize) + random.randint(-halfstep, halfstep)
-				elif mode == 'random':
-						if len(sched) > 1:
-								# more than one schedule: choose one equiprobably
-								s = random.randint(0, len(sched) - 1)
-								pmin = self.sysmin_check(min(sched[s][0], sched[s][1]))
-								pmax = self.sysmax_check(max(sched[s][0], sched[s][1]))
-						orderprice = random.randint(pmin, pmax)
-				else:
-						sys.exit('FAIL: Unknown mode in schedule')
-				orderprice = self.sysmin_check(self.sysmax_check(orderprice))
-				return orderprice
+				# if mode == 'fixed':
+						# orderprice = pmin + int(i * stepsize) 
+				# elif mode == 'jittered':
+						# orderprice = pmin + int(i * stepsize) + random.randint(-halfstep, halfstep)
+				# elif mode == 'random':
+						# if len(sched) > 1:
+								# # more than one schedule: choose one equiprobably
+								# s = random.randint(0, len(sched) - 1)
+								# pmin = self.sysmin_check(min(sched[s][0], sched[s][1]))
+								# pmax = self.sysmax_check(max(sched[s][0], sched[s][1]))
+						# orderprice = random.randint(pmin, pmax)
+				# else:
+						# sys.exit('FAIL: Unknown mode in schedule')
+				# orderprice = self.sysmin_check(self.sysmax_check(orderprice))
+				# return orderprice
+				
+	def getorderprices(self, sched, n, mode, issuetimes):
+
+		pmin = np.clip(self.offset_min(issuetimes) + min(sched[0][0], sched[0][1]),self.sys_minprice,self.sys_maxprice)
+		pmax = np.clip(self.offset_max(issuetimes) + max(sched[0][0], sched[0][1]),self.sys_minprice,self.sys_maxprice)
+		prange = pmax - pmin
+		stepsize = prange / (n - 1)
+		halfstep = np.ceil(stepsize / 2.0)
+
+		if mode == 'fixed':
+				orderprice = np.full(n,pmin) + np.round(np.array(range(n))*stepsize)
+		elif mode == 'jittered':
+				orderprice = np.full(n,pmin) + np.round(np.array(range(n))*stepsize) + np.random.randint(-halfstep, halfstep,n)
+		elif mode == 'random':
+				if len(sched) > 1:
+						# more than one schedule: choose one equiprobably
+						s = random.randint(0, len(sched) - 1)
+						pmin = self.sysmin_check(min(sched[s][0], sched[s][1]))
+						pmax = self.sysmax_check(max(sched[s][0], sched[s][1]))
+				orderprice = np.random.randint(pmin, pmax,n)
+		else:
+				sys.exit('FAIL: Unknown mode in schedule')
+		orderprices = np.clip(orderprice,self.sys_minprice,self.sys_maxprice)
+		return orderprices			
+	
 				
 	def getissuetimes(self,n_traders, mode, interval, shuffle, fittointerval):
 		interval = float(interval)
@@ -147,10 +177,15 @@ class SupplyDemand():
 		return (schedrange, mode)
 
 		
-	def return_constant_function(self,constant):
-			def constant_function(constant):
-				return constant
-			return constant_function
+	# def return_constant_function(self,constant):
+			# def constant_function(constant):
+				# return constant
+			# return constant_function
+			
+	def return_constant_function_vec(self,constant):
+		def constant_function(x):
+			return np.full(constant,x.shape)
+		return constant_function
 		
 
 	def set_offset_function(self,sched):
@@ -172,13 +207,13 @@ class SupplyDemand():
 						if callable(offsetfn):
 								# this function applies to max only, set min to constant function
 								self.offset_max=offsetfn
-								self.offset_min=self.return_constant_function(sched[0][0])
+								self.offset_min=self.return_constant_function_vec(sched[0][0])
 
 						else:
 								sys.exit('FAIL: 4th argument of sched in getorderprice() not callable')
 			else:
-					self.offset_min = self.return_constant_function(0.0)
-					self.offset_max = self.return_constant_function(0.0)
+					self.offset_min = self.return_constant_function_vec(0.0)
+					self.offset_max = self.return_constant_function_vec(0.0)
 		
 		
 	def set_customer_orders(self,dispatched_orders,cancellations,verbose=False,time=None):
@@ -245,10 +280,10 @@ class SupplyDemand():
 					ordertype = 'Bid'
 					(sched, mode) = self.getschedmode(time, self.demand_schedule)
 					
-					orderprices_b=[self.getorderprice(t,sched,self.n_buyers,mode,issuetime)
-								   for t,issuetime in zip(range(self.n_buyers),issuetimes)]
+					#orderprices_b=[self.getorderprice(t,sched,self.n_buyers,mode,issuetime)
+								   #for t,issuetime in zip(range(self.n_buyers),issuetimes)]
 					
-					#orderprices_b=self.getorderprice(t,sched,self.n_buyers,mode,issuetimes)
+					orderprices_b=self.getorderprices(sched,self.n_buyers,mode,issuetimes)
 					
 							   
 					for t,orderprice,issuetime in zip(range(self.n_buyers),orderprices_b,issuetimes):
@@ -263,7 +298,8 @@ class SupplyDemand():
 					
 					ordertype = 'Ask'
 					(sched, mode) = self.getschedmode(time, self.supply_schedule)
-					orderprices_s=[self.getorderprice(t,sched,self.n_sellers,mode,issuetime) for t in range(self.n_sellers)]
+					#orderprices_s=[self.getorderprice(t,sched,self.n_sellers,mode,issuetime) for t in range(self.n_sellers)]
+					orderprices_s=self.getorderprices(sched,self.n_sellers,mode,issuetimes)
 					
 					for t,orderprice,issuetime in zip(range(self.n_sellers),orderprices_s,issuetimes):
 							
