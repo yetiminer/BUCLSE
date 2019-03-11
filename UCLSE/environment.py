@@ -48,7 +48,7 @@ class Market_session:
 				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False,
 				 trade_record='transactions.csv', random_seed=22,orders_verbose = False,lob_verbose = False,
 	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,
-	market_makers_spec=None,rl_traders={},exchange=None,timer=None):
+	market_makers_spec=None,rl_traders={},exchange=None,timer=None,quantity_f=None):
 
 			self.interval=interval
 			self.timemode=timemode
@@ -140,7 +140,10 @@ class Market_session:
 			self.process_order=self.exchange.process_order2
 			
 			#specify the quantity function for new orders
-			self.quantity_f=SupplyDemand.do_one
+			if quantity_f is not None:
+				self.quantity_f=quantity_f
+			else:
+				self.quantity_f=SupplyDemand.do_one
 			
 			#initiate supply demand module
 			self.sd=SupplyDemand(supply_schedule=self.supply_schedule,demand_schedule=self.demand_schedule,
