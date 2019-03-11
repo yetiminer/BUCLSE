@@ -114,7 +114,7 @@ class Market_session:
 			
 			#populate exchange with traders
 			traders={}
-			self.trader_stats=self.populate_market(self.traders_spec,traders,True,self.verbose,timer=self.timer)
+			self.trader_stats=self.populate_market(self.traders_spec,traders,True,self.verbose,timer=self.timer,exchange=self.exchange)
 			
 			#populate market with market makers
 			self.market_makers={}
@@ -176,19 +176,19 @@ class Market_session:
 		self.sess_id = 'trial%04d' % self.trial
 		
 	def populate_market(self,traders_spec=None, traders={},
-						shuffle=True, verbose=True,timer=None):
+						shuffle=True, verbose=True,timer=None,exchange=None):
 
 		def trader_type(robottype, name):
 				if robottype == 'GVWY':
-						return Trader_Giveaway('GVWY', name, 0.00, 0,timer=timer)
+						return Trader_Giveaway('GVWY', name, 0.00, 0,timer=timer,exchange=exchange)
 				elif robottype == 'ZIC':
-						return Trader_ZIC('ZIC', name, 0.00, 0,timer=timer)
+						return Trader_ZIC('ZIC', name, 0.00, 0,timer=timer,exchange=exchange)
 				elif robottype == 'SHVR':
-						return Trader_Shaver('SHVR', name, 0.00, 0,timer=timer)
+						return Trader_Shaver('SHVR', name, 0.00, 0,timer=timer,exchange=exchange)
 				elif robottype == 'SNPR':
-						return Trader_Sniper('SNPR', name, 0.00, 0,timer=timer)
+						return Trader_Sniper('SNPR', name, 0.00, 0,timer=timer,exchange=exchange)
 				elif robottype == 'ZIP':
-						return Trader_ZIP('ZIP', name, 0.00, 0,timer=timer)
+						return Trader_ZIP('ZIP', name, 0.00, 0,timer=timer,exchange=exchange)
 				else:
 						sys.exit('FATAL: don\'t know robot type %s\n' % robottype)
 
