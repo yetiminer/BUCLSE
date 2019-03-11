@@ -2,6 +2,7 @@ import random
 from UCLSE.exchange import bse_sys_minprice, bse_sys_maxprice, Order
 import sys
 import math
+import numpy as np
 
 
 # parameter "pending" is the list of future orders (if this is empty, generates a new one from os)
@@ -199,35 +200,7 @@ class SupplyDemand():
 
 		if len(pending) < 1:
 				# list of pending (to-be-issued) customer orders is empty, so generate a new one
-				new_pending = []
-
-				# demand side (buyers)
-				issuetimes = self.getissuetimes(self.n_buyers, self.timemode, self.interval, shuffle_times, True)
-				
-				ordertype = 'Bid'
-				(sched, mode) = self.getschedmode(time, self.demand_schedule)             
-				for t in range(self.n_buyers):
-						issuetime = time + issuetimes[t]
-						tname = 'B%02d' % t
-						orderprice = self.getorderprice(t, sched, self.n_buyers, mode, issuetime)
-						
-						order = Order(tid=tname, otype=ordertype, price=orderprice, qty=self.quantity_f(), time=issuetime, qid=None,oid=self.latest_oid)
-						
-						new_pending.append(order)
-						
-				# supply side (sellers)
-				issuetimes = self.getissuetimes(self.n_sellers, self.timemode, self.interval, shuffle_times, True)
-				ordertype = 'Ask'
-				(sched, mode) = self.getschedmode(time, self.supply_schedule)
-				for t in range(self.n_sellers):
-						issuetime = time + issuetimes[t]
-						tname = 'S%02d' % t
-						orderprice = self.getorderprice(t, sched, self.n_sellers, mode, issuetime)
-
-						order = Order(tid=tname, otype=ordertype, price=orderprice, qty=self.quantity_f(), time=issuetime, qid=None,oid=self.latest_oid)
-						
-						
-						new_pending.append(order)
+			 new_pending=self.generate_new_pending_orders(shuffle_times=shuffle_times,time=time)
 		else:
 				# there are pending future orders: issue any whose timestamp is in the past
 				new_pending = []
@@ -251,3 +224,42 @@ class SupplyDemand():
 		self.pending_orders=new_pending
 		return [new_pending, cancellations, dispatched_orders]
 		
+
+	def  generate_new_pending_orders(self,time=None,shuffle_times=True): 
+		# list of pending (to-be-issued) customer orders is empty, so generate a new one
+					new_pending = []
+
+					# demand side (buyers)
+					issuetimes = self.getissuetimes(self.n_buyers, self.timemode, self.interval, shuffle_times, True)
+					issuetimes = time + np.array(issuetimes)
+					
+					ordertype = 'Bid'
+					(sched, mode) = self.getschedmode(time, self.demand_schedule)
+					
+					orderprices_b=[self.getorderprice(t,sched,self.n_buyers,mode,issuetime)
+								   for t,issuetime in zip(range(self.n_buyers),issuetimes)]
+					
+					#orderprices_b=self.getorderprice(t,sched,self.n_buyers,mode,issuetimes)
+					
+							   
+					for t,orderprice,issuetime in zip(range(self.n_buyers),orderprices_b,issuetimes):
+
+							tname = 'B%02d' % t
+							order = Order(tid=tname, otype=ordertype, price=orderprice, qty=self.quantity_f(), time=issuetime, qid=None,oid=self.latest_oid)
+							new_pending.append(order)
+
+					# supply side (sellers)
+					issuetimes = self.getissuetimes(self.n_sellers, self.timemode, self.interval, shuffle_times, True)
+					issuetimes = time + np.array(issuetimes)
+					
+					ordertype = 'Ask'
+					(sched, mode) = self.getschedmode(time, self.supply_schedule)
+					orderprices_s=[self.getorderprice(t,sched,self.n_sellers,mode,issuetime) for t in range(self.n_sellers)]
+					
+					for t,orderprice,issuetime in zip(range(self.n_sellers),orderprices_s,issuetimes):
+							
+							tname = 'S%02d' % t
+							order = Order(tid=tname, otype=ordertype, price=orderprice, qty=self.quantity_f(), time=issuetime, qid=None,oid=self.latest_oid)
+							new_pending.append(order)
+							
+					return new_pending		
