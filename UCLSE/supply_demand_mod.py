@@ -253,20 +253,31 @@ class SupplyDemand():
 		for order in pending:
 				if order.time < time:
 						dispatched_orders.append(order)
-						# this order should have been issued by now
-						# issue it to the trader
-						tname = order.tid
-						response = self.traders[tname].add_order(order, verbose,inform_exchange=True)
-						if verbose: print('Customer order: %s %s' % (response[0], order) )
-						if response[0] == 'LOB_Cancel' :
-							assert tname==response[1]['tid']
-							cancellations.append(response[1])
-							if verbose: print('Cancellations: %s' % (cancellations))
-						# and then don't add it to new_pending (i.e., delete it)
+						# # this order should have been issued by now
+						# # issue it to the trader
+						# tname = order.tid
+						# response = self.traders[tname].add_order(order, verbose,inform_exchange=True)
+						# if verbose: print('Customer order: %s %s' % (response[0], order) )
+						# if response[0] == 'LOB_Cancel' :
+							# assert tname==response[1]['tid']
+							# cancellations.append(response[1])
+							# if verbose: print('Cancellations: %s' % (cancellations))
+						# # and then don't add it to new_pending (i.e., delete it)
+						cancellations=self.do_dispatch(order,cancellations,verbose=verbose)
 				else:
 						# this order stays on the pending list
 						new_pending.append(order)
 		return dispatched_orders,cancellations,new_pending
+		
+	def do_dispatch(self,order,cancellations,verbose=False):
+			tname = order.tid
+			response = self.traders[tname].add_order(order, verbose,inform_exchange=True)
+			if verbose: print('Customer order: %s %s' % (response[0], order) )
+			if response[0] == 'LOB_Cancel' :
+				assert tname==response[1]['tid']
+				cancellations.append(response[1])
+				if verbose: print('Cancellations: %s' % (cancellations))
+			return cancellations
 		
 		
 	def  generate_new_pending_orders(self,time=None,shuffle_times=True): 
