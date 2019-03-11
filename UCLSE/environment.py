@@ -428,7 +428,7 @@ class Market_session:
 			self._get_demand(replay=replay,replay_vars=replay_vars,order_schedule=self.order_schedule)
 
 			#cancel any previous orders for a trader
-			self._cancel_existing_orders_for_traders_who_already_have_one_in_the_market()
+			#self._cancel_existing_orders_for_traders_who_already_have_one_in_the_market()
 
 			# get a limit-order quote (or None) from a randomly chosen trader
 			order_dic,tid=self._pick_trader_and_get_order(replay,replay_vars)
