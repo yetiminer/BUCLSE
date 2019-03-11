@@ -165,7 +165,7 @@ class SupplyDemand():
 				# this order should have been issued by now
 				# issue it to the trader
 				tname = order.tid
-				response = self.traders[tname].add_order(order, verbose)
+				response = self.traders[tname].add_order(order, verbose,inform_exchange=True)
 				if verbose: print('Cancellations: %s' % (cancellations))
 				
 	def customer_orders(self,time=None, verbose=False):
@@ -218,7 +218,7 @@ class SupplyDemand():
 								# this order should have been issued by now
 								# issue it to the trader
 								tname = order.tid
-								response = self.traders[tname].add_order(order, verbose)
+								response = self.traders[tname].add_order(order, verbose,inform_exchange=True)
 								if verbose: print('Customer order: %s %s' % (response[0], order) )
 								if response[0] == 'LOB_Cancel' :
 									assert tname==response[1]['tid']
