@@ -80,7 +80,7 @@ class SupplyDemand():
 	#can add new ones by adding a reference in the dictionary in set_time_mode_function
 	
 	def _time_mode_periodic(self,n_traders,interval=None,tstep=None):
-		return np.full(interval,n_traders)
+		return np.full(n_traders,interval)
 		
 	def _time_mode_dripfixed(self,n_traders,interval=None,tstep=None):
 		return np.arange(n_traders)*tstep
@@ -158,7 +158,7 @@ class SupplyDemand():
 			
 	def return_constant_function_vec(self,constant):
 		def constant_function(x):
-			return np.full(constant,x.shape)
+			return np.full(x.shape,constant)
 		return constant_function
 		
 
