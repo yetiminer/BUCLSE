@@ -63,9 +63,9 @@ def side_by_side_period_by_period_difference_checker(sess,sess1):
 
 
 	sess.trade_stats_df3(sess.sess_id, sess.traders, sess.trade_file, 
-						 sess.time, sess.exchange.publish_lob(sess.time, lob_verbose))
+						 sess.time, sess.exchange.publish_lob(sess.time, lob_verbose),final=True)
 	sess1.trade_stats_df3(sess1.sess_id, sess1.traders, sess1.trade_file,
-						  sess1.time, sess1.exchange.publish_lob(sess.time, lob_verbose))
+						  sess1.time, sess1.exchange.publish_lob(sess.time, lob_verbose),final=True)
 						 
 def build_df_from_yaml(path):
     ## builds a df from a yaml file containing any number of sub dictionaries 

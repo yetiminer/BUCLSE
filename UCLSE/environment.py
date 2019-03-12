@@ -290,7 +290,7 @@ class Market_session:
 		
 	
 	
-	def trade_stats(self,expid, traders, dumpfile, time, lob):
+	def trade_stats(self,expid, traders, dumpfile, time, lob,final=False):
 		trader_types = {}
 		n_traders = len(traders)
 		for t in traders:
@@ -365,7 +365,7 @@ class Market_session:
 		self.stat_list.append(new_dic)
 
 		#with pandas, concatenating at the end always seems to be quicker than as you go
-		if final or self.time >= self.end_time:
+		if final or self.time > self.end_time-self.timestep:
 			idx=[('expid',''),('time','')]
 			for typ, val in trader_types.items():
 				for k in ['balance_sum','n','pc']:
@@ -402,7 +402,7 @@ class Market_session:
 		
 			self.simulate_one_period(trade_stats,recording,replay_vars)
 				
-		trade_stats(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, self.lob_verbose))
+		trade_stats(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, self.lob_verbose),final=True)
 		
 		#if recording: self.replay_vars[self.time]['tape']=self.exchange.publish_tape()
 		self.exchange.tape_dump(self.trade_record, 'w', 'keep')
