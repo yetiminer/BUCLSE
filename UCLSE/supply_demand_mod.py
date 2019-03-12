@@ -105,7 +105,7 @@ class SupplyDemand():
 		try:
 			self.time_mode_func=func_dic[mode]
 		except KeyError:
-			print('FAIL: unknown time-mode in getissuetimes()')
+			print('FAIL: unknown time-mode in getissuetimes() - define custom timemode through time_mode_func flag')
 			raise
 
 	def getissuetimes(self,n_traders, mode, interval, shuffle, fittointerval):
