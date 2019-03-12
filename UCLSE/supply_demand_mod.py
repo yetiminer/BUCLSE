@@ -96,6 +96,7 @@ class SupplyDemand():
 		
 		
 	def set_time_mode_function(self,mode):
+		#this is a one time call at instantiation -assumes time mode does not change over time.
 		func_dic={'periodic':self._time_mode_periodic,
 					'drip-fixed':self._time_mode_dripfixed,
 					'drip-jitter':self._time_mode_dripjitter,
@@ -123,11 +124,8 @@ class SupplyDemand():
 		if fittointerval and ((arrtime > interval) or (arrtime < interval)):
 				# generated sum of interarrival times longer than the interval
 				# squish them back so that last arrival falls at t=interval
-				for t in range(n_traders):
-						issuetimes[t] = interval * (issuetimes[t] / arrtime)
+				issuetimes = interval * issuetimes / arrtime
 		# optionally randomly shuffle the times
-		#issuetimes=np.array(issuetimes)
-		
 		if shuffle:
 				np.random.shuffle(issuetimes)
 
