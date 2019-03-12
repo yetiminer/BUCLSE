@@ -13,7 +13,7 @@ class SupplyDemand():
 	side_dic={'Bid':'B','Ask':'A'}
 
 	def __init__(self,supply_schedule=None,demand_schedule=None,interval=None,timemode=None,pending=None,sys_minprice=0,sys_maxprice=1000,
-	n_buyers=0,n_sellers=0,traders=None,quantity_f=None,timer=None):
+	n_buyers=0,n_sellers=0,traders=None,quantity_f=None,timer=None,time_mode_func=None):
 		self.supply_schedule=supply_schedule
 		self.demand_schedule=demand_schedule
 		self.interval=interval
@@ -29,6 +29,11 @@ class SupplyDemand():
 		self.pending_orders=[]
 		self.timer=timer
 		self.schedrange=None
+		
+		if time_mode_func is None and self.timemode is not None:
+			self.set_time_mode_function(timemode)
+		else:
+			self.time_mode_function=time_mode_func
 		
 	@property #really important - define the time of the environment to be whatever the custom timer says
 	def time(self): 
@@ -70,7 +75,37 @@ class SupplyDemand():
 				print('WARNING: price > bse_sys_max -- clipped')
 				price = self.sys_maxprice
 		return price
+	
+	#here follows a bunch of functions which define how the issue times are decided 
+	#can add new ones by adding a reference in the dictionary in set_time_mode_function
+	
+	def _time_mode_periodic(self,n_traders,interval=None,tstep=None):
+		return np.full(interval,n_traders)
 		
+	def _time_mode_dripfixed(self,n_traders,interval=None,tstep=None):
+		return np.arange(n_traders)*tstep
+		
+	def _time_mode_dripjitter(self,n_traders,interval=None,tstep=None):
+		return np.arange(n_traders)*tstep+tstep*np.random.uniform(size=n_traders)
+		
+	def _time_mode_drippoisson(self,n_traders,interval=None,tstep=None):
+		lamb=n_traders/interval
+		a=np.random.poisson(lamb,n_traders)
+		
+		return np.cumsum(a)
+		
+		
+	def set_time_mode_function(self,mode):
+		func_dic={'periodic':self._time_mode_periodic,
+					'drip-fixed':self._time_mode_dripfixed,
+					'drip-jitter':self._time_mode_dripjitter,
+					'drip-poisson':self._time_mode_drippoisson}
+					
+		try:
+			self.time_mode_func=func_dic[mode]
+		except KeyError:
+			print('FAIL: unknown time-mode in getissuetimes()')
+			raise
 
 	def getissuetimes(self,n_traders, mode, interval, shuffle, fittointerval):
 		interval = float(interval)
@@ -80,22 +115,9 @@ class SupplyDemand():
 				tstep = interval
 		else:
 				tstep = interval / (n_traders - 1)
-		arrtime = 0
-		issuetimes = []
-		for t in range(n_traders):
-				if mode == 'periodic':
-						arrtime = interval
-				elif mode == 'drip-fixed':
-						arrtime = t * tstep
-				elif mode == 'drip-jitter':
-						arrtime = t * tstep + tstep * random.random()
-				elif mode == 'drip-poisson':
-						# poisson requires a bit of extra work
-						interarrivaltime = random.expovariate(n_traders / interval)
-						arrtime += interarrivaltime
-				else:
-						sys.exit('FAIL: unknown time-mode in getissuetimes()')
-				issuetimes.append(arrtime) 
+
+		issuetimes=self.time_mode_func(n_traders,interval,tstep)
+		arrtime=max(issuetimes)
 				
 		# at this point, arrtime is the last arrival time
 		if fittointerval and ((arrtime > interval) or (arrtime < interval)):
@@ -104,16 +126,11 @@ class SupplyDemand():
 				for t in range(n_traders):
 						issuetimes[t] = interval * (issuetimes[t] / arrtime)
 		# optionally randomly shuffle the times
-		issuetimes=np.array(issuetimes)
+		#issuetimes=np.array(issuetimes)
 		
 		if shuffle:
 				np.random.shuffle(issuetimes)
-				# for t in range(n_traders):
-						# i = (n_traders - 1) - t
-						# j = random.randint(0, i)
-						# tmp = issuetimes[i]
-						# issuetimes[i] = issuetimes[j]
-						# issuetimes[j] = tmp
+
 		return issuetimes
 		
 		
