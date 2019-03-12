@@ -25,6 +25,7 @@
 import random
 import copy
 from UCLSE.exchange import Order
+from collections import OrderedDict
 
 # Trader superclass
 # all Traders have a trader id, bank balance, blotter, and list of orders to execute
@@ -38,7 +39,8 @@ class Trader:
 				self.balance = balance  # money in the bank
 				self.blotter = []       # record of trades executed
 				self.orders = []        # customer orders currently being worked (fixed at 1)
-				self.orders_dic={}		#customer orders currently being worked, key=OID
+				#self.orders_dic={}		#customer orders currently being worked, key=OID
+				self.orders_dic=OrderedDict()
 				self.orders_dic_hist={}
 				self.orders_lookup={}
 				self.n_orders=0			# number of orders trader has been given
@@ -104,21 +106,34 @@ class Trader:
 			self.exchange.del_order(oid=oid, verbose=verbose)
 				
 		
+		# def get_oldest_order(self):
+			# #retrieves the oldest order in the order_dic, return tuple (time,oid,current_qid)
+			# output={'time':None,'oid':None,'last_qid':None}
+			# if len(self.orders_dic)>0:
+				# listy=[(order_dic['Original'].time,
+				# order_dic['Original'].oid,
+			   # order_dic['submitted_quotes']) for k,order_dic in self.orders_dic.items()]
+				# listy.sort()
+				
+				# last_qid=None
+				# if len(listy[0][2])>0: #check if any quotes were submitted to exchange
+					# last_qid=listy[0][2][-1].qid
+			
+				# output= {'time':listy[0][0],'oid':listy[0][1],'last_qid':last_qid,'tid':self.tid}
+				
+			# return output
+			
 		def get_oldest_order(self):
-			#retrieves the oldest order in the order_dic, return tuple (time,oid,current_qid)
 			output={'time':None,'oid':None,'last_qid':None}
 			if len(self.orders_dic)>0:
-				listy=[(order_dic['Original'].time,
-				order_dic['Original'].oid,
-			   order_dic['submitted_quotes']) for k,order_dic in self.orders_dic.items()]
-				listy.sort()
-				
 				last_qid=None
-				if len(listy[0][2])>0: #check if any quotes were submitted to exchange
-					last_qid=listy[0][2][-1].qid
-			
-				output= {'time':listy[0][0],'oid':listy[0][1],'last_qid':last_qid,'tid':self.tid}
+				k=next(reversed(self.orders_dic))
+				listy=self.orders_dic[k]['submitted_quotes']
 				
+				if len(listy)>0:
+					last_qid=listy[-1].qid
+				output= {'time':self.orders_dic[k]['Original'].time,
+				'oid':self.orders_dic[k]['Original'].oid,'last_qid':last_qid,'tid':self.tid}
 			return output
 		
 				
