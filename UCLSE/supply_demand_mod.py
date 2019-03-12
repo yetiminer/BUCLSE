@@ -71,32 +71,7 @@ class SupplyDemand():
 				price = self.sys_maxprice
 		return price
 		
-				
-	def getorderprices(self, sched, n, mode, issuetimes):
 
-		pmin = np.clip(self.offset_min(issuetimes) + min(sched[0][0], sched[0][1]),self.sys_minprice,self.sys_maxprice)
-		pmax = np.clip(self.offset_max(issuetimes) + max(sched[0][0], sched[0][1]),self.sys_minprice,self.sys_maxprice)
-		prange = pmax - pmin
-		stepsize = prange / (n - 1)
-		halfstep = np.ceil(stepsize / 2.0)
-
-		if mode == 'fixed':
-				orderprice = np.full(n,pmin) + np.round(np.array(range(n))*stepsize)
-		elif mode == 'jittered':
-				orderprice = np.full(n,pmin) + np.round(np.array(range(n))*stepsize) + np.random.randint(-halfstep, halfstep,n)
-		elif mode == 'random':
-				if len(sched) > 1:
-						# more than one schedule: choose one equiprobably
-						s = random.randint(0, len(sched) - 1)
-						pmin = self.sysmin_check(min(sched[s][0], sched[s][1]))
-						pmax = self.sysmax_check(max(sched[s][0], sched[s][1]))
-				orderprice = np.random.randint(pmin, pmax,n)
-		else:
-				sys.exit('FAIL: Unknown mode in schedule')
-		orderprices = np.clip(orderprice,self.sys_minprice,self.sys_maxprice)
-		return orderprices			
-	
-				
 	def getissuetimes(self,n_traders, mode, interval, shuffle, fittointerval):
 		interval = float(interval)
 		if n_traders < 1:
@@ -129,14 +104,18 @@ class SupplyDemand():
 				for t in range(n_traders):
 						issuetimes[t] = interval * (issuetimes[t] / arrtime)
 		# optionally randomly shuffle the times
+		issuetimes=np.array(issuetimes)
+		
 		if shuffle:
-				for t in range(n_traders):
-						i = (n_traders - 1) - t
-						j = random.randint(0, i)
-						tmp = issuetimes[i]
-						issuetimes[i] = issuetimes[j]
-						issuetimes[j] = tmp
+				np.random.shuffle(issuetimes)
+				# for t in range(n_traders):
+						# i = (n_traders - 1) - t
+						# j = random.randint(0, i)
+						# tmp = issuetimes[i]
+						# issuetimes[i] = issuetimes[j]
+						# issuetimes[j] = tmp
 		return issuetimes
+		
 		
 	def getschedmode(self,time, os):
 		got_one = False
@@ -194,7 +173,31 @@ class SupplyDemand():
 			else:
 					self.offset_min = self.return_constant_function_vec(0.0)
 					self.offset_max = self.return_constant_function_vec(0.0)
-		
+
+	def getorderprices(self, sched, n, mode, issuetimes):
+
+		pmin = np.clip(self.offset_min(issuetimes) + min(sched[0][0], sched[0][1]),self.sys_minprice,self.sys_maxprice)
+		pmax = np.clip(self.offset_max(issuetimes) + max(sched[0][0], sched[0][1]),self.sys_minprice,self.sys_maxprice)
+		prange = pmax - pmin
+		stepsize = prange / (n - 1)
+		halfstep = np.ceil(stepsize / 2.0)
+
+		if mode == 'fixed':
+				orderprice = np.full(n,pmin) + np.round(np.array(range(n))*stepsize)
+		elif mode == 'jittered':
+				orderprice = np.full(n,pmin) + np.round(np.array(range(n))*stepsize) + np.random.randint(-halfstep, halfstep,n)
+		elif mode == 'random':
+				if len(sched) > 1:
+						# more than one schedule: choose one equiprobably
+						s = random.randint(0, len(sched) - 1)
+						pmin = self.sysmin_check(min(sched[s][0], sched[s][1]))
+						pmax = self.sysmax_check(max(sched[s][0], sched[s][1]))
+				orderprice = np.random.randint(pmin, pmax,n)
+		else:
+				sys.exit('FAIL: Unknown mode in schedule')
+		orderprices = np.clip(orderprice,self.sys_minprice,self.sys_maxprice)
+		return orderprices			
+					
 		
 	def set_customer_orders(self,dispatched_orders,cancellations,verbose=False,time=None):
 		for order in dispatched_orders:
@@ -226,7 +229,6 @@ class SupplyDemand():
 		
 
 		
-		
 	def generate_orders_for_dispatch(self,pending,time,verbose=False):
 
 		dispatched_orders=[]
@@ -249,9 +251,6 @@ class SupplyDemand():
 				if verbose: print('Cancellations: %s' % (cancellations))
 			return cancellations
 		
-		
-
-					
 	def  generate_new_pending_orders(self,time=None,shuffle_times=True): 
 		# list of pending (to-be-issued) customer orders is empty, so generate a new one
 					new_pending = {}
@@ -267,13 +266,10 @@ class SupplyDemand():
 	def do_side_pending_orders(self,new_pending,ordertype,letter,time,shuffle_times,schedule_type,n_type):
 				#new_pending={}
 				issuetimes = self.getissuetimes(n_type, self.timemode, self.interval, shuffle_times, True)
-				issuetimes = time + np.array(issuetimes)
-				
+				#issuetimes = time + np.array(issuetimes)
+				issuetimes = time + issuetimes
 				
 				(sched, mode) = self.getschedmode(time, schedule_type)
-				
-				#orderprices_b=[self.getorderprice(t,sched,self.n_buyers,mode,issuetime)
-							   #for t,issuetime in zip(range(self.n_buyers),issuetimes)]
 				
 				orderprices_b=self.getorderprices(sched,n_type,mode,issuetimes)
 				
