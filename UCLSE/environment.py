@@ -177,64 +177,57 @@ class Market_session:
 		
 	def set_sess_id(self):
 		self.sess_id = 'trial%04d' % self.trial
+
+	@staticmethod
+	def trader_type(robottype, name,timer=None,exchange=None):
+			if robottype == 'GVWY':
+					return Trader_Giveaway('GVWY', name, 0.00, 0,timer=timer,exchange=exchange)
+			elif robottype == 'ZIC':
+					return Trader_ZIC('ZIC', name, 0.00, 0,timer=timer,exchange=exchange)
+			elif robottype == 'SHVR':
+					return Trader_Shaver('SHVR', name, 0.00, 0,timer=timer,exchange=exchange)
+			elif robottype == 'SNPR':
+					return Trader_Sniper('SNPR', name, 0.00, 0,timer=timer,exchange=exchange)
+			elif robottype == 'ZIP':
+					return Trader_ZIP('ZIP', name, 0.00, 0,timer=timer,exchange=exchange)
+			else:
+					sys.exit('FATAL: don\'t know robot type %s\n' % robottype)
+
 		
 	def populate_market(self,traders_spec=None, traders={},
 						shuffle=True, verbose=True,timer=None,exchange=None):
 
-		def trader_type(robottype, name):
-				if robottype == 'GVWY':
-						return Trader_Giveaway('GVWY', name, 0.00, 0,timer=timer,exchange=exchange)
-				elif robottype == 'ZIC':
-						return Trader_ZIC('ZIC', name, 0.00, 0,timer=timer,exchange=exchange)
-				elif robottype == 'SHVR':
-						return Trader_Shaver('SHVR', name, 0.00, 0,timer=timer,exchange=exchange)
-				elif robottype == 'SNPR':
-						return Trader_Sniper('SNPR', name, 0.00, 0,timer=timer,exchange=exchange)
-				elif robottype == 'ZIP':
-						return Trader_ZIP('ZIP', name, 0.00, 0,timer=timer,exchange=exchange)
-				else:
-						sys.exit('FATAL: don\'t know robot type %s\n' % robottype)
-
-
-		def shuffle_traders(ttype_char, n, traders):
-				for swap in range(n):
-						t1 = (n - 1) - swap
-						t2 = random.randint(0, t1)
-						t1name = '%c%02d' % (ttype_char, t1)
-						t2name = '%c%02d' % (ttype_char, t2)
-						traders[t1name].tid = t2name
-						traders[t2name].tid = t1name
-						temp = traders[t1name]
-						traders[t1name] = traders[t2name]
-						traders[t2name] = temp
-
-
 		n_buyers = 0
 		for bs,num_type in traders_spec['buyers'].items():
 				ttype = bs
-				for b in range(num_type):
+				trader_nums=np.arange(num_type)
+				if shuffle: trader_nums=np.random.permutation(trader_nums)
+				
+				for b in trader_nums:
 						tname = 'B%02d' % n_buyers  # buyer i.d. string
-						traders[tname] = trader_type(ttype, tname)
+						traders[tname] = self.trader_type(ttype, tname,timer,exchange)
 						n_buyers = n_buyers + 1
 
 		if n_buyers < 1:
 				sys.exit('FATAL: no buyers specified\n')
 
-		if shuffle: shuffle_traders('B', n_buyers, traders)
+		#if shuffle: self.shuffle_traders('B', n_buyers, traders)
 
 
 		n_sellers = 0
 		for ss, num_type in traders_spec['sellers'].items():
 				ttype = ss
-				for s in range(num_type):
+				trader_nums=np.arange(num_type)
+				if shuffle: trader_nums=np.random.permutation(trader_nums)
+				for s in trader_nums:
 						tname = 'S%02d' % n_sellers  # buyer i.d. string
-						traders[tname] = trader_type(ttype, tname)
+						traders[tname] = self.trader_type(ttype, tname,timer,exchange)
 						n_sellers = n_sellers + 1
 
 		if n_sellers < 1:
 				sys.exit('FATAL: no sellers specified\n')
 
-		if shuffle: shuffle_traders('S', n_sellers, traders)
+		#if shuffle: self.shuffle_traders('S', n_sellers, traders)
 
 		if verbose :
 				for t in range(n_buyers):
