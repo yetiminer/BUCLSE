@@ -41,6 +41,10 @@ import yaml
 from functools import reduce
 
 class Market_session:
+
+	type_dic={'buyers':{'letter':'B'},
+			 'sellers':{'letter':'S'}}
+
 	def __init__(self,start_time=0.0,end_time=600.0,supply_price_low=95,supply_price_high=95,
 				  demand_price_low=105,demand_price_high=105,interval=30,timemode='drip-poisson',
 				 buyers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
@@ -192,55 +196,43 @@ class Market_session:
 					return Trader_ZIP('ZIP', name, 0.00, 0,timer=timer,exchange=exchange)
 			else:
 					sys.exit('FATAL: don\'t know robot type %s\n' % robottype)
-
-		
-	def populate_market(self,traders_spec=None, traders={},
-						shuffle=True, verbose=True,timer=None,exchange=None):
-
+	
+	@classmethod
+	def define_traders_side(cls,traders_spec,side,shuffle=False,timer=None,exchange=None,traders={},verbose=False):
 		n_buyers = 0
-		for bs,num_type in traders_spec['buyers'].items():
+		
+		typ=side
+		letter=cls.type_dic[typ]['letter']
+		t_num=0
+		for bs,num_type in traders_spec[typ].items():
 				ttype = bs
 				trader_nums=np.arange(num_type)
 				if shuffle: trader_nums=np.random.permutation(trader_nums)
 				
+
 				for b in trader_nums:
-						tname = 'B%02d' % n_buyers  # buyer i.d. string
-						traders[tname] = self.trader_type(ttype, tname,timer,exchange)
-						n_buyers = n_buyers + 1
+						tname = '%s%02d' % (letter,t_num)  # buyer i.d. string
+						if verbose: print(tname)
+						traders[tname] = cls.trader_type(ttype, tname,timer,exchange)
+						t_num+=1
 
-		if n_buyers < 1:
-				sys.exit('FATAL: no buyers specified\n')
+		if len(traders)<1:
+			print('FATAL: no %s specified\n' % side)
+			raise AssertionError
+				
+		return traders,t_num
+					
+		
+	def populate_market(self,traders_spec=None, traders={},
+						shuffle=True, verbose=True,timer=None,exchange=None):
 
-		#if shuffle: self.shuffle_traders('B', n_buyers, traders)
+		self.buyers,n_buyers=self.define_traders_side(traders_spec,'buyers',shuffle=shuffle,timer=timer,exchange=exchange,traders={},verbose=verbose)
+		
+		self.sellers,n_sellers=self.define_traders_side(traders_spec,'sellers',shuffle=shuffle,timer=timer,exchange=exchange,traders={},verbose=verbose)
 
+		self.n_buyers==n_buyers
 
-		n_sellers = 0
-		for ss, num_type in traders_spec['sellers'].items():
-				ttype = ss
-				trader_nums=np.arange(num_type)
-				if shuffle: trader_nums=np.random.permutation(trader_nums)
-				for s in trader_nums:
-						tname = 'S%02d' % n_sellers  # buyer i.d. string
-						traders[tname] = self.trader_type(ttype, tname,timer,exchange)
-						n_sellers = n_sellers + 1
-
-		if n_sellers < 1:
-				sys.exit('FATAL: no sellers specified\n')
-
-		#if shuffle: self.shuffle_traders('S', n_sellers, traders)
-
-		if verbose :
-				for t in range(n_buyers):
-						bname = 'B%02d' % t
-						print(traders[bname])
-				for t in range(n_sellers):
-						bname = 'S%02d' % t
-						print(traders[bname])
-
-
-		assert self.n_buyers==n_buyers
-		assert self.n_sellers==n_sellers
-		self.traders=traders
+		self.traders={**self.buyers,**self.sellers}
 		
 	def get_buyer_seller_numbers(self):
 		n_buyers=0
