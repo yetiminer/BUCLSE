@@ -102,13 +102,6 @@ class Market_session:
 				self.timer.set_step(self.timestep)
 				print('overwriting timer step size from: %d to %d' %(str(round(old_step,2)),str(round(self.timestep,2))))
 			
-
-			
-
-			
-			
-
-			
 			#init exchange
 			if exchange is None:
 				self.exchange=Exchange(timer=self.timer)
@@ -130,10 +123,6 @@ class Market_session:
 			
 			#create dictionary of participants in market
 			self.create_participant_dic()
-			
-
-			
-			
 
 			self.set_sess_id()
 			self.stat_list=[]
@@ -244,8 +233,6 @@ class Market_session:
 			
 		return n_buyers,n_sellers
 			
-
-		
 	
 	def add_market_makers(self,verbose=False):
 			
@@ -585,19 +572,6 @@ class Market_session:
 				self.replay_vars={}
 				self.replay_vars[self.time]=recording_record
 
-        
-
-# schedule_offsetfn returns time-dependent offset on schedule prices
-#ie alters the equilibrium price of the exchange in a time dependent way
-
-# def schedule_offsetfn(t):
-        # pi2 = math.pi * 2
-        # c = math.pi * 3000
-        # wavelength = t / c
-        # gradient = 100 * t / (c / pi2)
-        # amplitude = 100 * t / (c / pi2)
-        # offset = gradient + amplitude * math.sin(wavelength * t)
-        # return int(round(offset, 0))
 
 def yamlLoad(path):
 	
