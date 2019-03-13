@@ -13,7 +13,7 @@ class SupplyDemand():
 	side_dic={'Bid':'B','Ask':'A'}
 
 	def __init__(self,supply_schedule=None,demand_schedule=None,interval=None,timemode=None,pending=None,sys_minprice=0,sys_maxprice=1000,
-	n_buyers=0,n_sellers=0,traders=None,quantity_f=None,timer=None,time_mode_func=None):
+	n_buyers=0,n_sellers=0,traders=None,quantity_f=None,timer=None,time_mode_func=None,fit_to_interval=True):
 		self.supply_schedule=supply_schedule
 		self.demand_schedule=demand_schedule
 		self.interval=interval
@@ -29,6 +29,7 @@ class SupplyDemand():
 		self.pending_orders=[]
 		self.timer=timer
 		self.schedrange=None
+		self.fit_to_interval=fit_to_interval
 		
 		if time_mode_func is None and self.timemode is not None:
 			self.set_time_mode_function(timemode)
@@ -280,7 +281,7 @@ class SupplyDemand():
 					
 	def do_side_pending_orders(self,new_pending,ordertype,letter,time,shuffle_times,schedule_type,n_type):
 				#new_pending={}
-				issuetimes = self.getissuetimes(n_type, self.timemode, self.interval, shuffle_times, True)
+				issuetimes = self.getissuetimes(n_type, self.timemode, self.interval, shuffle_times, fittointerval=self.fit_to_interval)
 				#issuetimes = time + np.array(issuetimes)
 				issuetimes = time + issuetimes
 				
