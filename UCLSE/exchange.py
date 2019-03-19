@@ -639,7 +639,7 @@ class Exchange(Orderbook):
 
 		# this returns the LOB data "published" by the exchange,
 		# i.e., what is accessible to the traders
-		def publish_lob(self, time, verbose):
+		def publish_lob(self, time=None, verbose=False):
 				time=self.time
 				public_data = {}
 				public_data['time'] = time
@@ -666,8 +666,14 @@ class Exchange(Orderbook):
 
 				return public_data
 				
-		def publish_tape(self):
-			return self.tape
+		def publish_tape(self,length=0):
+			#don't want to always publish full tape, as this could be big!
+			if length>0:
+				length=min(len(self.tape),length)
+			else:
+				length=len(self.tape)
+			
+			return self.tape[-length:]
 
 			
 class RemoteExchange(Exchange):
@@ -692,6 +698,7 @@ class RemoteExchange(Exchange):
 		#self.client.loop_start()
 		#time.sleep(10)
 		#self.client.loop_stop()
+		
 	def on_log(client, userdata, level, buf):
 		print("log: ",buf)
 
@@ -701,6 +708,19 @@ class RemoteExchange(Exchange):
 		topic_list=[("topic/trades",0),("topic/cancels",0),
 					("topic/time",0),("topic/lob/req",0)]
 		client.subscribe(topic_list)
+		
+	def transmit_lob(self,tape=True):
+		lob=self.publish_lob()
+		
+		to_transmit={'lob':lob}
+		
+		if tape:
+			tape=self.publish_tape()
+			to_transmit['tape']=tape
+			
+		out_msg=json.dumps(to_transmit)
+		
+		self.client.publish("topic/lob",out_msg)
 
 	def on_message(self,client, userdata, msg):
 
@@ -720,11 +740,8 @@ class RemoteExchange(Exchange):
 			self.del_order(oid=m_in)
 			
 		elif msg.topic=="topic/lob/req":
-			print(msg.payload.decode())
-			lob=self.publish_lob(self.time,False)
-			lob=json.dumps(lob)
-			print(lob)
-			self.client.publish("topic/lob",lob)
+			self.transmit_lob()
+
 
 		elif msg.topic=="topic/time":
 			
@@ -775,6 +792,7 @@ class RemoteExchange(Exchange):
 		#on transaction, exchange informs traders of fills and ammends
 			
 			to_be_transmitted={}
+
 			
 			if trade is not None:
 				for trade_leg,ammended_order in zip(trade,ammended_orders):
@@ -798,7 +816,10 @@ class RemoteExchange(Exchange):
 						#don't need to check if tid in dic, since an ammend order implies partial fill
 							to_be_transmitted[tid]['ammends']=ammended_order
 					
-			self._publish_fill_list(to_be_transmitted)
+				self._publish_fill_list(to_be_transmitted)
+				#a trade has been processed so publish lob
+				self.transmit_lob()
+				
 						
 	def anon_order(self,p,trade_leg):
 		keys= ['type','time', 'price','qty']
@@ -817,3 +838,7 @@ class RemoteExchange(Exchange):
 		for tid,val in dic.items():
 			topic="topic/"+str(tid)+"/fills"
 			self.client.publish(topic,json.dumps(val))
+			
+		#
+		
+		
