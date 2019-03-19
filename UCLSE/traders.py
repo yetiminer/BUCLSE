@@ -69,6 +69,8 @@ class Trader:
 		def time_left(self):
 			return self.timer.get_time_left
 
+		def set_exchange(self,exchange):
+			self.exchange=exchange
 
 		def add_order(self, order, verbose,inform_exchange=False):
 				#this is adding an order from the perspective of a customer giving the trader an order to execute.
@@ -167,16 +169,19 @@ class Trader:
 
 
 
-		def bookkeep(self, trade, order, verbose, time,active=True):
+		def bookkeep(self, trade, order, verbose, time,active=True,qid=None):
 				trade=copy.deepcopy(trade)
 				trade_qty=trade['qty']
 				
-				if active:
-					qid=trade['p2_qid']
-					assert self.tid==trade['party2']
-				else:
-					qid=trade['p1_qid']
-					assert self.tid==trade['party1']
+				
+				if qid is None:
+					if active:
+						qid=trade['p2_qid']
+						assert self.tid==trade['party2']
+					else:
+						qid=trade['p1_qid']
+						assert self.tid==trade['party1']
+						
 				
 				#use the lookup to get the oid for the trade
 				oid=self.orders_lookup[qid]

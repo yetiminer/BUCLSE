@@ -716,8 +716,8 @@ class RemoteExchange(Exchange):
 		elif msg.topic=="topic/cancels":
 			m_decode=str(msg.payload.decode("utf-8","ignore"))        
 			m_in=json.loads(m_decode)
-			order_in=Order(**m_in)
-			self.del_order(order=order_in)
+			#order_in=Order(**m_in)
+			self.del_order(oid=m_in)
 			
 		elif msg.topic=="topic/lob/req":
 			print(msg.payload.decode())
@@ -764,7 +764,7 @@ class RemoteExchange(Exchange):
 	def publish_qid(self,order,verbose=False):
 		#on receipt of a trade, exchange informs trader what the qid is
 			
-			topic="topic/"+str(order.tid)+"/new_orders"
+			topic="topic/"+str(order.tid)+"/order_confirm"
 			
 			#tell the trader what their qid is 
 			if verbose: print(topic)
@@ -774,20 +774,46 @@ class RemoteExchange(Exchange):
 	def publish_trade_fills(self,trade,ammended_orders,verbose=False):
 		#on transaction, exchange informs traders of fills and ammends
 			
+			to_be_transmitted={}
+			
 			if trade is not None:
 				for trade_leg,ammended_order in zip(trade,ammended_orders):
 					if verbose: print('trade leg',trade_leg)
-					#party1
-					tid=trade_leg['party1']
-					topic="topic/"+str(tid)+"/fills"
+					
+					
+					p1_tid=trade_leg['party1']
+					p2_tid=trade_leg['party2']
+					
+					#do for each trade party
+					for tid,p in zip([p1_tid,p2_tid],['p1','p2']):
+					
+						
+						if tid not in to_be_transmitted:
+							to_be_transmitted[tid]={'legs':[]}
+						
+						to_be_transmitted[tid]['legs'].append(self.anon_order(p,trade_leg))
 
-					self.client.publish(topic,json.dumps(trade_leg))
-					#party2
-					tid=trade_leg['party2']
-					topic="topic/"+str(tid)+"/fills"
-					self.client.publish(topic,json.dumps(trade_leg))
+						ammend_tid=ammended_order.tid
+						if ammend_tid is not None: 
+						#don't need to check if tid in dic, since an ammend order implies partial fill
+							to_be_transmitted[tid]['ammends']=ammended_order
+					
+			self._publish_fill_list(to_be_transmitted)
+						
+	def anon_order(self,p,trade_leg):
+		keys= ['type','time', 'price','qty']
+		dic={k:trade_leg[k]	for k in keys}
+		if p=='p1':
+					dic['qid']=trade_leg['p1_qid']
+					dic['tid']=trade_leg['p1_tid']
+		elif p=='p2':
+					dic['qid']=trade_leg['p2_qid']
+					dic['tid']=trade_leg['p2_tid']
+		return dic
 
-					ammend_tid=ammended_order.tid
-					if ammend_tid is not None:
-						topic="topic/"+str(tid)+"/ammends"
-						self.client.publish(topic,json.dumps(ammended_order))
+
+	
+	def _publish_fill_list(self,dic):
+		for tid,val in dic.items():
+			topic="topic/"+str(tid)+"/fills"
+			self.client.publish(topic,json.dumps(val))
