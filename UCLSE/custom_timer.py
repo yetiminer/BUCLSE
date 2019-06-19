@@ -4,17 +4,18 @@ import json
 class CustomTimer():
 	def __init__(self,start=0,end=600,step=1):
 		
-
-			
 		self._check_inputs(start,end,step)
 		self.start=start
 		self.end=end
 		
 		self.step=step
 		self.time=start
-		self.duration=float(self.end-self.start)
+		self.duration=float(self.end-self.start)/self.step
 		self.time_left=self._time_left()
 		self.client=None
+		
+	def __repr__(self):
+		return f'time: {self.start} time left: {self.time_left} start: {self.start} end: {self.end} step: {self.step}' #need python 3.6
 		
 	def set_step(self,step):
 		self.step=step
@@ -35,7 +36,7 @@ class CustomTimer():
 
 	
 	def _time_left(self):
-		return (self.end - self.time) / self.duration
+		return (self.end - self.time) / self.step
 		
 	def reset(self):
 		self.time=self.start
