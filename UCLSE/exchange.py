@@ -19,10 +19,24 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial
 # portions of the Software.
 
-#buclse: 
-#Copyright (c) 2018, Henry Ashton
+#buclse:
+# Version 1; 19 June 2019.
+
 #
+# Copyright (c) 2019, Henry Ashton
+# 
+# ------------------------
 #
+# MIT Open-Source License:
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+# associated documentation files (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial
+# portions of the Software.
+
 
 import copy
 
@@ -33,7 +47,6 @@ import paho.mqtt.client as mqtt
 
 bse_sys_minprice=0
 bse_sys_maxprice=1000
-
 
 # an Order/quote has a trader id, a type (buy/sell) price, quantity, timestamp, and unique i.d.
 #I suspect this is much more memory efficient than a custom class, moreover, attributes are much harder to set after instantiation
