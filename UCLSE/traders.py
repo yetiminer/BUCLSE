@@ -58,7 +58,7 @@ class Trader:
 
 
 		def __str__(self):
-				return '[TID %s type %s balance %s blotter %s orders %s n_trades %s profitpertime %s]' \
+				return '[TID: %s type: %s balance: %s blotter: %s orders: %s n_trades: %s profitpertime: %s]' \
 					   % (self.tid, self.ttype, self.balance, self.blotter, self.orders_dic, self.n_trades, self.profitpertime)
 					   
 		@property
