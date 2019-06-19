@@ -62,7 +62,7 @@ class Trader:
 				self.n_orders=0			# number of orders trader has been given
 				self.n_quotes = 0       # number of quotes live on LOB
 				self.n_quote_limit=n_quote_limit	# how many quotes is this trader allowed on exchange
-				self.birthtime = time   # used when calculating age of a trader/strategy
+				
 				self.profitpertime = 0  # profit per unit time
 				self.n_trades = 0       # how many trades has this trader done?
 				self.lastquote = {}     # record of what its last quote was
@@ -70,6 +70,10 @@ class Trader:
 				self.total_quotes=0     # total number of quotes sent to exchange
 				self.inventory=0        # how many shares does a trader have on their own book
 				self.timer=timer		# the reference time source for the trader
+				if time is None:
+					self.birthtime = self.time   # used when calculating age of a trader/strategy
+				else:
+					self.birthtime=time
 				self.exchange=exchange  # trader needs exchange address
 
 
