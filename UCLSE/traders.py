@@ -88,7 +88,7 @@ class Trader:
 		def set_exchange(self,exchange):
 			self.exchange=exchange
 
-		def add_order(self, order, verbose,inform_exchange=False):
+		def add_order(self, order, verbose=False,inform_exchange=False):
 				#this is adding an order from the perspective of a customer giving the trader an order to execute.
 				
 				if self.n_orders >= self.n_quote_limit :
