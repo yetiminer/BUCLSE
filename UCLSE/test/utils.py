@@ -108,6 +108,9 @@ def build_df_from_dic_dic(dic):
 	order_df.reset_index(inplace=True)
 	if 'oid' not in order_df.columns:
 		order_df['oid']=order_df.index.values
+		
+	if 'qid' not in order_df.columns:
+		order_df['oid']=order_df.index.values
 	
 	return order_df
 
@@ -127,7 +130,7 @@ def yamlLoad(path):
 			print(exc)
 	return cfg		
     
-def build_lob_from_df(order_df,exch=None,necessary_cols=['tid','otype','price','qty','time','qid']):
+def build_lob_from_df(order_df,exch=None,necessary_cols=['tid','otype','price','qty','time','qid','oid']):
 	##adds orders from a df of orders, if supplied an exchange, will append them
 	#else will create blank exchange
 	#returns an exchange
@@ -213,4 +216,6 @@ def record_exchange_answers(fixture_list=[],fixture_dic=None,fixture_name=None,e
 def pretty_lob_print(exchange,df=None):
 	if df is None:
 		df=lob_to_dic(exchange,df=True)
-	print(df.groupby(['price','time','qid','qty','otype']).first().unstack())
+	pdf=df.groupby(['price','time','qid','qty','otype']).first().unstack()
+	print(pdf)
+	return pdf
