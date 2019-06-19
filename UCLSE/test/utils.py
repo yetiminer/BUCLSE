@@ -175,15 +175,17 @@ def lob_to_dic(exchange,df=False,side_dic=None):
 		qty=[]
 		tid=[]
 		time=[]
+		oid=[]
 		for k,val in side_dic[side].items():
 			#for order in val[0]:
 			for order in val:
 				otype.append(side)
 				price.append(k)
-				time.append(order[0])
-				qty.append(order[1])
-				tid.append(order[2])
-				qid.append(order[3])
+				time.append(order.time)
+				qty.append(order.qty)
+				tid.append(order.tid)
+				qid.append(order.qid)
+				oid.append(order.oid)
 
 		dic[side]={'otype':otype,'price':price,'time':time,'qty':qty,'tid':tid,'qid':qid}
 		df_list.append(pd.DataFrame.from_dict(dic[side]))
