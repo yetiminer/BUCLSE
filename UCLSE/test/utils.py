@@ -106,6 +106,8 @@ def build_df_from_dic_dic(dic):
 	order_df=pd.concat(df_list)
 	order_df.sort_values(['time','tid','otype'],inplace=True) #important to get qids correct
 	order_df.reset_index(inplace=True)
+	if 'oid' not in order_df.columns:
+		order_df['oid']=order_df.index.values
 	
 	return order_df
 
