@@ -107,25 +107,9 @@ class Trader:
 
 			self.exchange.del_order(oid=oid, verbose=verbose)
 				
-		
-		# def get_oldest_order(self):
-			# #retrieves the oldest order in the order_dic, return tuple (time,oid,current_qid)
-			# output={'time':None,'oid':None,'last_qid':None}
-			# if len(self.orders_dic)>0:
-				# listy=[(order_dic['Original'].time,
-				# order_dic['Original'].oid,
-			   # order_dic['submitted_quotes']) for k,order_dic in self.orders_dic.items()]
-				# listy.sort()
-				
-				# last_qid=None
-				# if len(listy[0][2])>0: #check if any quotes were submitted to exchange
-					# last_qid=listy[0][2][-1].qid
-			
-				# output= {'time':listy[0][0],'oid':listy[0][1],'last_qid':last_qid,'tid':self.tid}
-				
-			# return output
 			
 		def get_oldest_order(self):
+		#retrieves the oldest order in the order_dic, return tuple (time,oid,current_qid)
 			output={'time':None,'oid':None,'last_qid':None}
 			if len(self.orders_dic)>0:
 				last_qid=None
