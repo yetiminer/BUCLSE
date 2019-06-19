@@ -346,7 +346,7 @@ class Exchange(Orderbook):
 				# add a quote/order to the exchange and update all internal records; return unique i.d.
 				#maintain order on LOB
 				
-				assert order.oid is not None
+				#assert order.oid is not None
 				
 				if leg==0 and qid is None:
 	

@@ -39,10 +39,10 @@ def test_bookkeep():
 
 			henry.bookkeep(trade,new_order,True,time=10)
 
-			ammend_tid=ammended_order[0]
+			ammend_tid=ammended_order.tid
 			if ammend_tid=='Henry':
-				ammend_qid=ammended_order[1]
-				henry.add_order_exchange(ammended_order[2],ammend_qid)
+				ammend_qid=ammended_order.qid
+				henry.add_order_exchange(ammended_order.order,ammend_qid)
 
 		assert henry.balance==pd.DataFrame(henry.blotter).profit.sum()
 
