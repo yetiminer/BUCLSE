@@ -215,9 +215,9 @@ def record_exchange_answers(fixture_list=[],fixture_dic=None,fixture_name=None,e
 	else:
 		yaml_dump(fixture_list,fixture_name)
 
-def pretty_lob_print(exchange,df=None):
+def pretty_lob_print(exchange,df=None,verbose=False):
 	if df is None:
 		df=lob_to_dic(exchange,df=True)
 	pdf=df.groupby(['price','time','qid','qty','otype']).first().unstack()
-	print(pdf)
+	if verbose: print(pdf)
 	return pdf

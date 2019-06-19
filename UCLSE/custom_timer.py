@@ -15,7 +15,7 @@ class CustomTimer():
 		self.client=None
 		
 	def __repr__(self):
-		return f'time: {self.start} time left: {self.time_left} start: {self.start} end: {self.end} step: {self.step}' #need python 3.6
+		return f'time: {self.time} time left: {self.time_left} start: {self.start} end: {self.end} step: {self.step}' #need python 3.6
 		
 	def set_step(self,step):
 		self.step=step
