@@ -42,10 +42,17 @@ import random
 import copy
 from UCLSE.exchange import Order
 from collections import OrderedDict
+import pandas as pd
 
 # Trader superclass
 # all Traders have a trader id, bank balance, blotter, and list of orders to execute
 buy_sell_bid_ask_dic={'Bid':'Buy','Ask':'Sell'}
+
+
+class Blotter(list):
+	def __repr__(self):
+		return pd.DataFrame(self).to_string()
+
 
 class Trader:
 
@@ -53,7 +60,7 @@ class Trader:
 				self.ttype = ttype      # what type / strategy this trader is
 				self.tid = tid          # trader unique ID code
 				self.balance = balance  # money in the bank
-				self.blotter = []       # record of trades executed
+				self.blotter = Blotter()# record of trades executed
 				self.orders = []        # customer orders currently being worked (fixed at 1)
 				#self.orders_dic={}		#customer orders currently being worked, key=OID
 				self.orders_dic=OrderedDict()
