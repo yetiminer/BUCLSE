@@ -320,7 +320,7 @@ class Orderbook(Orderbook_half):
 
 class Exchange(Orderbook):
 
-		def add_order(self, order, verbose,leg=0,qid=None):
+		def add_order(self, order, verbose=False,leg=0,qid=None):
 				# add a quote/order to the exchange and update all internal records; return unique i.d.
 				assert order.oid is not None
 				
