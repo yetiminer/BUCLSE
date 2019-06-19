@@ -15,14 +15,11 @@ def test_bookkeep():
 		henry=Trader(tid='Henry',time=0,balance=0)
 
 		order_df=build_df_from_dic_dic(fixture_dic['input'])
-		order_df.sort_values(['time','tid'],inplace=True)
-		order_df['oid']=order_df.index.values
-		necessary_cols=['tid','otype','price','qty','time','qid','oid']
 		
-		exchange=build_lob_from_df(order_df,necessary_cols=necessary_cols)
+		exchange=build_lob_from_df(order_df)
 
 		new_order=order_from_dic(fixture_dic['new_trade'])
-		#new_order.oid=1
+		
 		new_order=new_order._replace(oid=1)
 
 		qid,_=exchange.add_order(new_order,verbose=False)
@@ -35,7 +32,7 @@ def test_bookkeep():
 
 		time=10
 		#tr, ammended_orders=exchange.process_order3(order=new_order,time=time,verbose=True)
-		tr, ammended_orders=exchange.process_order3(order=order_at_exchange,time=time,verbose=True)
+		tr, ammended_orders=exchange._process_order(order=order_at_exchange,time=time,verbose=True)
 
 
 		for trade,ammended_order in zip(tr,ammended_orders):

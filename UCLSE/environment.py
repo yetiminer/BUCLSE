@@ -130,7 +130,7 @@ class Market_session:
 			
 			
 			#testing how changes in process_order effect things
-			self.process_order=self.exchange.process_order2
+			self.process_order=self.exchange.process_order
 			
 			#specify the quantity function for new orders
 			if quantity_f is not None:

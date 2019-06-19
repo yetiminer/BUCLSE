@@ -141,7 +141,7 @@ def build_lob_from_df(order_df,exch=None,necessary_cols=['tid','otype','price','
 
 	order_list=[]
 	for index, row in order_df.iterrows():
-		print('index',index)
+		#print('index',index)
 		exch.add_order(Order(*row.values),verbose=False)
 
 	return exch

@@ -50,7 +50,7 @@ def test_backwards_multi_leg():
 	
 	sess=Market_session(**environ_dic)
 	sess1=copy.deepcopy(sess)
-	sess.process_order=sess.exchange.process_order3w
+	#sess.process_order=sess.exchange.process_order3w
 	try:
 		side_by_side_period_by_period_difference_checker(sess,sess1)
 	except AssertionError:
@@ -67,7 +67,7 @@ def test_forwards_multi_leg():
 	
 	sess=Market_session(**environ_dic)
 	sess1=copy.deepcopy(sess)
-	sess1.process_order=sess1.exchange.process_order3w
+	#sess1.process_order=sess1.exchange.process_order3w
 	try:
 		side_by_side_period_by_period_difference_checker(sess,sess1)
 	except AssertionError:
@@ -87,7 +87,7 @@ def test_multi_q_exchange():
 	
 	sess=Market_session(**environ_dic)
 	
-	sess.process_order=sess.exchange.process_order3w
+	#sess.process_order=sess.exchange.process_order3w
 	sess.quantity_f=geometric_q
 	sess1=copy.deepcopy(sess)
 	try:
@@ -111,7 +111,7 @@ def test_multi_q_exchange_order_quantity():
 		return np.random.geometric(0.6)
 	
 	sess=Market_session(**environ_dic)
-	sess.process_order=sess.exchange.process_order3w
+	#sess.process_order=sess.exchange.process_order3w
 	sess.quantity_f=geometric_q
 	sess.simulate()
 		

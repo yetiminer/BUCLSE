@@ -407,7 +407,7 @@ class Exchange(Orderbook):
 
 
 
-		def process_order2(self, order, verbose):
+		def process_order_old(self, order, verbose):
 				# receive an order and either add it to the relevant LOB (ie treat as limit order)
 				# or if it crosses the best counterparty offer, execute it (treat as a market order)
 				oprice = order.price
@@ -475,7 +475,9 @@ class Exchange(Orderbook):
 				else:
 						return qid, None, None
 		
-		def process_order3w(self,order=None,verbose=False):
+		def process_order(self,order=None,verbose=False):
+			# receive an order and either add it to the relevant LOB (ie treat as limit order)
+			# or if it crosses the best counterparty offer, execute it (treat as a market order)
 			[qid, response] = self.add_order(order, verbose)  # add it to the order lists -- overwriting any previous order
 			#order.qid = qid
 			order=order._replace(qid=qid)
@@ -483,10 +485,10 @@ class Exchange(Orderbook):
 			if verbose :
 						print('QUID: order.quid=%d' % order.qid)
 						print('RESPONSE: %s' % response)
-			tr,ammended_orders=self.process_order3(time=time,order=order,verbose=verbose)
+			tr,ammended_orders=self._process_order(time=time,order=order,verbose=verbose)
 			return qid,tr,ammended_orders
 		
-		def process_order3(self,time=None,order=None,verbose=False):
+		def _process_order(self,time=None,order=None,verbose=False):
 			temp_order=copy.deepcopy(order) #Need this to stop original order quantity mutating outside this method
 			#temp_order=order
 			

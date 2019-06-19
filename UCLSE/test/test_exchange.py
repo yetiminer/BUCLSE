@@ -25,7 +25,7 @@ def test_lob(verbose=False):
 		pretty_lob_print(exchange)
 
 		time=10
-		tr, ammended_orders=exchange.process_order3(order=new_order,time=time,verbose=False)
+		tr, ammended_orders=exchange._process_order(order=new_order,time=time,verbose=False)
 		
 		
 		try: 
@@ -68,7 +68,7 @@ def test_different_process_order_function():
 	sess=Market_session(**environ_dic)
 	sess1=copy.deepcopy(sess)
 	
-	sess.process_order=sess.exchange.process_order3w
+	sess.process_order=sess.exchange.process_order_old
 	side_by_side_period_by_period_difference_checker(sess,sess1)
 	
 	assert identical_replay_vars(sess,sess1)=={}
@@ -78,7 +78,7 @@ def test_different_process_order_function():
 	sess=Market_session(**environ_dic)
 	sess1=copy.deepcopy(sess)
 	
-	sess1.process_order=sess1.exchange.process_order3w
+	sess1.process_order=sess1.exchange.process_order_old
 	
 	side_by_side_period_by_period_difference_checker(sess,sess1)
 	
