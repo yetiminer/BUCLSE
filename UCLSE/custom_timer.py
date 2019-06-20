@@ -1,5 +1,5 @@
-import paho.mqtt.client as mqtt
-import json
+#import paho.mqtt.client as mqtt
+#import json
 
 class CustomTimer():
 	def __init__(self,start=0,end=600,step=1):
@@ -28,9 +28,6 @@ class CustomTimer():
 			self.time_left=self._time_left()
 			next_per= True
 			
-		if self.client is not None:
-			msg=json.dumps((self.time,self.time_left))
-			self.client.publish("topic/time",msg)
 		return next_per
 		
 
