@@ -41,7 +41,7 @@
 import copy
 
 from operator import itemgetter
-from collections import deque
+from collections import deque,namedtuple
 
 
 bse_sys_minprice=0
@@ -49,7 +49,7 @@ bse_sys_maxprice=1000
 
 # an Order/quote has a trader id, a type (buy/sell) price, quantity, timestamp, and unique i.d.
 #I suspect this is much more memory efficient than a custom class, moreover, attributes are much harder to set after instantiation
-from collections import namedtuple
+
 fields=['tid','otype','price','qty','time','qid','oid']
 #Order=namedtuple('Order',fields,defaults=(None,)*2) python 3.7!
 Order=namedtuple('Order',fields)
