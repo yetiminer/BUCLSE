@@ -42,6 +42,7 @@ import copy
 
 from operator import itemgetter
 from collections import deque,namedtuple
+import pandas as pd
 
 
 bse_sys_minprice=0
@@ -318,6 +319,40 @@ class Orderbook(Orderbook_half):
 # Exchange's internal orderbook
 
 class Exchange(Orderbook):
+
+		def __repr__(self):
+			df=self.lob_to_df()
+			if df.empty:
+				ans='No orders in exchange order book'
+			else:
+				ans=df.to_string()
+			return ans
+		
+		
+		
+		def lob_to_df(self):
+			#turns a lob into a dic suitable for transformation into a df, or the df itself, ready for yaml writing
+			
+			side_dic={'Bid':self.bids.lob,'Ask':self.asks.lob}
+
+			cols=['otype','price','qid','qty','tid','time','oid']    
+			df_list=[]
+			
+			for side in ['Bid','Ask']:
+				order_list=[]
+				for k,val in side_dic[side].items():
+					#for order in val[0]:
+					for order in val:
+						order_list.append(order._asdict())
+
+				df_list.append(pd.DataFrame(order_list))
+			try: 
+				ans=pd.concat(df_list,ignore_index=True).groupby(['price','time','qid','oid','qty','otype']).first().unstack()
+			except KeyError:
+				ans=pd.DataFrame()
+			
+			return ans
+		
 
 		def add_order(self, order, verbose=False,leg=0,qid=None):
 				# add a quote/order to the exchange and update all internal records; return unique i.d.
