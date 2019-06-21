@@ -24,7 +24,8 @@ class SupplyDemand():
 		self.n_buyers=n_buyers
 		self.n_sellers=n_sellers
 		self.traders=traders
-		self.quantity_f=quantity_f
+		self.quantity_f=quantity_f if quantity_f is not None else self.quantity_f==self.do_one
+		
 		self.oid=-1
 		self.pending_orders=[]
 		self.timer=timer
@@ -41,8 +42,8 @@ class SupplyDemand():
 		return self.timer.get_time	
 	
 	
-	@staticmethod
-	def do_one():
+	@classmethod
+	def do_one(cls):
 		return 1
 	
 	@staticmethod
@@ -212,6 +213,7 @@ class SupplyDemand():
 		else:
 				sys.exit('FAIL: Unknown mode in schedule')
 		orderprices = np.clip(orderprice,self.sys_minprice,self.sys_maxprice)
+		
 		return orderprices			
 					
 		
@@ -290,6 +292,7 @@ class SupplyDemand():
 				orderprices_b=self.getorderprices(sched,n_type,mode,issuetimes)
 				
 				buyers=list(filter(lambda x: x[0]==letter,self.traders))
+				assert len(buyers)==len(orderprices_b)==len(issuetimes)
 				for t,orderprice,issuetime in zip(buyers,orderprices_b,issuetimes):
 
 						#tname = 'B%02d' % t
