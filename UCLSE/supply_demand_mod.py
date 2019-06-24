@@ -24,7 +24,7 @@ class SupplyDemand():
 		self.n_buyers=n_buyers
 		self.n_sellers=n_sellers
 		self.traders=traders
-		self.quantity_f=quantity_f if quantity_f is not None else self.quantity_f==self.do_one
+		self.quantity_f=quantity_f if quantity_f is not None else self.do_one
 		
 		self.oid=-1
 		self.pending_orders=[]
@@ -179,11 +179,16 @@ class SupplyDemand():
 						
 				if len(sched[0]) > 3:
 						# if second offset function is specified, that applies only to the max value
-						offsetfn = sched[0][3]
-						if callable(offsetfn):
-								# this function applies to max only, set min to constant function
-								self.offset_max=offsetfn
-								self.offset_min=self.return_constant_function_vec(sched[0][0])
+						offsetfn_max = sched[0][3]
+						offsetfn_min = sched[0][2]
+						if callable(offsetfn_max):
+								#original comment: "this function applies to max only, set min to constant function"
+								#instead allow max and min functions
+								self.offset_max=offsetfn_max
+								if callable(offsetfn_min):
+									self.offset_max=offsetfn_min
+								else: #constant function
+									self.offset_min=self.return_constant_function_vec(0.0)
 
 						else:
 								sys.exit('FAIL: 4th argument of sched in getorderprice() not callable')
@@ -195,6 +200,7 @@ class SupplyDemand():
 
 		pmin = np.clip(self.offset_min(issuetimes) + min(sched[0][0], sched[0][1]),self.sys_minprice,self.sys_maxprice)
 		pmax = np.clip(self.offset_max(issuetimes) + max(sched[0][0], sched[0][1]),self.sys_minprice,self.sys_maxprice)
+		
 		prange = pmax - pmin
 		stepsize = prange / (n - 1)
 		halfstep = np.ceil(stepsize / 2.0)
