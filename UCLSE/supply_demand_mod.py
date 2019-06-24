@@ -91,10 +91,19 @@ class SupplyDemand():
 		return np.arange(n_traders)*tstep+tstep*np.random.uniform(size=n_traders)
 		
 	def _time_mode_drippoisson(self,n_traders,interval=None,tstep=None):
+		
 		lamb=n_traders/interval
 		a=np.random.poisson(lamb,n_traders)
 		
 		return np.cumsum(a)
+		
+	# def _time_mode_drippoisson(self,n_traders,interval=None,tstep=None): 
+		# lamb=1 #n_traders*tstep
+		# a=np.random.poisson(lamb,n_traders)
+		# unflat=np.array([ np.full(q,t) for q,t in zip(a,np.arange(0,interval,1/n_traders))])
+
+		# out = np.concatenate(unflat).ravel()[0:n_traders]
+		# return out	
 		
 		
 	def set_time_mode_function(self,mode):
@@ -186,7 +195,7 @@ class SupplyDemand():
 								#instead allow max and min functions
 								self.offset_max=offsetfn_max
 								if callable(offsetfn_min):
-									self.offset_max=offsetfn_min
+									self.offset_min=offsetfn_min
 								else: #constant function
 									self.offset_min=self.return_constant_function_vec(0.0)
 
