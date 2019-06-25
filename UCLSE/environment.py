@@ -230,12 +230,12 @@ class Market_session:
 	def _set_schedule(start,end,stepmode,range_low=0,range_high=0,offsetfn=None,offsetfn_max=None):
 	
 		if offsetfn is None:
-			ranges=[(range_low,range_high)]
+			ranges=(range_low,range_high)
 		else:
 			if offsetfn_max is not None:
-				ranges=[(range_low,range_high,offsetfn,offsetfn_max)]
+				ranges=(range_low,range_high,offsetfn,offsetfn_max)
 			else:
-				ranges=[(range_low,range_high,offsetfn)]
+				ranges=(range_low,range_high,offsetfn)
 		return {'from':start,'to':end,
 		'stepmode':stepmode,'ranges':ranges}
 

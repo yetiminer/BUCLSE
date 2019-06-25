@@ -196,8 +196,8 @@ class SupplyDemand():
 		
 
 	def set_offset_function(self,sched):
-			if len(sched[0]) > 2:
-				offsetfn = sched[0][2]
+			if len(sched) > 2:
+				offsetfn = sched[2]
 				if callable(offsetfn):
 
 							# same offset for min and max
@@ -208,10 +208,10 @@ class SupplyDemand():
 						
 						
 						
-				if len(sched[0]) > 3:
+				if len(sched) > 3:
 						# if second offset function is specified, that applies only to the max value
-						offsetfn_max = sched[0][3]
-						offsetfn_min = sched[0][2]
+						offsetfn_max = sched[3]
+						offsetfn_min = sched[2]
 						if callable(offsetfn_max):
 								#original comment: "this function applies to max only, set min to constant function"
 								#instead allow max and min functions
@@ -229,8 +229,8 @@ class SupplyDemand():
 
 	def getorderprices(self, sched, n, mode, issuetimes):
 
-		pmin = np.clip(self.offset_min(issuetimes) + min(sched[0][0], sched[0][1]),self.sys_minprice,self.sys_maxprice)
-		pmax = np.clip(self.offset_max(issuetimes) + max(sched[0][0], sched[0][1]),self.sys_minprice,self.sys_maxprice)
+		pmin = np.clip(self.offset_min(issuetimes) + min(sched[0], sched[1]),self.sys_minprice,self.sys_maxprice)
+		pmax = np.clip(self.offset_max(issuetimes) + max(sched[0], sched[1]),self.sys_minprice,self.sys_maxprice)
 		
 		prange = pmax - pmin
 		stepsize = prange / (n - 1)
