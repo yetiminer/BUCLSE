@@ -80,10 +80,8 @@ class Market_session:
 				
 				print('using timer start time=%d, end time=%d, instead'%(self.start_time,self.end_time))
 			
-			self.supply_schedule=[self.set_schedule(range_low=supply_price_low,range_high=supply_price_high)]
-			self.demand_schedule=[self.set_schedule(range_low=demand_price_low,range_high=demand_price_high)]
-			#self.order_schedule = {'sup':self.supply_schedule, 'dem':self.demand_schedule,
-			#	   'interval':self.interval, 'timemode':self.timemode}
+			self.supply_schedule=self.set_schedule(range_low=supply_price_low,range_high=supply_price_high)
+			self.demand_schedule=self.set_schedule(range_low=demand_price_low,range_high=demand_price_high)
 			self.traders_spec = {'sellers':sellers_spec, 'buyers':buyers_spec}
 			
 			self.n_buyers,self.n_sellers=self.get_buyer_seller_numbers()
@@ -158,8 +156,8 @@ class Market_session:
 		return self.timer.get_time_left
 			
 	def set_schedule(self,range_low=0,range_high=0):
-		   return {'from':self.start_time,'to':self.end_time,
-			'stepmode':self.stepmode,'ranges':[(range_low,range_high,SupplyDemand.schedule_offsetfn)]}
+		   return [{'from':self.start_time,'to':self.end_time,
+			'stepmode':self.stepmode,'ranges':[(range_low,range_high,SupplyDemand.schedule_offsetfn)]}]
 	
 	# @staticmethod
 	# def set_schedule(start,end,stepmode,range_low=0,range_high=0,offsetfn=None,offsetfn_max=None):
