@@ -82,8 +82,8 @@ class Market_session:
 			
 			self.supply_schedule=[self.set_schedule(range_low=supply_price_low,range_high=supply_price_high)]
 			self.demand_schedule=[self.set_schedule(range_low=demand_price_low,range_high=demand_price_high)]
-			self.order_schedule = {'sup':self.supply_schedule, 'dem':self.demand_schedule,
-				   'interval':self.interval, 'timemode':self.timemode}
+			#self.order_schedule = {'sup':self.supply_schedule, 'dem':self.demand_schedule,
+			#	   'interval':self.interval, 'timemode':self.timemode}
 			self.traders_spec = {'sellers':sellers_spec, 'buyers':buyers_spec}
 			
 			self.n_buyers,self.n_sellers=self.get_buyer_seller_numbers()
