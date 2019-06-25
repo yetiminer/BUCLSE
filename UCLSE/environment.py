@@ -37,7 +37,6 @@ from UCLSE.supply_demand_mod import SupplyDemand
 import pandas as pd
 import numpy as np
 import yaml
-#import math
 from functools import reduce
 
 class Market_session:
@@ -141,7 +140,7 @@ class Market_session:
 			#initiate supply demand module
 			self.sd=SupplyDemand(supply_schedule=self.supply_schedule,demand_schedule=self.demand_schedule,
 			interval=self.interval,timemode=self.timemode,pending=None,n_buyers=self.n_buyers,n_sellers=self.n_sellers,
-			traders=self.traders,quantity_f=self.quantity_f,timer=self.timer)#sys_minprice=self.exchange.bids.worstprice,sys_maxprice=self.exchange.asks.worstprice)
+			traders=self.traders,quantity_f=self.quantity_f,timer=self.timer)
 			
 			self.orders_verbose = orders_verbose
 			self.lob_verbose = lob_verbose
@@ -149,12 +148,6 @@ class Market_session:
 			self.respond_verbose = respond_verbose
 			self.bookkeep_verbose = bookkeep_verbose
 			self.latency_verbose=latency_verbose
-
-	# def _reset_session(self):
-		# #occasionally may want to test same session?
-		# self.time=0
-		# self.first_open=True
-		# self.last_update=-1.0
 		
 	@property #really important - define the time of the environment to be whatever the custom timer says
 	def time(self): 
@@ -391,16 +384,9 @@ class Market_session:
 
 			if verbose: print('\n%s;  ' % (self.sess_id))
 
-			# how much time left, as a percentage?
-			# if verbose: print('\n\n%s; t=%08.2f (%4.1f/100) ' % (sess_id, time, time_left*100))
-
 			self.trade = None
 			
-			#_get_demand(replay=replay,replay_vars=replay_vars,order_schedule=order_schedule,time=time,last_update=last_update,traders=traders)
 			self._get_demand(replay=replay,replay_vars=replay_vars,order_schedule=self.order_schedule)
-
-			#cancel any previous orders for a trader
-			#self._cancel_existing_orders_for_traders_who_already_have_one_in_the_market()
 
 			# get a limit-order quote (or None) from a randomly chosen trader
 			order_dic,tid=self._pick_trader_and_get_order(replay,replay_vars)
@@ -409,7 +395,7 @@ class Market_session:
 			
 			if verbose and len(order_dic)>0:
 				for oi,order in order_dic.items():
-					#print('replay',replay,self.traders[tid].ttype,' ',self.traders[tid].balance,self.traders[tid].blotter)
+
 					print('Trader Quote: %s' % (self.traders[tid].orders_dic[order.oid]['Original']))
 					print('Trader Quote: %s' % (order))
 
@@ -424,7 +410,7 @@ class Market_session:
 						lob=self._traders_respond(self.trade) #does this need to happen for every update?
 
 						
-			if len(self.market_makers)>0: # and self.time_left>0.9:
+			if len(self.market_makers)>0:
 				for mm_id,market_maker in self.market_makers.items():
 					lob=self.exchange.publish_lob(self.time,verbose=False)
 					mm_order_dic=market_maker.update_order_schedule( time=self.time,delta=1,exchange=self.exchange,lob=lob,verbose=False)
@@ -441,8 +427,6 @@ class Market_session:
 			if recording:
 				#record the particulars of the period for subsequent recreation
 				self._record_period(tid=tid,lob=lob,order_dic=order_dic,trade=self.trade)
-				
-			#self.time = self.time + self.timestep
 			
 	def _get_demand(self,replay_vars=None,replay=False,order_schedule=None):
 	
@@ -507,7 +491,6 @@ class Market_session:
 		qid, trade,ammended_orders = self.process_order(order, self.process_verbose)
 		
 		#'inform' trader what qid is
-		#self.traders[tid].add_order_exchange(order,qid)
 		self.participants[tid].add_order_exchange(order,qid)
 		
 		if trade != None:
@@ -521,7 +504,6 @@ class Market_session:
 					self.participants[trade_leg['party1']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time,active=False)
 					self.participants[trade_leg['party2']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
 					
-					#ammend_tid=ammended_order[0]
 					ammend_tid=ammended_order.tid
 					
 					if ammend_tid is not None:
@@ -542,7 +524,6 @@ class Market_session:
 					
 															  
 				return trade
-		#else: print('no trade')
 
 	def _traders_respond(self,trade):
 		lob = self.exchange.publish_lob(self.time, self.lob_verbose)
