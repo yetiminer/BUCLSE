@@ -44,8 +44,11 @@ class Market_session:
 	type_dic={'buyers':{'letter':'B'},
 			 'sellers':{'letter':'S'}}
 
-	def __init__(self,start_time=0.0,end_time=600.0,supply_price_low=95,supply_price_high=95,
+	def __init__(self,start_time=0.0,end_time=600.0,
+				supply_starts=None,supply_ends=None,demand_starts=None,demand_ends=None,
+				supply_price_low=95,supply_price_high=95,
 				  demand_price_low=105,demand_price_high=105,interval=30,timemode='drip-poisson',
+				  offsetfn=SupplyDemand.schedule_offsetfn,offsetfn_max=None,
 				 buyers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
 				 sellers_spec={'GVWY':10,'SHVR':10,'ZIC':10,'ZIP':10},
 				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False,
@@ -80,8 +83,27 @@ class Market_session:
 				
 				print('using timer start time=%d, end time=%d, instead'%(self.start_time,self.end_time))
 			
-			self.supply_schedule=self.set_schedule(range_low=supply_price_low,range_high=supply_price_high)
-			self.demand_schedule=self.set_schedule(range_low=demand_price_low,range_high=demand_price_high)
+			#set_schedule(start,end,stepmode,range_low,range_high,offsetfn=None,offsetfn_max=None)
+			if supply_starts is None:
+				
+				supply_starts=self.start_time
+				supply_ends=self.end_time
+			else:
+				assert supply_ends is not None
+				
+			self.supply_schedule=self.set_schedule(supply_starts,supply_ends,
+				stepmode,supply_price_low,supply_price_high,offsetfn,offsetfn_max)
+			
+			if demand_starts is None: 
+				demand_starts=start_time
+				demand_ends=end_time
+			else:
+				assert demand_ends is not None
+			
+			self.demand_schedule=self.set_schedule(demand_starts,demand_ends,stepmode,
+			demand_price_low,demand_price_high,offsetfn,offsetfn_max)
+			
+			
 			self.traders_spec = {'sellers':sellers_spec, 'buyers':buyers_spec}
 			
 			self.n_buyers,self.n_sellers=self.get_buyer_seller_numbers()
@@ -154,23 +176,70 @@ class Market_session:
 	@property
 	def time_left(self):
 		return self.timer.get_time_left
-			
-	def set_schedule(self,range_low=0,range_high=0):
-		   return [{'from':self.start_time,'to':self.end_time,
-			'stepmode':self.stepmode,'ranges':[(range_low,range_high,SupplyDemand.schedule_offsetfn)]}]
 	
-	# @staticmethod
-	# def set_schedule(start,end,stepmode,range_low=0,range_high=0,offsetfn=None,offsetfn_max=None):
-        
-        # if offsetfn is None:
-            # ranges=[(range_low,range_high)]
-        # else:
-            # if offsetfn_max is not None:
-                # ranges=[(range_low,range_high,offsetfn,offsetfn_max)]
-            # else:
-                # ranges=[(range_low,range_high,offsetfn)]
-        # return {'from':start,'to':end,
-        # 'stepmode':stepmode,'ranges':ranges}
+	@staticmethod
+	def set_schedule(start,end,stepmode,range_low,range_high,offsetfn=None,offsetfn_max=None):
+		#function for setting demand and supply schedules, 
+		#long to account for the different ways this can be specified by the user.
+			
+		same_types=[start,end,range_low,range_high]
+		
+		#regime change type inputs
+		if type(start)==list:
+			for tip in same_types:
+				assert isinstance(tip,(list,tuple))
+			assert len(start)==len(end)==len(range_low)==len(range_high)
+			
+			if isinstance(offset_fn,(list,tuple)): #multiple offset functions
+				assert len(offset_fn)==len(start)
+				if offset_fn_max is None: 
+					offsetfn_max=[None for l in start]
+				else:
+					assert len(offsetfn_max)==len(start)
+					
+				ans= [Market_session._set_schedule(s,e,stepmode,range_low=dpl,range_high=dph,
+				offsetfn=osf,offsetfn_max=osm)
+					for s,e,dpl,dph,osf,osm in zip(d_start,d_end,range_low,range_high,offsetfn,offsetfn_max)] 
+
+			else: #single or no offsetfunction
+				ans= [Market_session._set_schedule(s,e,stepmode,range_low=dpl,range_high=dph,
+				offsetfn=offset_fn,offsetfn_max=offsetfn_max)
+					for s,e,dpl,dph in zip(d_start,d_end,range_low,range_high)]
+					
+		#no regime change
+		else:
+			for tip in same_types:
+				try:
+					assert isinstance(tip,(int,float))
+				except:
+					print(tip,type(tip))
+					raise
+			
+			if offsetfn is not None: assert callable(offsetfn)
+			if offsetfn_max is not None: assert callable(offsetfn_max)
+			
+		
+			ans=[Market_session._set_schedule(start,end,stepmode,range_low,range_high,offsetfn,offsetfn_max)]
+		
+		return ans
+			
+		   #return [{'from':self.start_time,'to':self.end_time,
+			#'stepmode':self.stepmode,'ranges':[(range_low,range_high,SupplyDemand.schfnedule_offsetfn)]}]
+		
+	@staticmethod
+	def _set_schedule(start,end,stepmode,range_low=0,range_high=0,offsetfn=None,offsetfn_max=None):
+	
+		if offsetfn is None:
+			ranges=[(range_low,range_high)]
+		else:
+			if offsetfn_max is not None:
+				ranges=[(range_low,range_high,offsetfn,offsetfn_max)]
+			else:
+				ranges=[(range_low,range_high,offsetfn)]
+		return {'from':start,'to':end,
+		'stepmode':stepmode,'ranges':ranges}
+
+
 		
 	def set_sess_id(self):
 		self.sess_id = 'trial%04d' % self.trial
