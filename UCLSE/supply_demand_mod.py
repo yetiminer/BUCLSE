@@ -251,7 +251,7 @@ class SupplyDemand():
 				if verbose: print('Cancellations: %s' % (cancellations))
 				
 	def customer_orders(self,time=None, verbose=False):
-		time=self.time
+		if time is None: time=self.time
 		
 		pending=self.pending_orders
 		
