@@ -160,6 +160,19 @@ class Market_session:
 	def set_schedule(self,range_low=0,range_high=0):
 		   return {'from':self.start_time,'to':self.end_time,
 			'stepmode':self.stepmode,'ranges':[(range_low,range_high,SupplyDemand.schedule_offsetfn)]}
+	
+	# @staticmethod
+	# def set_schedule(start,end,stepmode,range_low=0,range_high=0,offsetfn=None,offsetfn_max=None):
+        
+        # if offsetfn is None:
+            # ranges=[(range_low,range_high)]
+        # else:
+            # if offsetfn_max is not None:
+                # ranges=[(range_low,range_high,offsetfn,offsetfn_max)]
+            # else:
+                # ranges=[(range_low,range_high,offsetfn)]
+        # return {'from':start,'to':end,
+        # 'stepmode':stepmode,'ranges':ranges}
 		
 	def set_sess_id(self):
 		self.sess_id = 'trial%04d' % self.trial
@@ -386,7 +399,7 @@ class Market_session:
 
 			self.trade = None
 			
-			self._get_demand(replay=replay,replay_vars=replay_vars,order_schedule=self.order_schedule)
+			self._get_demand(replay=replay,replay_vars=replay_vars)
 
 			# get a limit-order quote (or None) from a randomly chosen trader
 			order_dic,tid=self._pick_trader_and_get_order(replay,replay_vars)
@@ -428,7 +441,7 @@ class Market_session:
 				#record the particulars of the period for subsequent recreation
 				self._record_period(tid=tid,lob=lob,order_dic=order_dic,trade=self.trade)
 			
-	def _get_demand(self,replay_vars=None,replay=False,order_schedule=None):
+	def _get_demand(self,replay_vars=None,replay=False):
 	
 			if replay:
 				#customer_orders() passes orders to trades. we need to recreate that here. 
