@@ -368,15 +368,12 @@ class Market_session:
 		if trade_stats is None:
 			trade_stats=self.trade_stats
 	
-
-		#while self.time<self.end_time:
 		while self.timer.next_period():
 		
 			self.simulate_one_period(trade_stats,recording,replay_vars)
 				
 		trade_stats(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, self.lob_verbose),final=True)
 		
-		#if recording: self.replay_vars[self.time]['tape']=self.exchange.publish_tape()
 		self.exchange.tape_dump(self.trade_record, 'w', 'keep')
 	
 	def simulate_one_period(self,trade_stats=None,recording=False,replay_vars=None):
