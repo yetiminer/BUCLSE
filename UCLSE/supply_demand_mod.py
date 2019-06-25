@@ -26,7 +26,7 @@ class SupplyDemand():
 		self.n_sellers=n_sellers
 		self.traders=traders
 		self.set_buyers_sellers() #set the buyers and sellers
-		self.set_buyer_seller_tuple_dic()
+		self.set_buyer_seller_tuples)
 		
 		self.quantity_f=quantity_f if quantity_f is not None else self.do_one
 		
@@ -117,15 +117,15 @@ class SupplyDemand():
 		self.sellers=list(filter(lambda x: x[0]=='S',self.traders))
 		
 	
-	def set_buyer_seller_tuple_dic(self):
+	def set_buyer_seller_tuples(self):
 		#to save some room below, combine all required information about buying and selling together
-		fields=['otype','n_type','buyer_sellers','schedule']
+		fields=['otype','n_type','buyers_sellers','schedule']
 	
 		buy_sell_tuple=namedtuple('buy_sell_tuple',fields)
-		buy_tuple=buy_sell_tuple('Bid',self.n_buyers,self.buyers,self.demand_schedule)
-		sell_tuple=buy_sell_tuple('Ask',self.n_sellers,self.sellers,self.supply_schedule)
+		self.buy_tuple=buy_sell_tuple('Bid',self.n_buyers,self.buyers,self.demand_schedule)
+		self.sell_tuple=buy_sell_tuple('Ask',self.n_sellers,self.sellers,self.supply_schedule)
 		
-		self.buy_sell_tuple_dic={'Buy':buy_tuple,'Sell':sell_tuple}
+		
 	
 		
 	def set_time_mode_function(self,mode):
@@ -311,15 +311,21 @@ class SupplyDemand():
 					new_pending = {}
 
 					# demand side (buyers)
-					new_pending=self.do_side_pending_orders(new_pending,'Bid',self.buyers,time,self.demand_schedule,self.n_buyers)
+					
+					new_pending=self.do_side_pending_orders(self.buy_tuple,new_pending,time)
 
 					# supply side (sellers)
-					new_pending=self.do_side_pending_orders(new_pending,'Ask',self.sellers,time,self.supply_schedule,self.n_sellers)
+					new_pending=self.do_side_pending_orders(self.sell_tuple,new_pending,time)
 							
 					return new_pending
 					
-	def do_side_pending_orders(self,new_pending,ordertype,buyers_sellers,time,schedule_type,n_type):
+	def do_side_pending_orders(self,buy_sell_tuple,new_pending,time):
 				#new_pending={}
+				
+				ordertype=buy_sell_tuple.otype
+				buyers_sellers=buy_sell_tuple.buyers_sellers
+				n_type=buy_sell_tuple.n_type
+				schedule_type=buy_sell_tuple.schedule
 				
 				issuetimes = self.getissuetimes(n_type, self.timemode, self.interval, self.shuffle_times, fittointerval=self.fit_to_interval)
 				#issuetimes = time + np.array(issuetimes)
