@@ -24,6 +24,8 @@ class SupplyDemand():
 		self.n_buyers=n_buyers
 		self.n_sellers=n_sellers
 		self.traders=traders
+		self.set_buyers_sellers() #set the buyers and sellers
+		
 		self.quantity_f=quantity_f if quantity_f is not None else self.do_one
 		
 		self.oid=-1
@@ -104,7 +106,14 @@ class SupplyDemand():
 
 		# out = np.concatenate(unflat).ravel()[0:n_traders]
 		# return out	
+	
+	def set_buyers_sellers(self):
+		#define the buyers and sellers once on setup
 		
+		self.buyers=list(filter(lambda x: x[0]=='B',self.traders))
+		self.sellers=list(filter(lambda x: x[0]=='S',self.traders))
+		
+	
 		
 	def set_time_mode_function(self,mode):
 		#this is a one time call at instantiation -assumes time mode does not change over time.
@@ -298,6 +307,7 @@ class SupplyDemand():
 					
 	def do_side_pending_orders(self,new_pending,ordertype,letter,time,shuffle_times,schedule_type,n_type):
 				#new_pending={}
+				
 				issuetimes = self.getissuetimes(n_type, self.timemode, self.interval, shuffle_times, fittointerval=self.fit_to_interval)
 				#issuetimes = time + np.array(issuetimes)
 				issuetimes = time + issuetimes
