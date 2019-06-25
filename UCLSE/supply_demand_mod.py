@@ -13,7 +13,7 @@ class SupplyDemand():
 	side_dic={'Bid':'B','Ask':'A'}
 
 	def __init__(self,supply_schedule=None,demand_schedule=None,interval=None,timemode=None,pending=None,sys_minprice=0,sys_maxprice=1000,
-	n_buyers=0,n_sellers=0,traders=None,quantity_f=None,timer=None,time_mode_func=None,fit_to_interval=True):
+	n_buyers=0,n_sellers=0,traders=None,quantity_f=None,timer=None,time_mode_func=None,fit_to_interval=True,shuffle_times=True):
 		self.supply_schedule=supply_schedule
 		self.demand_schedule=demand_schedule
 		self.interval=interval
@@ -33,6 +33,7 @@ class SupplyDemand():
 		self.timer=timer
 		self.schedrange=None
 		self.fit_to_interval=fit_to_interval
+		self.shuffle_times=shuffle_times
 		
 		if time_mode_func is None and self.timemode is not None:
 			self.set_time_mode_function(timemode)
@@ -253,14 +254,14 @@ class SupplyDemand():
 		time=self.time
 		
 		pending=self.pending_orders
-		shuffle_times = True
+		
 
 		cancellations = []
 		dispatched_orders=[]
 
 		if len(pending) < 1:
 				# list of pending (to-be-issued) customer orders is empty, so generate a new one
-			 new_pending=self.generate_new_pending_orders(shuffle_times=shuffle_times,time=time)
+			 new_pending=self.generate_new_pending_orders(shuffle_times=self.shuffle_times,time=time)
 		else:
 				# there are pending future orders: issue any whose timestamp is in the past
 				#tell the traders about these
@@ -298,27 +299,28 @@ class SupplyDemand():
 					new_pending = {}
 
 					# demand side (buyers)
-					new_pending=self.do_side_pending_orders(new_pending,'Bid','B',time,shuffle_times,self.demand_schedule,self.n_buyers)
+					new_pending=self.do_side_pending_orders(new_pending,'Bid',self.buyers,time,shuffle_times,self.demand_schedule,self.n_buyers)
 
 					# supply side (sellers)
-					new_pending=self.do_side_pending_orders(new_pending,'Ask','S',time,shuffle_times,self.supply_schedule,self.n_sellers)
+					new_pending=self.do_side_pending_orders(new_pending,'Ask',self.sellers,time,shuffle_times,self.supply_schedule,self.n_sellers)
 							
 					return new_pending
 					
-	def do_side_pending_orders(self,new_pending,ordertype,letter,time,shuffle_times,schedule_type,n_type):
+	def do_side_pending_orders(self,new_pending,ordertype,buyers_sellers,time,shuffle_times,schedule_type,n_type):
 				#new_pending={}
 				
 				issuetimes = self.getissuetimes(n_type, self.timemode, self.interval, shuffle_times, fittointerval=self.fit_to_interval)
 				#issuetimes = time + np.array(issuetimes)
 				issuetimes = time + issuetimes
 				
+				#this can change over time so needs to be called frequently
 				(sched, mode) = self.getschedmode(time, schedule_type)
 				
 				orderprices_b=self.getorderprices(sched,n_type,mode,issuetimes)
 				
-				buyers=list(filter(lambda x: x[0]==letter,self.traders))
-				assert len(buyers)==len(orderprices_b)==len(issuetimes)
-				for t,orderprice,issuetime in zip(buyers,orderprices_b,issuetimes):
+				#buyers=list(filter(lambda x: x[0]==letter,self.traders))
+				assert len(buyers_sellers)==len(orderprices_b)==len(issuetimes)
+				for t,orderprice,issuetime in zip(buyers_sellers,orderprices_b,issuetimes):
 
 						#tname = 'B%02d' % t
 						order = Order(tid=t, otype=ordertype, price=orderprice, qty=self.quantity_f(), time=issuetime, qid=None,oid=self.latest_oid)
