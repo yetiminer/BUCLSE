@@ -69,21 +69,35 @@ class Market_session:
 			self.trade_record=trade_record
 			self.random_seed=random_seed
 
+			self.traders_spec = {'sellers':sellers_spec, 'buyers':buyers_spec}
+			self.n_buyers,self.n_sellers=self.get_buyer_seller_numbers()
+			
+			
+			#init timer
+			# timestep set so that can process all traders in one second
+			# NB minimum interarrival time of customer orders may be much less than this!! 
+			self.timestep = 1.0 / (self.n_buyers+self.n_sellers)
+			self.last_update=-1.0
+			
 			
 			#coordinate times
 			if timer  is None:
 				self.start_time=start_time
 				self.end_time=end_time
 				self.duration=float(self.end_time-self.start_time)
+				self.timer=CustomTimer(start=self.start_time,end=self.end_time,step=self.timestep)
 			else:
 				#given a timer, so override ignore start, end time in input and use timer settings instead
 				self.timer=timer
 				self.start_time=timer.start_time
 				self.end_time=timer.end_time
-				
 				print('using timer start time=%d, end time=%d, instead'%(self.start_time,self.end_time))
+				old_step=self.timer.step
+				self.timer.set_step(self.timestep)
+				print('overwriting timer step size from: %d to %d' %(str(round(old_step,2)),str(round(self.timestep,2))))
+				
 			
-			#set_schedule(start,end,stepmode,range_low,range_high,offsetfn=None,offsetfn_max=None)
+			#do the supply and demand schedules
 			if supply_starts is None:
 				
 				supply_starts=self.start_time
@@ -102,24 +116,6 @@ class Market_session:
 			
 			self.demand_schedule=self.set_schedule(demand_starts,demand_ends,stepmode,
 			demand_price_low,demand_price_high,offsetfn,offsetfn_max)
-			
-			
-			self.traders_spec = {'sellers':sellers_spec, 'buyers':buyers_spec}
-			
-			self.n_buyers,self.n_sellers=self.get_buyer_seller_numbers()
-			
-			#init timer
-			# timestep set so that can process all traders in one second
-			# NB minimum interarrival time of customer orders may be much less than this!! 
-			self.timestep = 1.0 / (self.n_buyers+self.n_sellers)
-			self.last_update=-1.0
-			if timer is None:
-				self.timer=CustomTimer(start=self.start_time,end=self.end_time,step=self.timestep)
-				
-			else:
-				old_step=self.timer.step
-				self.timer.set_step(self.timestep)
-				print('overwriting timer step size from: %d to %d' %(str(round(old_step,2)),str(round(self.timestep,2))))
 			
 			#init exchange
 			if exchange is None:
