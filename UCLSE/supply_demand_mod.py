@@ -26,7 +26,7 @@ class SupplyDemand():
 		self.n_sellers=n_sellers
 		self.traders=traders
 		self.set_buyers_sellers() #set the buyers and sellers
-		self.set_buyer_seller_tuples)
+		self.set_buyer_seller_tuples()
 		
 		self.quantity_f=quantity_f if quantity_f is not None else self.do_one
 		
