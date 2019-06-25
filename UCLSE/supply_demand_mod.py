@@ -3,6 +3,7 @@ from UCLSE.exchange import bse_sys_minprice, bse_sys_maxprice, Order
 import sys
 import math
 import numpy as np
+from collections import namedtuple
 
 
 # parameter "pending" is the list of future orders (if this is empty, generates a new one from os)
@@ -25,6 +26,7 @@ class SupplyDemand():
 		self.n_sellers=n_sellers
 		self.traders=traders
 		self.set_buyers_sellers() #set the buyers and sellers
+		self.set_buyer_seller_tuple_dic()
 		
 		self.quantity_f=quantity_f if quantity_f is not None else self.do_one
 		
@@ -114,6 +116,16 @@ class SupplyDemand():
 		self.buyers=list(filter(lambda x: x[0]=='B',self.traders))
 		self.sellers=list(filter(lambda x: x[0]=='S',self.traders))
 		
+	
+	def set_buyer_seller_tuple_dic(self):
+		#to save some room below, combine all required information about buying and selling together
+		fields=['otype','n_type','buyer_sellers','schedule']
+	
+		buy_sell_tuple=namedtuple('buy_sell_tuple',fields)
+		buy_tuple=buy_sell_tuple('Bid',self.n_buyers,self.buyers,self.demand_schedule)
+		sell_tuple=buy_sell_tuple('Ask',self.n_sellers,self.sellers,self.supply_schedule)
+		
+		self.buy_sell_tuple_dic={'Buy':buy_tuple,'Sell':sell_tuple}
 	
 		
 	def set_time_mode_function(self,mode):
@@ -261,7 +273,7 @@ class SupplyDemand():
 
 		if len(pending) < 1:
 				# list of pending (to-be-issued) customer orders is empty, so generate a new one
-			 new_pending=self.generate_new_pending_orders(shuffle_times=self.shuffle_times,time=time)
+			 new_pending=self.generate_new_pending_orders(time=time)
 		else:
 				# there are pending future orders: issue any whose timestamp is in the past
 				#tell the traders about these
@@ -294,22 +306,22 @@ class SupplyDemand():
 				if verbose: print('Cancellations: %s' % (cancellations))
 			return cancellations
 		
-	def  generate_new_pending_orders(self,time=None,shuffle_times=True): 
+	def  generate_new_pending_orders(self,time=None): 
 		# list of pending (to-be-issued) customer orders is empty, so generate a new one
 					new_pending = {}
 
 					# demand side (buyers)
-					new_pending=self.do_side_pending_orders(new_pending,'Bid',self.buyers,time,shuffle_times,self.demand_schedule,self.n_buyers)
+					new_pending=self.do_side_pending_orders(new_pending,'Bid',self.buyers,time,self.demand_schedule,self.n_buyers)
 
 					# supply side (sellers)
-					new_pending=self.do_side_pending_orders(new_pending,'Ask',self.sellers,time,shuffle_times,self.supply_schedule,self.n_sellers)
+					new_pending=self.do_side_pending_orders(new_pending,'Ask',self.sellers,time,self.supply_schedule,self.n_sellers)
 							
 					return new_pending
 					
-	def do_side_pending_orders(self,new_pending,ordertype,buyers_sellers,time,shuffle_times,schedule_type,n_type):
+	def do_side_pending_orders(self,new_pending,ordertype,buyers_sellers,time,schedule_type,n_type):
 				#new_pending={}
 				
-				issuetimes = self.getissuetimes(n_type, self.timemode, self.interval, shuffle_times, fittointerval=self.fit_to_interval)
+				issuetimes = self.getissuetimes(n_type, self.timemode, self.interval, self.shuffle_times, fittointerval=self.fit_to_interval)
 				#issuetimes = time + np.array(issuetimes)
 				issuetimes = time + issuetimes
 				
