@@ -133,8 +133,12 @@ def demand_curve_intersect(bids,asks,intersect,order_store,path='basic_animation
 
 	# First set up the figure, the axis, and the plot element we want to animate
 	#fig, ax = plt.subplots(num=None, figsize=(16, 12), dpi=80, facecolor='w', edgecolor='k')
-
-	max_x=order_store.qty.rolling(window).sum().max()
+	
+	
+	if type(order_store.index)==pd.core.indexes.datetimes.DatetimeIndex:
+		order_store.qty.resample(window,label='right').sum()
+	else:
+		max_x=order_store.qty.rolling(window).sum().max()
 
 	fig = plt.figure()
 	ax = plt.axes(ylim=(0,order_store.price.max()), xlim=(0, max_x))
