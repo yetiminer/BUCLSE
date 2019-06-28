@@ -639,6 +639,62 @@ class Market_session:
 		df['time_issued']=times
 		df.index=pd.to_datetime(df.time,unit='s')
 		return df
+	
+	@staticmethod
+	def get_active_orders(sess):
+
+		active_orders=pd.DataFrame([k['Original'] for _,t in sess.traders.items() for _,k in t.orders_dic.items() if len(t.orders_dic)>0])
+		active_orders['status']='incomplete'
+		active_orders['completion_time']=sess.timer.end+1
+		active_orders=active_orders.rename({'time': 'issue_time'}, axis='columns')
+		return active_orders
+	
+	@staticmethod
+	def get_completed_and_cancelled(sess):
+		
+		def define_dic(k):
+			return {'status':k['status'],
+					'completion_time':k['completion_time'],
+					'issue_time':k['Original'].time,
+					'price':k['Original'].price,
+					'qty':k['Original'].qty,
+				   'otype':k['Original'].otype,
+				   'oid':k['Original'].oid,
+				   'tid':k['Original'].tid}
+
+		completed_and_cancelled_dic={_:define_dic(k) for _,t in sess.traders.items() for _,k in t.orders_dic_hist.items() if len(t.orders_dic_hist)>0}
+		completed_and_cancelled_df=pd.DataFrame.from_dict(completed_and_cancelled_dic,orient='index')
+		return completed_and_cancelled_df
+	
+	@staticmethod
+	def make_order_list(sess):
+		#creates a list of orders from the replay vars indexed by time in seconds but also gives status of these orders and when/if completed
+		active_orders=Market_session.get_active_orders(sess)
+		completed_and_cancelled_df=Market_session.get_completed_and_cancelled(sess)
+		order_list=pd.concat([active_orders,completed_and_cancelled_df],sort=False).sort_values('issue_time')
+		order_list=order_list.set_index('issue_time')
+		order_list.index=pd.to_datetime(order_list.index,unit='s')
+		order_list['completion_time']=pd.to_datetime(order_list.completion_time,unit='s')
+		return order_list
+		
+	@staticmethod
+	def get_completed_orders(sess):
+		return pd.DataFrame([trade for _,t in sess.traders.items() for trade in t.blotter])
+	
+	@staticmethod
+	def best_last(sess):
+
+		best_bid=pd.DataFrame.from_dict({val['lob']['time']:val['lob']['bids'] for k, val in sess.replay_vars.items() if val['lob']!={}},orient='index').best
+		best_bid.index=pd.to_datetime(best_bid.index,unit='s')
+
+		best_ask=pd.DataFrame.from_dict({val['lob']['time']:val['lob']['asks'] for k, val in sess.replay_vars.items() if val['lob']!={}},orient='index').best
+		best_ask.index=pd.to_datetime(best_ask.index,unit='s')
+
+		last_trans=pd.DataFrame([val['lob'] for k, val in sess.replay_vars.items() if val['lob']!={}]).set_index('time').last_transaction_price
+		last_trans.index=pd.to_datetime(last_trans.index,unit='s')
+		
+		return best_bid,best_ask,last_trans
+		
 
 def yamlLoad(path):
 	
