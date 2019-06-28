@@ -108,7 +108,8 @@ class Trader:
 					# need response to signal cancellation/withdrawal of that quote
 					oldest_trade_dic=self.get_oldest_order()
 					response = ('LOB_Cancel',oldest_trade_dic)
-					self.del_order( oldest_trade_dic['oid'])
+					reason='cancel'
+					self.del_order( oldest_trade_dic['oid'],reason)
 					if inform_exchange and oldest_trade_dic['last_qid'] is not None:
 						self.cancel_with_exchange(oid=oldest_trade_dic['oid'])
 						
@@ -171,8 +172,11 @@ class Trader:
 
 
 
-		def del_order(self, oid):
+		def del_order(self, oid,reason):
+				self.orders_dic[oid]['completion_time']=self.time #record the time of order completion
+				self.orders_dic[oid]['status']=reason
 				#delete a customer order
+				
 				self.orders_dic_hist[oid]=self.orders_dic[oid]
 				del(self.orders_dic[oid])
 				self.n_orders=len(self.orders_dic)
@@ -244,10 +248,11 @@ class Trader:
 				self.orders_dic[oid]['qty_remain']=order_qty-trade_qty
 				
 				if trade_qty==order_qty:
-					self.orders_dic[oid]['completion_time']=self.time #record the time of order completion
+					reason='complete'
+					
 					trade['status']='full'
 					
-					self.del_order(oid)
+					self.del_order(oid,reason)
 					  # delete the order
 				
 				elif trade_qty<order_qty:
