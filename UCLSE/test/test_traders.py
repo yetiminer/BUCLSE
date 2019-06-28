@@ -3,6 +3,7 @@ from UCLSE.test.utils import (yamlLoad,
                               order_from_dic,build_df_from_dic_dic,build_lob_from_df)
 import pandas as pd
 import os
+from UCLSE.custom_timer import CustomTimer
 
 							  
 cwd=os.getcwd()
@@ -12,7 +13,7 @@ fixture_name=os.path.join(cwd,'UCLSE','test','fixtures','exchange_fix.yml')
 def test_bookkeep():
 	fixture_list=yamlLoad(fixture_name)
 	for fixture_dic in fixture_list:
-		henry=Trader(tid='Henry',time=0,balance=0)
+		henry=Trader(tid='Henry',time=0,balance=0,timer=CustomTimer())
 
 		order_df=build_df_from_dic_dic(fixture_dic['input'])
 		
