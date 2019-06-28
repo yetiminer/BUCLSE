@@ -1,0 +1,14 @@
+- path: Tutorials//test_notebook.ipynb
+  errors:
+    4: 
+        ename: TypeError
+        evalue: "'tuple' object does not support item assignment"
+    5:  
+        ename: TypeError
+        evalue:  "'tuple' object does not support item assignment"
+        
+- path: 'Tutorials//Intro to buclse part 1.ipynb'
+  errors:
+    20:
+        ename: AttributeError
+        evalue: "can't set attribute"
