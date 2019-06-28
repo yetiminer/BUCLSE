@@ -236,7 +236,7 @@ class Trader:
 				trade['oid']=oid
 				trade['tid']=self.tid
 				trade['order qty']=order_qty
-				trade['order_issue_time']=order.time
+				trade['order_issue_time']=self.orders_dic[oid]['Original'].time
 				trade['profit']=profit
 				trade['BS']=buy_sell_bid_ask_dic[otype]
 				
@@ -244,7 +244,9 @@ class Trader:
 				self.orders_dic[oid]['qty_remain']=order_qty-trade_qty
 				
 				if trade_qty==order_qty:
+					self.orders_dic[oid]['completion_time']=time #record the time of order completion
 					trade['status']='full'
+					
 					self.del_order(oid)
 					  # delete the order
 				
