@@ -625,7 +625,20 @@ class Market_session:
 			except AttributeError: #first period of recording
 				self.replay_vars={}
 				self.replay_vars[self.time]=recording_record
+	
+	@staticmethod
+	def create_order_list(sess):
+		#creates a list of orders from the replay vars indexed by time in seconds
 
+		unflat_list={k:val['dispatched_orders'] for k,val in sess.replay_vars.items() if len(val['dispatched_orders'])>0 }
+
+		flatlist=[j for _,sl in unflat_list.items() for j in sl]
+		times=[k for k,sl in unflat_list.items() for j in sl]
+
+		df=pd.DataFrame(flatlist)
+		df['time_issued']=times
+		df.index=pd.to_datetime(df.time,unit='s')
+		return df
 
 def yamlLoad(path):
 	
