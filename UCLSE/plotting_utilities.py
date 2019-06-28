@@ -7,6 +7,11 @@ import pandas as pd
 from matplotlib import animation
 from IPython.display import display, clear_output, HTML
 
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
+
+
+
 def collect_orders(sd):
     order_store=[]
     order_count={}
@@ -34,18 +39,32 @@ def collect_orders(sd):
     
     return order_store,order_count
 	
-def bid_ask_window(sd,order_store,periods=100):
+def bid_ask_window(sd,order_store,periods=100,step=0):
     #divides orders into rolling window, separates bids and asks, 
     #sorts by price, adds cumulative quantity, also calculates approx intercept
+    
     time_from=0
     increment=periods*sd.timer.step
+    if step==0: step=increment #non overlapping windows
+        
     bids=[]
     asks=[]
     intersect=[]
     b_tf=order_store.otype=='Bid'
     a_tf=~b_tf
-
-    while time_from<sd.timer.end:
+    end=sd.timer.end
+    
+    
+    if type(order_store.index)==pd.core.indexes.datetimes.DatetimeIndex:
+        
+        time_from=pd.to_datetime(time_from,unit='s')
+        end=pd.to_datetime(end,unit='s')
+        increment=pd.to_timedelta(increment,unit='s')
+        step=pd.to_timedelta(step,unit='s')
+        
+    
+    while time_from<end:
+       
         tf=(order_store.index>time_from)&(order_store.index<time_from+increment)
         
         temp_bids=order_store[tf&b_tf].sort_values('price')
@@ -58,7 +77,7 @@ def bid_ask_window(sd,order_store,periods=100):
         intersect_temp=calc_intersect(temp_bids,temp_asks)
         intersect.append(intersect_temp)
     
-        time_from=time_from+increment
+        time_from=time_from+step
         
     intersect=pd.DataFrame(intersect).set_index('time')
     
@@ -69,7 +88,7 @@ def calc_intersect(bids,asks):
 	time=bids.index.max()
 	intersect_df=bids.merge(asks,left_on='cumul',right_on='cumul',suffixes=['_B','_A']).set_index('cumul')
 	try:
-		intersect=intersect_df[intersect_df.price_B>=intersect_df.price_A].iloc[0][['price_B','price_A']].mean()
+		intersect=intersect_df[intersect_df.price_B>=intersect_df.price_A].iloc[0][['price_B','price_A']].mean() #what happens if supply curve is below demand curve?
 	except IndexError:
 		#no intercept!
 		intersect=np.nan
@@ -125,83 +144,87 @@ def combine_legend(fig):
 
 
 def demand_curve_intersect(bids,asks,intersect,order_store,path='basic_animation.mp4',window=50):
-	#plots evolution of demand supply curve in mpeg video
-	plt.rcParams['animation.ffmpeg_path']='C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe'
+    #plots evolution of demand supply curve in mpeg video
+    plt.rcParams['animation.ffmpeg_path']='C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe'
 
-	Writer = animation.writers._registered['ffmpeg']
-	writer = Writer(fps=5, metadata=dict(artist='Me'), bitrate=1800)
+    Writer = animation.writers._registered['ffmpeg']
+    writer = Writer(fps=5, metadata=dict(artist='Me'), bitrate=1800)
 
-	# First set up the figure, the axis, and the plot element we want to animate
-	#fig, ax = plt.subplots(num=None, figsize=(16, 12), dpi=80, facecolor='w', edgecolor='k')
-	
-	
-	if type(order_store.index)==pd.core.indexes.datetimes.DatetimeIndex:
-		order_store.qty.resample(window,label='right').sum()
-	else:
-		max_x=order_store.qty.rolling(window).sum().max()
+    # First set up the figure, the axis, and the plot element we want to animate
+    #fig, ax = plt.subplots(num=None, figsize=(16, 12), dpi=80, facecolor='w', edgecolor='k')
 
-	fig = plt.figure()
-	ax = plt.axes(ylim=(0,order_store.price.max()), xlim=(0, max_x))
-	line1, = ax.plot([], [], lw=2,label='demand (bids)')
-	line, = ax.plot([], [], lw=2,label='supply (asks)')
-	ax.set_xlabel('Quantity')
-	ax.set_ylabel('Price')
-	plt.legend(loc=3)
 
-	ax1=ax.twiny()    
-	ax1.set_xlim(0,order_store.index.max())
-	ax1.set_xlabel('Time')
-	line2,= ax1.plot([], [], lw=2,label='intercept',color='g')
+    if type(order_store.index)==pd.core.indexes.datetimes.DatetimeIndex:
+        
+        b=order_store[order_store['otype']=='Bid'].qty.resample('30s',label='right').sum().max()
+        a=order_store[order_store['otype']=='Ask'].qty.resample('30s',label='right').sum().max()
+        max_x=max(a,b)
+    else:
+        max_x=order_store.qty.rolling(window).sum().max()
+        
 
-	# combine the legends into one.
-	combine_legend(fig)
+    fig = plt.figure()
+    ax = plt.axes(ylim=(0,order_store.price.max()), xlim=(0, max_x))
+    line1, = ax.plot([], [], lw=2,label='demand (bids)')
+    line, = ax.plot([], [], lw=2,label='supply (asks)')
+    ax.set_xlabel('Quantity')
+    ax.set_ylabel('Price')
+    plt.legend(loc=3)
 
-	# initialization function: plot the background of each frame
-	def init():
-		line.set_data([], [])
-		line1.set_data([], [])
-		line2.set_data([],[])
-		return line,line1,line2
+    ax1=ax.twiny()    
+    ax1.set_xlim(order_store.index.min(),order_store.index.max())
+    ax1.set_xlabel('Time')
+    line2,= ax1.plot([], [], lw=2,label='intercept',color='g')
 
-	# animation function.  This is called sequentially
-	def animate(i):
-		#x = np.linspace(0, 2, 1000)
-		x=asks[i].cumul,
-		y=asks[i].price
+    # combine the legends into one.
+    combine_legend(fig)
 
-		line.set_data(x, y)
+    # initialization function: plot the background of each frame
+    def init():
+        line.set_data([], [])
+        line1.set_data([], [])
+        line2.set_data([],[])
+        return line,line1,line2
 
-		x1=bids[i].cumul,
-		y1=bids[i].price
+    # animation function.  This is called sequentially
+    def animate(i):
+        #x = np.linspace(0, 2, 1000)
+        x=asks[i].cumul,
+        y=asks[i].price
 
-		line1.set_data(x1, y1)
-		
-		#get the maximum time period this line corresponds to
-		time_max=max(asks[i].index.max(),bids[i].index.max())
-		tf=intersect.index<=time_max
-		x2=intersect.index[tf]
-		y2=intersect[tf]
-		
-		line2.set_data(x2, y2)
-		
-		return line,line1,line2
+        line.set_data(x, y)
 
-	# call the animator.  blit=True means only re-draw the parts that have changed.
-	anim = animation.FuncAnimation(fig, animate, init_func=init,
-								   frames=len(bids), interval=20, blit=True)
+        x1=bids[i].cumul,
+        y1=bids[i].price
 
-	# save the animation as an mp4.  This requires ffmpeg or mencoder to be
-	# installed.  The extra_args ensure that the x264 codec is used, so that
-	# the video can be embedded in html5.  You may need to adjust this for
-	# your system: for more information, see
-	# http://matplotlib.sourceforge.net/api/animation_api.html
-	anim.save(path, writer=writer)
+        line1.set_data(x1, y1)
 
-	return HTML("""
-		<video width="640" height="480" controls>
-		  <source src="basic_animation.mp4" type="video/mp4">
-		</video>
-		""")
+        #get the maximum time period this line corresponds to
+        time_max=max(asks[i].index.max(),bids[i].index.max())
+        tf=intersect.index<=time_max
+        x2=intersect.index[tf]
+        y2=intersect[tf]
+
+        line2.set_data(x2, y2)
+
+        return line,line1,line2
+
+    # call the animator.  blit=True means only re-draw the parts that have changed.
+    anim = animation.FuncAnimation(fig, animate, init_func=init,
+                                   frames=len(bids), interval=20, blit=True)
+
+    # save the animation as an mp4.  This requires ffmpeg or mencoder to be
+    # installed.  The extra_args ensure that the x264 codec is used, so that
+    # the video can be embedded in html5.  You may need to adjust this for
+    # your system: for more information, see
+    # http://matplotlib.sourceforge.net/api/animation_api.html
+    anim.save(path, writer=writer)
+
+    return HTML("""
+        <video width="640" height="480" controls>
+          <source src="basic_animation.mp4" type="video/mp4">
+        </video>
+        """)
 
 def test():
 	pass
