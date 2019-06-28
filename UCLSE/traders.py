@@ -43,6 +43,7 @@ import copy
 from UCLSE.exchange import Order
 from collections import OrderedDict
 import pandas as pd
+import numpy as np
 
 # Trader superclass
 # all Traders have a trader id, bank balance, blotter, and list of orders to execute
@@ -367,8 +368,9 @@ class Trader_ZIC(Trader):
 						new_order = None
 				else:
 				
-						minprice = lob['bids']['worst']
-						maxprice = lob['asks']['worst']
+						#minprice = lob['bids']['worst']
+						#maxprice = lob['asks']['worst']
+
 						
 						listish=self.orders_dic.items()
 						
@@ -381,8 +383,10 @@ class Trader_ZIC(Trader):
 							qty=ord['qty_remain']
 							
 							if otype == 'Bid':
+									minprice=self.get_price('bids',lob,limitprice,0.8)
 									quoteprice = random.randint(minprice, limitprice)
 							elif otype == 'Ask':
+									maxprice=self.get_price('asks',lob,limitprice,1.2)
 									quoteprice = random.randint(limitprice, maxprice)
 							else:
 								print('Unknown order type ',otype)
@@ -394,6 +398,16 @@ class Trader_ZIC(Trader):
 							self.lastquote[oi] = new_order
 							new_order_dic[oi]=new_order
 				return new_order_dic
+		
+		@staticmethod
+		def get_price(side,lob,limitprice,price_mult):
+			if lob[side]['best'] is None:
+				minmaxprice=lob[side]['worst']
+			else:
+				minmaxprice = int(limitprice*price_mult)
+				
+			return minmaxprice
+							
 
 
 
