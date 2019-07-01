@@ -76,7 +76,8 @@ class Market_session:
 			#init timer
 			# timestep set so that can process all traders in one second
 			# NB minimum interarrival time of customer orders may be much less than this!! 
-			self.timestep = 1.0 / (self.n_buyers+self.n_sellers)
+			total_traders=self.n_buyers+self.n_sellers
+			self.timestep = round(1.0 / (total_traders),len(str(total_traders)))
 			self.last_update=-1.0
 			
 			
@@ -533,21 +534,32 @@ class Market_session:
 					
 					integer_period=round(self.time/self.timestep) #rounding error means that we can't rely on fraction to be int
 				
-					list_of_traders=np.array(list(self.traders.keys())) #is this always the same?
-					trader_latencies=np.array([self.traders[key].latency for key in list_of_traders]) 
-					max_latency=np.max(trader_latencies) #just at the beginning to ensure divisor is smaller than numerator
-					permitted_traders=list_of_traders[np.mod(integer_period+max_latency,trader_latencies)==0]
+					#list_of_traders=np.array(list(self.traders.keys())) #is this always the same?
+					list_of_traders=np.array(list(self.traders_with_orders().keys())) #presumably we should only pick traders who actually have an order to submit
 					
-					tid = np.random.choice(permitted_traders)
-					if self.latency_verbose: print('latencies: number of traders to pick from:',
-					len(permitted_traders),' pick trader :',
-					tid,' of type ',self.traders[tid].ttype)
-					#note that traders will return a dictionary containing at least one order
-					order_dic = self.traders[tid].getorder(lob=self.exchange.publish_lob(self.time, self.lob_verbose))
-					if self.latency_verbose: print('Trader responds with ', len(order_dic), ' quotes to send to exchange')
+					if len(list_of_traders)>0:
+					
+						trader_latencies=np.array([self.traders[key].latency for key in list_of_traders]) 
+						max_latency=np.max(trader_latencies) #just at the beginning to ensure divisor is smaller than numerator
+						permitted_traders=list_of_traders[np.mod(integer_period+max_latency,trader_latencies)==0]
+						
+						tid = np.random.choice(permitted_traders)
+						if self.latency_verbose: print('latencies: number of traders to pick from:',
+						len(permitted_traders),' pick trader :',
+						tid,' of type ',self.traders[tid].ttype)
+						#note that traders will return a dictionary containing at least one order
+						order_dic = self.traders[tid].getorder(lob=self.exchange.publish_lob(self.time, self.lob_verbose))
+						if self.latency_verbose: print('Trader responds with ', len(order_dic), ' quotes to send to exchange')
+						
+					else:
+						order_dic={}
+						tid=None
 				
 				return order_dic,tid
 				
+	def traders_with_orders(self):
+		return {k: val.n_orders for k,val in self.traders.items() if val.n_orders>0}
+	
 			
 	def _send_order_to_exchange(self,tid,order,trade_stats=None):
 		# send order to exchange
@@ -682,6 +694,9 @@ class Market_session:
 		last_trans.index=pd.to_datetime(last_trans.index,unit='s')
 		
 		return best_bid,best_ask,last_trans
+		
+
+		
 		
 
 def yamlLoad(path):
