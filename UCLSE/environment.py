@@ -90,8 +90,8 @@ class Market_session:
 			else:
 				#given a timer, so override ignore start, end time in input and use timer settings instead
 				self.timer=timer
-				self.start_time=timer.start_time
-				self.end_time=timer.end_time
+				self.start_time=timer.start
+				self.end_time=timer.end
 				print('using timer start time=%d, end time=%d, instead'%(self.start_time,self.end_time))
 				old_step=self.timer.step
 				self.timer.set_step(self.timestep)
