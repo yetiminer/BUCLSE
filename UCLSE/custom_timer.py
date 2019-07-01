@@ -13,6 +13,7 @@ class CustomTimer():
 		self.duration=float(self.end-self.start)/self.step
 		self.time_left=self._time_left()
 		self.client=None
+		self.accuracy=len(str(step))-1
 		
 	def __repr__(self):
 		return f'time: {self.time} time left: {self.time_left} start: {self.start} end: {self.end} step: {self.step}' #need python 3.6
@@ -24,7 +25,7 @@ class CustomTimer():
 		if self.time_left<self.step:
 			next_per=False
 		else:
-			self.time=self.time+self.step
+			self.time=round(self.time+self.step,self.accuracy)
 			self.time_left=self._time_left()
 			next_per= True
 			
