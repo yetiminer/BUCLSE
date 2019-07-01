@@ -518,18 +518,6 @@ class Market_session:
 				
 				[self.pending_cust_orders, self.kills,self.dispatched_orders] = self.sd.customer_orders(verbose= 
 												   self.orders_verbose)
-				
-	def _cancel_existing_orders_for_traders_who_already_have_one_in_the_market(self):
-		# if any newly-issued customer orders mean quotes on the LOB need to be cancelled, kill them
-		if len(self.kills) > 0 :
-				# if verbose : print('Kills: %s' % (kills))
-				for kill in self.kills :
-
-						#check to see if this quote was submitted to exchange anyway
-						if kill['last_qid'] != None :
-								if self.process_verbose : print('killing lastquote=%s' % self.traders[kill].lastquote)
-
-								self.exchange.del_order(self.time, oid=kill['oid'], verbose=self.verbose)
 
 								
 	def _pick_trader_and_get_order(self,replay,replay_vars):
