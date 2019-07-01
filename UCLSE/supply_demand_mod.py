@@ -41,6 +41,8 @@ class SupplyDemand():
 			self.set_time_mode_function(timemode)
 		else:
 			self.time_mode_function=time_mode_func
+			
+		self.accuracy=len(str(n_buyers+n_sellers)) #want to get the issue times nicely rounded.
 		
 	@property #really important - define the time of the environment to be whatever the custom timer says
 	def time(self): 
@@ -161,6 +163,8 @@ class SupplyDemand():
 		# optionally randomly shuffle the times
 		if shuffle:
 				np.random.shuffle(issuetimes)
+				
+		issuetimes=np.round(issuetimes,self.accuracy) #round the issue times
 
 		return issuetimes
 		
