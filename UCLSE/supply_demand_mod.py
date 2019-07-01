@@ -44,6 +44,11 @@ class SupplyDemand():
 			
 		self.accuracy=len(str(n_buyers+n_sellers)) #want to get the issue times nicely rounded.
 		
+		
+	def __repr__(self):
+		out=f"no. buyers: {self.n_buyers}, no.sellers: {self.n_sellers}, timemode: {self.timemode},  supply schedule: {self.supply_schedule}, demand schedule {self.demand_schedule}"
+		return out
+		
 	@property #really important - define the time of the environment to be whatever the custom timer says
 	def time(self): 
 		return self.timer.get_time	
