@@ -444,14 +444,17 @@ class Trader_Shaver(Trader):
 											if quoteprice > limitprice :
 													quoteprice = limitprice
 									else:
-											quoteprice = lob['bids']['worst']
+											#quoteprice = lob['bids']['worst'] #stop this troublesome stub order feature
+											quoteprice=int(limitprice*0.8)
 							else:
 									if lob['asks']['n'] > 0:
 											quoteprice = lob['asks']['best'] - 1
 											if quoteprice < limitprice:
 													quoteprice = limitprice
 									else:
-											quoteprice = lob['asks']['worst']
+											#quoteprice = lob['asks']['worst'] #stop this troublesome stub order feature
+											quoteprice=int(limitprice*1.2) 
+											
 							new_order = Order(self.tid, otype, quoteprice, qty, self.time, qid=lob['QID'],oid=oi)
 							self.order_logic_check(oi,new_order)
 							self.lastquote[oi] = new_order
@@ -848,31 +851,6 @@ class Trader_ZIP(Trader):
 								
 				return new_order_dic
 		
-		# def setorder(self,order):
-				# self.lastquote=order
-				# if self.n_orders < 1:
-						# self.active = False
-						
-				# else:
-						# self.active = True
-						
-						# listish=self.orders_dic.items()
-						# for oi,ord in listish:
-								# self.limit=ord['Original'].price
-								# self.job = ord['Original'].otype
-				
-						
-								# if self.job == 'Bid':
-										# # currently a buyer (working a bid order)
-										# self.margin = self.margin_buy
-								# else:
-										# # currently a seller (working a sell order)
-										# self.margin = self.margin_sell
-								# quoteprice = int(self.limit * (1 + self.margin))
-								# self.price = quoteprice
-
-								
-								#self.lastquote = order
 
 		def setorder(self,order):
 				self.lastquote=order
@@ -987,9 +965,11 @@ class Trader_ZIP(Trader):
 								if ask_improved and self.price > lob_best_ask_p:
 										if lob_best_bid_p != None:
 												target_price = self.target_up(lob_best_bid_p)
+												self.profit_alter(target_price)
 										else:
-												target_price = lob['asks']['worst']  # stub quote
-										self.profit_alter(target_price)
+												#target_price = lob['asks']['worst']  # stub quote
+												target_price =int(self.limit*1.2)
+												self.profit_alter(target_price)
 
 				if self.job == 'Bid':
 						# buyer
@@ -1008,9 +988,11 @@ class Trader_ZIP(Trader):
 								if bid_improved and self.price < lob_best_bid_p:
 										if lob_best_ask_p != None:
 												target_price = self.target_down(lob_best_ask_p)
+												self.profit_alter(target_price)
 										else:
-												target_price = lob['bids']['worst']  # stub quote
-										self.profit_alter(target_price)
+												#target_price = lob['bids']['worst']  # stub quote
+												target_price =int(self.limit*0.8)
+												self.profit_alter(target_price)
 
 
 		@classmethod
