@@ -92,10 +92,14 @@ class Market_session:
 				self.timer=timer
 				self.start_time=timer.start
 				self.end_time=timer.end
+				self.duration=float(self.end_time-self.start_time)
+				
+				
 				print('using timer start time=%d, end time=%d, instead'%(self.start_time,self.end_time))
-				old_step=self.timer.step
-				self.timer.set_step(self.timestep)
-				print('overwriting timer step size from: %d to %d' %(str(round(old_step,2)),str(round(self.timestep,2))))
+				old_step=self.timestep
+				self.timestep=timer.step
+				print(timer.step,self.timestep)
+				print('overwriting timer step size from: %d to %d' %(round(old_step,2),self.timestep))
 				
 			
 			#do the supply and demand schedules
