@@ -85,7 +85,7 @@ class Trader:
 				self.exchange=exchange  # trader needs exchange address
 
 
-		def __str__(self):
+		def __repr__(self):
 				return '[TID: %s type: %s balance: %s blotter: %s orders: %s n_trades: %s profitpertime: %s]' \
 					   % (self.tid, self.ttype, self.balance, self.blotter, self.orders_dic, self.n_trades, self.profitpertime)
 					   
