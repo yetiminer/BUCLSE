@@ -500,7 +500,7 @@ class Exchange(Orderbook):
 						# process the trade
 						if verbose: print('>>>>>>>>>>>>>>>>>TRADE t=%5.2f $%d %s %s' % (time, price, counterparty, order.tid))
 						transaction_record = { 'type': 'Trade',
-											   'time': time,
+											   'tape_time': time,
 											   'price': price,
 											   'party1':counterparty,
 											   'party2':order.tid,
@@ -669,7 +669,7 @@ class Exchange(Orderbook):
 				# process the trade
 				if verbose: print('>>>>>>>>>>>>>>>>>TRADE t=%5.2f $%d %s %s' % (time, price, p1_tid, p2_tid))
 				transaction_record = { 'type': 'Trade',
-									   'time': time,
+									   'tape_time': time,
 									   'price': price,
 									   'party1':p1_tid,
 									   'party2':p2_tid,
@@ -683,22 +683,23 @@ class Exchange(Orderbook):
 				return transaction_record
 				
 		def make_ammend_record(self,ammended_order,time=None):
-			ammend_record={**{'type':'Ammend','time':self.time},**dict(ammended_order.order._asdict())}
+			
+			ammend_record={**{'type':'Ammend','tape_time':self.time},**dict(ammended_order.order._asdict())}
 			self.tape.append(ammend_record)
 			
 		def make_cancel_record(self,cancelled_order,time=None):
-			cancel_record= { **{'type': 'Cancel', 'time': self.time}, **cancelled_order._asdict() }
+			cancel_record= { **{'type': 'Cancel', 'tape_time': self.time}, **cancelled_order._asdict() }
 			self.tape.append(cancel_record)
 			
 		def make_new_order_record(self,new_order):
-			new_order_record= { **{'type': 'New Order', 'time': self.time}, **new_order._asdict() }
+			new_order_record= { **{'type': 'New Order', 'tape_time': self.time}, **new_order._asdict() }
 			self.tape.append(new_order_record)
 
 		def tape_dump(self, fname, fmode, tmode):
 				dumpfile = open(fname, fmode)
 				for tapeitem in self.tape:
 						if tapeitem['type'] == 'Trade' :
-								dumpfile.write('%s, %s\n' % (tapeitem['time'], tapeitem['price']))
+								dumpfile.write('%s, %s\n' % (tapeitem['tape_time'], tapeitem['price']))
 				dumpfile.close()
 				if tmode == 'wipe':
 						self.tape = []
