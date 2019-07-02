@@ -12,12 +12,15 @@ fixture_name=os.path.join(cwd,'UCLSE','test','fixtures','exchange_fix.yml')
 
 def test_bookkeep():
 	fixture_list=yamlLoad(fixture_name)
+	
 	for fixture_dic in fixture_list:
-		henry=Trader(tid='Henry',time=0,balance=0,timer=CustomTimer())
+		timer=CustomTimer()
+		henry=Trader(tid='Henry',time=0,balance=0,timer=timer)
 
 		order_df=build_df_from_dic_dic(fixture_dic['input'])
 		
 		exchange=build_lob_from_df(order_df)
+		exchange.timer=henry.timer
 
 		new_order=order_from_dic(fixture_dic['new_trade'])
 		
@@ -31,9 +34,9 @@ def test_bookkeep():
 
 		#pretty_lob_print(exchange)
 
-		time=10
+		timer.next_period()
 		#tr, ammended_orders=exchange.process_order3(order=new_order,time=time,verbose=True)
-		tr, ammended_orders=exchange._process_order(order=order_at_exchange,time=time,verbose=True)
+		tr, ammended_orders=exchange._process_order(order=order_at_exchange,time=timer.get_time,verbose=True)
 
 
 		for trade,ammended_order in zip(tr,ammended_orders):
