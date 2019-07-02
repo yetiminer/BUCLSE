@@ -228,7 +228,10 @@ class Action():
 		elif self.qty==0:
 			ans=f'cancel {self.otype}'
 		else:
-			ans= f' submit or replace {self.otype} with spread {self.spread} and quantity {self.qty}'
+			if self.spread<0:
+				ans=f'Cross bid-ask spread and fill {self.otype} quantity {self.qty} at best'
+			else:
+				ans= f' submit or replace {self.otype} with spread {self.spread} and quantity {self.qty}'
 			
 		return ans
 		
