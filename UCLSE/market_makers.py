@@ -28,7 +28,11 @@ class MarketMaker(Trader):
 	def __repre__(self):
 		return 'inventory: %d, avg cost %r, direction %s, cash %r,'%(self.inventory,round(self.avg_cost,4)
 																,self.direction,self.cash,)
-		
+	
+	@property
+	def time(self):
+			return self.timer.get_time
+	
 	def make_oid(self,time=0):
 		
 		oid=self.tid+'_'+str(time)+'_'+str(self.quote_count)
