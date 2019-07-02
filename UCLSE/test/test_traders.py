@@ -1,6 +1,8 @@
 from UCLSE.traders import Trader
 from UCLSE.test.utils import (yamlLoad,
                               order_from_dic,build_df_from_dic_dic,build_lob_from_df)
+
+from UCLSE.exchange import Exchange
 import pandas as pd
 import os
 from UCLSE.custom_timer import CustomTimer
@@ -18,9 +20,9 @@ def test_bookkeep():
 		henry=Trader(tid='Henry',time=0,balance=0,timer=timer)
 
 		order_df=build_df_from_dic_dic(fixture_dic['input'])
+		exchange=Exchange(timer=timer)
+		build_lob_from_df(order_df,exch=exchange)
 		
-		exchange=build_lob_from_df(order_df)
-		exchange.timer=henry.timer
 
 		new_order=order_from_dic(fixture_dic['new_trade'])
 		

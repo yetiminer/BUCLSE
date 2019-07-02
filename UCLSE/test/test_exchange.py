@@ -2,6 +2,7 @@ from UCLSE.test.utils import yamlLoad,build_lob_from_df,build_df_from_dic_dic,ya
 from UCLSE.environment import Market_session, yamlLoad
 from UCLSE.test.utils import identical_replay_vars, side_by_side_period_by_period_difference_checker
 from UCLSE.custom_timer import CustomTimer
+from UCLSE.exchange import Exchange
 import os
 import copy
 from operator import itemgetter
@@ -19,8 +20,9 @@ def test_lob(verbose=False):
 		order_df.sort_values(['time','tid'],inplace=True)
 		order_df['oid']=order_df.index.values
 		necessary_cols=['tid','otype','price','qty','time','qid','oid']
-		exchange=build_lob_from_df(order_df,necessary_cols=necessary_cols)
-		exchange.timer=timer
+		exchange=Exchange(timer=timer)
+		build_lob_from_df(order_df,necessary_cols=necessary_cols,exch=exchange)
+		#exchange.timer=timer
 
 		new_order=order_from_dic(fixture_dic['new_trade'],necessary_cols=necessary_cols)
 		if verbose: print(new_order)
