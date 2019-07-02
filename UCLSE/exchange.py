@@ -649,6 +649,8 @@ class Exchange(Orderbook):
 				pty2_side.delete_best()
 				fill_q=quantity
 				quantity=0
+				
+			self.make_ammend_record(ammended_order,time=time)
 
 			fill=self.make_transaction_record(time=time,price=price,
 					p1_tid=counterparty,p2_tid=order.tid,
@@ -675,6 +677,11 @@ class Exchange(Orderbook):
 				self.tape.append(transaction_record)
 				self.last_transaction_price=price
 				return transaction_record
+				
+		def make_ammend_record(self,ammended_order,time=None):
+			ammend_record={**{'type':'Ammend','time':time},**ammended_order._asdict()}
+			self.tape.append(ammend_record)
+			
 
 		def tape_dump(self, fname, fmode, tmode):
 				dumpfile = open(fname, fmode)
