@@ -361,6 +361,8 @@ class Exchange(Orderbook):
 				if leg==0 and qid is None:
 
 					order=order._replace(qid=self.quote_id)
+					self.make_new_order_record(order)
+					
 				else:
 					order=order._replace(qid=qid+0.000001*leg)
 
@@ -688,6 +690,9 @@ class Exchange(Orderbook):
 			cancel_record= { **{'type': 'Cancel', 'time': self.time}, **cancelled_order._asdict() }
 			self.tape.append(cancel_record)
 			
+		def make_new_order_record(self,new_order):
+			new_order_record= { **{'type': 'New Order', 'time': self.time}, **new_order._asdict() }
+			self.tape.append(new_order_record)
 
 		def tape_dump(self, fname, fmode, tmode):
 				dumpfile = open(fname, fmode)
