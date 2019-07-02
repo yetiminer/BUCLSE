@@ -1036,10 +1036,10 @@ class Trader_ZIP(Trader):
 							print(tape,cls.prev_best_bid_p)
 							raise
 							
-						if last_tape_item['type'] == 'Cancel' :
-								bid_hit = False
-						else:
+						if last_tape_item['type'] == 'Trade' :
 								bid_hit = True
+						else:
+								bid_hit = False
 
 				# what, if anything, has happened on the ask LOB?
 				ask_improved = False
@@ -1062,10 +1062,10 @@ class Trader_ZIP(Trader):
 				elif cls.prev_best_ask_p != None:
 						# the ask LOB is empty now but was not previously: canceled or lifted?
 						last_tape_item = tape[-1]
-						if last_tape_item['type'] == 'Cancel' :
-								ask_lifted = False
-						else:
+						if last_tape_item['type'] == 'Trade' :
 								ask_lifted = True
+						else:
+								ask_lifted = False
 
 
 				if verbose and (bid_improved or bid_hit or ask_improved or ask_lifted):
