@@ -163,27 +163,6 @@ class RLEnv(gym.Env):
 		
 		return pretty_lob_print(self.sess.exchange)
 
-	# def setup_actions(self):
-		# time=self.time
-		# self.action_dic={
-			# -1: self.cancel_bids, 							#Cancel bid
-			# 1:self.do_order_wrap(time,otype='Bid',spread=-1,qty=1), #add bid at best ask
-			# 10:self.do_order_wrap(time,otype='Bid',spread=0,qty=1), # 'Add bid at best_bid-spread',
-			# 11:self.do_order_wrap(time,otype='Bid',spread=1,qty=1),
-			# 12:self.do_order_wrap(time,otype='Bid',spread=2,qty=1),
-			# 13:self.do_order_wrap(time,otype='Bid',spread=3,qty=1),
-			# 14:self.do_order_wrap(time,otype='Bid',spread=4,qty=1),
-			# 15:self.do_order_wrap(time,otype='Bid',spread=1,qty=1),                   
-			# -2: self.cancel_asks, 							#Cancel ask
-			# 2:self.do_order_wrap(time,otype='Ask',spread=-1,qty=1),#add ask at best bid (hit the bid)
-			# 20:self.do_order_wrap(time,otype='Ask',spread=0,qty=1), # Add ask at best_bid+spread
-			# 21:self.do_order_wrap(time,otype='Ask',spread=1,qty=1),
-			# 22:self.do_order_wrap(time,otype='Ask',spread=2,qty=1),
-			# 23:self.do_order_wrap(time,otype='Ask',spread=3,qty=1),
-			# 24:self.do_order_wrap(time,otype='Ask',spread=4,qty=1),
-			# 25:self.do_order_wrap(time,otype='Ask',spread=1,qty=1),            
-			# 0: self.do_nothing,
-			  # }
 			  
 	def setup_actions(self):
 		time=self.time
