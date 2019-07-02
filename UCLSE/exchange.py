@@ -427,14 +427,16 @@ class Exchange(Orderbook):
 				if order.otype == 'Bid':
 						self.bids.book_del(order)
 
-						cancel_record = { 'type': 'Cancel', 'time': self.time, 'order': order }
-						self.tape.append(cancel_record)
+						#cancel_record = { 'type': 'Cancel', 'time': self.time, 'order': order }
+						self.make_cancel_record(order,time=self.time)
+						#self.tape.append(cancel_record)
 
 				elif order.otype == 'Ask':
 						self.asks.book_del(order)
 
-						cancel_record = { 'type': 'Cancel', 'time': self.time, 'order': order }
-						self.tape.append(cancel_record)
+						#cancel_record = { 'type': 'Cancel', 'time': self.time, 'order': order }
+						self.make_cancel_record(order,time=self.time)
+						#self.tape.append(cancel_record)
 				else:
 						# neither bid nor ask?
 						sys.exit('bad order type in del_quote()')
@@ -650,7 +652,7 @@ class Exchange(Orderbook):
 				fill_q=quantity
 				quantity=0
 				
-			self.make_ammend_record(ammended_order,time=time)
+			if ammended_order.tid is not None: self.make_ammend_record(ammended_order,time=time)
 
 			fill=self.make_transaction_record(time=time,price=price,
 					p1_tid=counterparty,p2_tid=order.tid,
@@ -681,6 +683,10 @@ class Exchange(Orderbook):
 		def make_ammend_record(self,ammended_order,time=None):
 			ammend_record={**{'type':'Ammend','time':time},**ammended_order._asdict()}
 			self.tape.append(ammend_record)
+			
+		def make_cancel_record(self,cancelled_order,time=None):
+			cancel_record= { **{'type': 'Cancel', 'time': self.time}, **cancelled_order._asdict() }
+			self.tape.append(cancel_record)
 			
 
 		def tape_dump(self, fname, fmode, tmode):
