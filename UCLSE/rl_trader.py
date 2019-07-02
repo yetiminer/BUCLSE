@@ -11,7 +11,7 @@ buy_sell_dic={'Long':'Buy','Short':'Sell'}
 
 class RLTrader(Trader):
     
-	def __init__(self, ttype=None, tid=None, balance=None,n_quote_limit=100,inventory=1,direction='Long',avg_cost=0,timer=None): 
+	def __init__(self, ttype=None, tid=None, balance=None,n_quote_limit=100,inventory=1,direction='Long',avg_cost=0,timer=None,exchange=None): 
 
 
 		#DRY: use parent instantiation before adding child specific properties
@@ -27,6 +27,7 @@ class RLTrader(Trader):
 		self.trade_manager=TradeManager()
 		self.timer=timer
 		self.birthtime=self.time
+		self.exchange=self.set_exchange(exchange)
 
 		assert direction in ['Long','Short']
 		if direction=='Long': assert inventory>=0
@@ -38,6 +39,10 @@ class RLTrader(Trader):
 
 
 		self.trade_manager.execute_with_total_pnl(trade_type,self.inventory,price=self.avg_cost,oid=1)
+		
+	def set_exchange(self,exchange):
+		print('adding exchange to RL trader ', self.tid)
+		self.exchange=exchange
     
 	def reset(self):
 		self.cash=0
@@ -49,9 +54,9 @@ class RLTrader(Trader):
 		self.trade_manager.execute_with_total_pnl(trade_type,self.inventory,price=self.avg_cost,oid=1)
 
 
-	def make_oid(self,time=0):
+	def make_oid(self):
 
-		oid=self.tid+'_'+str(round(time,5))+'_'+str(self.quote_count)
+		oid=self.tid+'_'+str(self.time)+'_'+str(self.quote_count)
 		self.quote_count+=1
 		print('oid gen',oid)
 		return oid
@@ -63,7 +68,7 @@ class RLTrader(Trader):
 		self.balance=self.balance+profit
 		self.inventory=self.trade_manager.inventory
 		
-	def do_order(self,time,lob,otype='ask',spread=0,qty=1):
+	def do_order(self,lob,otype='ask',spread=0,qty=1):
 		
 		#if spread=0:
 			#execute at market:
@@ -77,14 +82,12 @@ class RLTrader(Trader):
 		else:
 			price=lob[anti_side]['best'] #execute at best market price
 		
-		new_order=Order(self.tid,otype,price,qty,time,oid=self.make_oid(time))
+		new_order=Order(self.tid,otype,price,qty,self.time,oid=self.make_oid())
 			
-		print(price)
-		
-		print(new_order)
-		
 		verbose=False
-		self.add_order(new_order,verbose)
+		self.add_order(new_order,verbose,inform_exchange=True)
+
 			
 			
 		return new_order
+ 
