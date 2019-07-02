@@ -681,7 +681,7 @@ class Exchange(Orderbook):
 				return transaction_record
 				
 		def make_ammend_record(self,ammended_order,time=None):
-			ammend_record={**{'type':'Ammend','time':time},**ammended_order._asdict()}
+			ammend_record={**{'type':'Ammend','time':self.time},**dict(ammended_order.order._asdict())}
 			self.tape.append(ammend_record)
 			
 		def make_cancel_record(self,cancelled_order,time=None):
