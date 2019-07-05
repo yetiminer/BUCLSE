@@ -659,11 +659,17 @@ class Exchange(Orderbook):
 			fill=self.make_transaction_record(time=time,price=price,
 					p1_tid=counterparty,p2_tid=order.tid,
 									 transact_qty=fill_q,verbose=False,p1_qid=p1_qid,p2_qid=qid+0.000001*leg)
+									 
+			self.make_fill_record(price=price,tid=counterparty, #passive side
+									transact_qty=fill_q,qid=p1_qid,order=best_ask_order)
+									
+			self.make_fill_record(price=price,tid=order.tid, #active side
+									transact_qty=fill_q,qid=qid+0.000001*leg,order=order)
 
 			return quantity,fill,ammended_order
 
 		def make_transaction_record(self,time=None,price=None,p1_tid=None,
-									p2_tid=None,transact_qty=None,verbose=False,p1_qid=None,p2_qid=None):
+									p2_tid=None,transact_qty=None,p1_qid=None,p2_qid=None,verbose=False):
 				if verbose: print('counterparty %s' % counterparty)
 				
 				# process the trade
@@ -682,6 +688,21 @@ class Exchange(Orderbook):
 				self.last_transaction_price=price
 				return transaction_record
 				
+		def make_fill_record(self,price=None,tid=None,
+									transact_qty=None,qid=None,order=None):
+			ammend_record={'type':'Fill',
+				'tape_time':self.time,
+				'tid': tid,
+				'qid':qid,
+				'otype':order.otype,
+				'time':order.time,
+				'price':price,
+				'qty':transact_qty}
+			
+			self.tape.append(ammend_record)
+									
+			
+				
 		def make_ammend_record(self,ammended_order,time=None):
 			
 			ammend_record={**{'type':'Ammend','tape_time':self.time},**dict(ammended_order.order._asdict())}
@@ -695,14 +716,19 @@ class Exchange(Orderbook):
 			new_order_record= { **{'type': 'New Order', 'tape_time': self.time}, **new_order._asdict() }
 			self.tape.append(new_order_record)
 
+		# def tape_dump(self, fname, fmode, tmode):
+				# dumpfile = open(fname, fmode)
+				# for tapeitem in self.tape:
+						# if tapeitem['type'] == 'Trade' :
+								# dumpfile.write('%s, %s\n' % (tapeitem['tape_time'], tapeitem['price']))
+				# dumpfile.close()
+				# if tmode == 'wipe':
+						# self.tape = []
+		
 		def tape_dump(self, fname, fmode, tmode):
-				dumpfile = open(fname, fmode)
-				for tapeitem in self.tape:
-						if tapeitem['type'] == 'Trade' :
-								dumpfile.write('%s, %s\n' % (tapeitem['tape_time'], tapeitem['price']))
-				dumpfile.close()
-				if tmode == 'wipe':
-						self.tape = []
+			df=pd.DataFrame(self.tape)
+			df[df.type=='Trade'].to_csv(fname)
+
 
 
 		# this returns the LOB data "published" by the exchange,
