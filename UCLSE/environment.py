@@ -538,8 +538,8 @@ class Market_session:
 					
 					integer_period=round(self.time/self.timestep) #rounding error means that we can't rely on fraction to be int
 				
-					#list_of_traders=np.array(list(self.traders.keys())) #is this always the same?
-					list_of_traders=np.array(list(self.traders_with_orders().keys())) #presumably we should only pick traders who actually have an order to submit
+					list_of_traders=np.array(list(self.traders.keys())) #is this always the same?
+					#list_of_traders=np.array(list(self.traders_with_orders().keys())) #presumably we should only pick traders who actually have an order to submit
 					
 					if len(list_of_traders)>0:
 					
@@ -552,7 +552,7 @@ class Market_session:
 						len(permitted_traders),' pick trader :',
 						tid,' of type ',self.traders[tid].ttype)
 						#note that traders will return a dictionary containing at least one order
-						order_dic = self.traders[tid].getorder(lob=self.exchange.publish_lob(self.time, self.lob_verbose))
+						order_dic = self.traders[tid].getOrderReplace(lob=self.exchange.publish_lob(self.time, self.lob_verbose))
 						if self.latency_verbose: print('Trader responds with ', len(order_dic), ' quotes to send to exchange')
 						
 					else:
