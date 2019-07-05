@@ -83,6 +83,7 @@ class Trader:
 				else:
 					self.birthtime=time
 				self.exchange=exchange  # trader needs exchange address
+				self.last_quote_time=self.birthtime
 
 
 		def __repr__(self):
@@ -326,6 +327,19 @@ class Trader:
 				quantity_left=0
 			
 			return running_cost,quantity_left
+			
+		def getOrderReplace(self, time=None, countdown=None, lob=None):
+			#method which gets order from trader and also directly informs exchange of order replacement.
+			order_dic=self.getorder(time, countdown, lob)
+			
+			for oi,order in order_dic.items():
+				if len(self.orders_dic[oi]['submitted_quotes'])>0:
+					qid=self.orders_dic[oi]['submitted_quotes'][-1].qid
+					self.exchange.del_order(qid=qid)
+			
+			if order_dic!={}: self.last_quote_time=self.time
+			
+			return order_dic
 
 
 # Trader subclass Giveaway
