@@ -6,8 +6,11 @@ from functools import reduce
 from UCLSE.exchange import Exchange, Order
 from UCLSE.custom_timer import CustomTimer
 from UCLSE.traders import Trader
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from UCLSE.market_makers import TradeManager
+
+
+import pandas as pd
 
 class WW_Zip(Trader):
 	
@@ -19,7 +22,7 @@ class WW_Zip(Trader):
 		return cls.oid
     
 	def __init__(self,tid=None,balance=0,timer=None,price_sequence_obj=None,noise_sequence_obj=None,prior=(100,2),rmin=0,rmax=10,
-			trader_preference=None,exchange=None, n_quote_limit=2):
+			trader_preference=None,exchange=None, n_quote_limit=2,thresh=20,memory=100):
 		super().__init__(ttype='WW_ZIP',tid=tid,balance=balance,timer=timer,exchange=exchange,n_quote_limit=n_quote_limit)
 		
 		self.r_mean_t=OrderedDict()
@@ -42,6 +45,10 @@ class WW_Zip(Trader):
 		self.set_preference(trader_preference)
 		
 		self.trade_manager=TradeManager()
+		
+		self.thresh=thresh
+		self.memory=memory
+
 	
 	def set_prior(self,mean,var):
 		self.r_mean_t[self.time]=mean
@@ -64,7 +71,10 @@ class WW_Zip(Trader):
 			trader_preference=TraderPreference()
 		self.trader_preference=trader_preference
 		
-		self.preference=trader_preference.make()
+		if trader_preference.preference is None: #sometimes we want to preserve the preference
+			trader_preference.make()
+		self.preference=trader_preference.preference
+			
 		self.qty_max=trader_preference.qty_max
 		self.qty_min=trader_preference.qty_min
 		
@@ -136,13 +146,11 @@ class WW_Zip(Trader):
 			self.cancel_with_exchange(oid=oi)
 	
 	
-	def get_order(self):
+	def get_order(self,tape=None):
 		inventory=self.inventory
 		buy_order=None
 		sell_order=None
 		rmean=self.estimates[self.time]
-		
-
 		
 		if inventory<self.qty_max:
 			buy_pref=self.preference[inventory+1]
@@ -155,26 +163,105 @@ class WW_Zip(Trader):
 			
 		if inventory>self.qty_min:
 			sell_pref=self.preference[inventory]
-			sell_price=np.random.randint(rmean+self.rmin-sell_pref,rmean+self.rmax-sell_pref)
+			sell_price=np.random.randint(rmean+self.rmin+sell_pref,rmean+self.rmax+sell_pref)
 			sell_order=Order(tid=self.tid,otype='Ask',price=sell_price,qty=1,time=self.time,oid=self.get_oid())
 			#record internally
 			self.add_order(sell_order)
 			
 		return buy_order,sell_order
 			
+	def bookkeep(self, trade, order, verbose, time,active=True):
+	    #bookkeep(self, trade, order, verbose, time,active=True,qid=None)
+		trade=super().bookkeep(trade, order, verbose, time,active)
+		profit=self.trade_manager.execute_with_total_pnl(trade['BS'],trade['qty'],trade['price'],trade['oid'])
+		trade['profit']=profit
+		
+		self.inventory=self.trade_manager.inventory
+		
+	@property
+	def profit(self):
+		return self.trade_manager.profit
+		
+class HBL(WW_Zip):
+
+		
+	def get_order(self,tape=None):
+		
+		if len(tape)<100: #not enough data
+
+			buy_order,sell_order=super().get_order()
+			
+		else:
+			
+			df=pd.DataFrame(tape)
+			
+			SO=StatsObject(df=None,memory=self.memory,time=self.time,thresh=self.thresh)
+			
+			bid_advice,ask_advice=SO.best_bid_ask()
+			
+
+			inventory=self.inventory
+			buy_order=None
+			sell_order=None
+			rmean=self.estimates[self.time]
+			
+			SO.get_best_bid_choice(rmean)
+			SO.get_best_ask_choice(rmean)
+			
+			
+			
+			if inventory<self.qty_max:
+				buy_pref=self.preference[inventory+1]
+				bid_choice=SO.get_best_bid_choice(rmean+buy_pref)
+			
+				buy_price=bid_choice.price
+				buy_order=Order(tid=self.tid,otype='Bid',price=buy_price,qty=1,time=self.time,oid=self.get_oid())
+
+				
+				
+			if inventory>self.qty_min:
+				sell_pref=self.preference[inventory]
+				ask_choice=SO.get_best_ask_choice(rmean+sell_pref)
+				
+				sell_price=ask_choice.price
+				sell_order=Order(tid=self.tid,otype='Ask',price=sell_price,qty=1,time=self.time,oid=self.get_oid())
+			
+			#choose whether bid or ask is better
+			
+			if bid_choice.surplus>=ask_choice.surplus and bid_choice.surplus>0:
+			
+				#record internally
+				self.add_order(buy_order)
+				sell_order=None
+				
+			elif ask_choice.surplus>0:
+			
+				#record internally
+				self.add_order(sell_order)
+				buy_order=None
+			
+		return buy_order,sell_order	
+		
 		
 		
 class TraderPreference():
-	def __init__(self,qty_min=-5,qty_max=5,sigma_pv=1):
+	def __init__(self,name=None,qty_min=-5,qty_max=5,sigma_pv=1):
+		self.name=name
 		self.qty_min=qty_min
 		self.qty_max=qty_max
 		self.sigma_pv=sigma_pv
+		self.preference=None
+		
+	def __repr__(self):
+		return f'name={self.name},qty_min= {self.qty_min},qty_max={self.qty_max},sigma={self.sigma_pv}, pref={self.preference}'
 	
 	def make(self):
 		values=np.sort(np.random.normal(0,self.sigma_pv,self.qty_max-self.qty_min+1))
-		
-		return {qty:value for qty,value in zip(np.arange(self.qty_min,self.qty_max+1),values)}
-    
+		values=np.flip(values)
+		self.preference={qty:value for qty,value in zip(np.arange(self.qty_min+1,self.qty_max+1),values)}
+		return self.preference
+	
+
 	
 
 class PriceSequence():
@@ -244,6 +331,8 @@ class Environment():
 		self.bookkeep_verbose=True
 		self.lob_verbose=True
 		
+		self.lob={}
+		self.trader_profits={}
 	
 
 	def _set_trader_arrival(self,lamb):
@@ -342,6 +431,8 @@ class Environment():
 		#get orders from traders
 		order_dic=self.get_orders_from_traders()
 		self.send_orders_to_exchange(order_dic)
+		self.record_lob()
+		self.record_trader_profits()
 			
 	def get_orders_from_traders(self):
 		
@@ -368,13 +459,13 @@ class Environment():
 				#make prediction
 				trader.look_ahead_estimate(10)
 				#get orders
-				order_buy,order_sell=trader.get_order()
+				order_buy,order_sell=trader.get_order(tape=self.exchange.tape)
 				order_dic[trader_name]={}
 				order_dic[trader_name]['bid']=order_buy
 				order_dic[trader_name]['ask']=order_sell
 				
 				
-		print(order_dic)
+		
 		return order_dic
 		
 	def send_orders_to_exchange(self,order_dic):
@@ -413,4 +504,169 @@ class Environment():
 										  
 				return trade
 		
-				
+	def record_lob(self):
+		self.lob[self.time]=self.exchange.publish_lob()
+		
+	def calc_trader_profits(Env):
+		trader_profits=pd.DataFrame.from_dict({tid:{'inventory':t.inventory,'surplus':t.balance,'profit':t.profit,'cash':t.trade_manager.cash, 'avg_cost':t.trade_manager.avg_cost} for tid,t in Env.traders.items()},orient='index')
+		trader_profits['invent_cost']=trader_profits.avg_cost*trader_profits.inventory
+		trader_profits['inventory_value']=trader_profits['inventory']*Env.price
+		trader_profits['total value']=trader_profits['cash']+trader_profits['inventory_value']
+		tp=trader_profits
+		assert abs(tp['total value'].sum())<0.001
+		return tp
+		
+	def record_trader_profits(self):
+		self.trader_profits[self.time]=self.calc_trader_profits()
+		
+		
+class StatsObject():
+	def __init__(self,df=None,memory=None,time=None,thresh=None):
+		
+		if 'inactive' in df.columns:
+			pass
+		else:
+			self.set_inactive(df)
+		
+		
+		self.df=df[df.index>=df.index.max()-memory]
+		self.time=time
+		self.thresh=thresh
+		self.bids=self.df.otype=='Bid'
+		self.asks=self.df.otype=='Ask'
+		self.fills=self.df.type=='Fill'
+		self.new_orders=self.df.type=='New Order'
+		self.min_ask=self.df[self.asks].price.min()
+		self.max_bid=self.df[self.bids].price.max()
+			  
+		self.set_alive_period(self.df,time)
+		self.rejected=self.get_rejected(self.df,time,thresh)
+		
+		self.rejected_bids=self.rejected.otype=='Bid'
+		self.rejected_asks=self.rejected.otype=='Ask'
+		
+		self.rejected_bid_min=self.rejected[self.rejected_bids].price.min()
+		self.rejected_bid_max=self.rejected[self.rejected_bids].price.max()
+		self.rejected_ask_min=self.rejected[self.rejected_asks].price.min()
+		self.rejected_ask_max=self.rejected[self.rejected_asks].price.max()
+		
+		self.calc_prob_all_bids()
+		self.calc_prob_all_asks()
+		
+		
+	@staticmethod    
+	def get_inactive(df):
+		cancelled_qid=df[df.type=='Cancel'].qid
+		cancelled=df.qid.isin(cancelled_qid)
+
+		trade_qid=df[(df.type=='Fill')].qid
+		traded=df.qid.isin(trade_qid)
+
+		inactive=cancelled|traded
+		active=~inactive   
+
+		return inactive,active,cancelled
+
+	@staticmethod
+	def set_inactive(df):
+		inactive,_,cancelled=StatsObject.get_inactive(df)
+		df.loc[:,'inactive']=inactive.values
+
+	@staticmethod
+	def get_alive_period(df,time):
+
+		alive_period_active=time-df.tape_time
+		alive_period_inactive=df.tape_time-df.time
+
+		alive_period=alive_period_active.copy()
+		alive_period[df.inactive]=alive_period_inactive[df.inactive]
+
+		return alive_period
+
+	@staticmethod
+	def set_alive_period(df,time):
+		alive_period=StatsObject.get_alive_period(df,time)
+		df.loc[:,'alive_period']=alive_period.values
+		df.loc[:,'alive_period']=df.groupby(['qid'])['alive_period'].transform(max) #gets the min alive_period for a qid
+		return df
+
+
+	@staticmethod
+	def get_rejected(df,time,thresh):
+
+		#alive_period=SO.get_alive_period(df,time)
+		return df[df.alive_period>thresh]#.groupby('qid').tail(1) #not necessary thanks to first group by op in instant
+
+	@staticmethod
+	def get_notrejected(df,time,thresh):
+		return df[(df.alive_period<=thresh)]
+
+	@staticmethod
+	def get_notrejected(df,time,thresh):
+		return df[(df.alive_period<=thresh)]
+		   
+
+	def TBL(self,df,price):    
+		return df[(self.fills)&(df.price<=price)& (self.bids)]
+
+
+	def AL(self,df,price):
+		return df[(self.new_orders)& (df.price<=price)&(self.asks)]
+
+
+	def RBG(self,rejected,price):        
+		return rejected[(rejected.price>price)&(self.rejected_bids)]
+
+
+	def Prob_bid(self,df,price,rejected):
+				  numerator=self.TBL(df,price).qty.sum()+self.AL(df,price).qty.sum()
+				  denominator=numerator+self.RBG(rejected,price).qty.sum()
+				  return numerator/denominator
+
+	def  TAG(self,df,price):
+		return df[(self.fills)&(df.price>price)& (self.asks)]
+
+
+	def BG(self,df,price):
+		return df[(self.new_orders)& (df.price>price)&(self.bids)]
+
+
+	def RAL(self,rejected,price):
+		return rejected[(rejected.price<=price)&(self.rejected_asks)]
+
+
+	def Prob_ask(self,df,price,rejected):
+				  numerator=self.TAG(df,price).qty.sum()+self.BG(df,price).qty.sum()
+				  denominator=numerator+self.RAL(rejected,price).qty.sum()
+				  return numerator/denominator
+				  
+	def calc_prob_all_bids(self):
+		price_range=np.arange(max(self.rejected_bid_min,self.min_ask)-1,self.rejected_bid_max+1)
+		self.prob_all_bids={k:self.Prob_bid(self.df,k,self.rejected) for k in price_range}
+		return self.prob_all_bids
+		
+	def calc_prob_all_asks(self):
+		price_range=np.arange(self.rejected_ask_min-1,min(self.rejected_ask_max,self.max_bid)+1)
+		self.prob_all_asks= {k:self.Prob_ask(self.df,k,self.rejected) for k in price_range}
+		return self.prob_all_asks
+		
+	def get_best_bid_choice(self,const):
+		
+		fields=['surplus','price','prob']
+		MaxThing=namedtuple('MaxThing',fields)
+		max_bid=max([((const-price)*prob,price,prob) for price,prob in self.prob_all_bids.items()]) #max returns max of first element in tuple
+		max_bid=MaxThing(*max_bid)
+		
+		return max_bid
+		
+		
+	def get_best_ask_choice(self,const):
+	
+		fields=['surplus','price','prob']
+		MaxThing=namedtuple('MaxThing',fields)
+		max_ask=max([((price-const)*prob,price,prob) for price,prob in self.prob_all_asks.items()])
+		max_ask=MaxThing(*max_ask)
+		
+		return max_ask
+		
+	
