@@ -21,9 +21,9 @@ class WW_Zip(Trader):
 		cls.oid=cls.oid+1
 		return cls.oid
     
-	def __init__(self,tid=None,balance=0,timer=None,price_sequence_obj=None,noise_sequence_obj=None,prior=(100,2),rmin=0,rmax=10,
-			trader_preference=None,exchange=None, n_quote_limit=2,thresh=20,memory=100):
-		super().__init__(ttype='WW_ZIP',tid=tid,balance=balance,timer=timer,exchange=exchange,n_quote_limit=n_quote_limit)
+	def __init__(self,tid=None,ttype='WW_ZIP',balance=0,timer=None,price_sequence_obj=None,noise_sequence_obj=None,prior=(100,2),rmin=0,rmax=10,
+			trader_preference=None,exchange=None, n_quote_limit=2,thresh=20,memory=100,market_make=False):
+		super().__init__(ttype=ttype,tid=tid,balance=balance,timer=timer,exchange=exchange,n_quote_limit=n_quote_limit,)
 		
 		self.r_mean_t=OrderedDict()
 		self.r_sigma_t=OrderedDict()
@@ -48,6 +48,7 @@ class WW_Zip(Trader):
 		
 		self.thresh=thresh
 		self.memory=memory
+		self.market_make=market_make
 
 	
 	def set_prior(self,mean,var):
@@ -152,21 +153,50 @@ class WW_Zip(Trader):
 		sell_order=None
 		rmean=self.estimates[self.time]
 		
-		if inventory<self.qty_max:
-			buy_pref=self.preference[inventory+1]
+		bid_possible=inventory<self.qty_max
+		ask_possible=inventory>self.qty_min
 		
+		buy_surplus=0
+		sell_surplus=0
+		
+		if bid_possible:
+			buy_pref=self.preference[inventory+1]
+			buy_valuation=rmean+buy_pref
 			buy_price=np.random.randint(rmean-self.rmax+buy_pref,rmean-self.rmin+buy_pref)
-			buy_order=Order(tid=self.tid,otype='Bid',price=buy_price,qty=1,time=self.time,oid=self.get_oid())
-			#record internally
-			self.add_order(buy_order)
+			buy_surplus=buy_valuation-buy_price
 			
 			
-		if inventory>self.qty_min:
+		if ask_possible:
 			sell_pref=self.preference[inventory]
+			sell_valuation=rmean+sell_pref
 			sell_price=np.random.randint(rmean+self.rmin+sell_pref,rmean+self.rmax+sell_pref)
-			sell_order=Order(tid=self.tid,otype='Ask',price=sell_price,qty=1,time=self.time,oid=self.get_oid())
-			#record internally
-			self.add_order(sell_order)
+			sell_surplus=sell_price-sell_valuation
+		
+
+		if self.market_make:
+			#market maker formulation - submit bid and ask where possible
+			if bid_possible and buy_surplus>0:
+				buy_order=Order(tid=self.tid,otype='Bid',price=buy_price,qty=1,time=self.time,oid=self.get_oid())
+					#record internally
+				self.add_order(buy_order)
+			if ask_possible and sell_surplus>0:
+				sell_order=Order(tid=self.tid,otype='Ask',price=sell_price,qty=1,time=self.time,oid=self.get_oid())
+					#record internally
+				self.add_order(sell_order)	
+				
+		else:
+			#single order formulation
+			if bid_possible and buy_surplus>0 and buy_surplus>=sell_surplus:
+				buy_order=Order(tid=self.tid,otype='Bid',price=buy_price,qty=1,time=self.time,oid=self.get_oid())
+					#record internally
+				self.add_order(buy_order)
+			
+			elif ask_possible and sell_surplus>0:
+				sell_order=Order(tid=self.tid,otype='Ask',price=sell_price,qty=1,time=self.time,oid=self.get_oid())
+					#record internally
+				self.add_order(sell_order)
+		
+		
 			
 		return buy_order,sell_order
 			
@@ -183,11 +213,20 @@ class WW_Zip(Trader):
 		return self.trade_manager.profit
 		
 class HBL(WW_Zip):
-
+	oid=-1
+	
+	@classmethod #gotcha! I need a different numbering system for a child class since it won't use the 
+					#class variable of its parent, but a parallel one of its own - leading to non-unique OIDs
+					#and certain disaster.
+					
+	def get_oid(cls):
+		cls.oid=cls.oid-1
+		return cls.oid
 		
 	def get_order(self,tape=None):
 		
 		if len(tape)<100: #not enough data
+			print('not enough data')
 
 			buy_order,sell_order=super().get_order()
 			
@@ -195,50 +234,53 @@ class HBL(WW_Zip):
 			
 			df=pd.DataFrame(tape)
 			
-			SO=StatsObject(df=None,memory=self.memory,time=self.time,thresh=self.thresh)
-			
-			bid_advice,ask_advice=SO.best_bid_ask()
-			
+			SO=StatsObject(df=df,memory=self.memory,time=self.time,thresh=self.thresh)
 
 			inventory=self.inventory
 			buy_order=None
 			sell_order=None
 			rmean=self.estimates[self.time]
 			
-			SO.get_best_bid_choice(rmean)
-			SO.get_best_ask_choice(rmean)
+			bid_possible=inventory<self.qty_max
+			ask_possible=inventory>self.qty_min
+			
+			#default bid/ask choice is a zero tuple
+			bid_choice=SO.best_bid_choice
+			ask_choice=SO.best_ask_choice
 			
 			
-			
-			if inventory<self.qty_max:
+			if bid_possible:
+				#calculate best bid choice
 				buy_pref=self.preference[inventory+1]
 				bid_choice=SO.get_best_bid_choice(rmean+buy_pref)
-			
-				buy_price=bid_choice.price
-				buy_order=Order(tid=self.tid,otype='Bid',price=buy_price,qty=1,time=self.time,oid=self.get_oid())
 
-				
-				
-			if inventory>self.qty_min:
+			if ask_possible:
+				#calculate best ask choice
 				sell_pref=self.preference[inventory]
 				ask_choice=SO.get_best_ask_choice(rmean+sell_pref)
 				
+
+			#choose whether bid or ask is better
+			
+			if bid_possible and bid_choice.surplus>=ask_choice.surplus and bid_choice.surplus>0:
+			
+				#create buy order
+				buy_price=bid_choice.price
+				buy_order=Order(tid=self.tid,otype='Bid',price=buy_price,qty=1,time=self.time,oid=self.get_oid())
+				
+				#record internally
+				self.add_order(buy_order)
+				
+				
+			elif ask_possible and ask_choice.surplus>0:
+				
+				#create sell order
 				sell_price=ask_choice.price
 				sell_order=Order(tid=self.tid,otype='Ask',price=sell_price,qty=1,time=self.time,oid=self.get_oid())
 			
-			#choose whether bid or ask is better
-			
-			if bid_choice.surplus>=ask_choice.surplus and bid_choice.surplus>0:
-			
-				#record internally
-				self.add_order(buy_order)
-				sell_order=None
-				
-			elif ask_choice.surplus>0:
-			
 				#record internally
 				self.add_order(sell_order)
-				buy_order=None
+				
 			
 		return buy_order,sell_order	
 		
@@ -521,6 +563,9 @@ class Environment():
 		
 		
 class StatsObject():
+	fields=['surplus','price','prob']
+	MaxThing=namedtuple('MaxThing',fields)
+
 	def __init__(self,df=None,memory=None,time=None,thresh=None):
 		
 		if 'inactive' in df.columns:
@@ -552,6 +597,10 @@ class StatsObject():
 		
 		self.calc_prob_all_bids()
 		self.calc_prob_all_asks()
+		
+		#default to do nothing
+		self.best_bid_choice=self.MaxThing(0,0,0)
+		self.best_ask_choice=self.MaxThing(0,0,0)
 		
 		
 	@staticmethod    
@@ -652,21 +701,26 @@ class StatsObject():
 		
 	def get_best_bid_choice(self,const):
 		
-		fields=['surplus','price','prob']
-		MaxThing=namedtuple('MaxThing',fields)
-		max_bid=max([((const-price)*prob,price,prob) for price,prob in self.prob_all_bids.items()]) #max returns max of first element in tuple
-		max_bid=MaxThing(*max_bid)
 		
-		return max_bid
+		bid=[((const-price)*prob,price,prob) for price,prob in self.prob_all_bids.items()] #max returns max of first element in tuple
+		
+		if len(bid)>0:
+			max_bid=max(bid)
+			self.best_bid_choice=self.MaxThing(*max_bid)
+		#else default is empty tuple defined on init
+		
+		return self.best_bid_choice 
 		
 		
 	def get_best_ask_choice(self,const):
 	
-		fields=['surplus','price','prob']
-		MaxThing=namedtuple('MaxThing',fields)
-		max_ask=max([((price-const)*prob,price,prob) for price,prob in self.prob_all_asks.items()])
-		max_ask=MaxThing(*max_ask)
+		ask=[((price-const)*prob,price,prob) for price,prob in self.prob_all_asks.items()]
 		
-		return max_ask
+		if len(ask)>0:
+			max_ask=max(ask)
+			self.best_ask_choice=self.MaxThing(*max_ask)
+		#else default is empty tuple defined init
+		
+		return self.best_ask_choice
 		
 	
