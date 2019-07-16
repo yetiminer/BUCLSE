@@ -7,8 +7,20 @@ import pandas as pd
 from matplotlib import animation
 from IPython.display import display, clear_output, HTML
 
+
+from pygments import highlight
+from pygments.lexers import PythonLexer
+from pygments.formatters import HtmlFormatter
+from IPython.core.display import HTML
+import importlib
+import inspect
+from inspect import getmembers, isfunction, getsource
+
+
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
+
+
 
 
 
@@ -269,3 +281,14 @@ def bid_ask_last_plot(best_bid,best_ask,last_trans,intersect):
     plt.legend()
 
     plt.title('Bid ask and transactions')
+
+
+def display_func(name,function):
+
+    p, m = name.rsplit('.', 1)
+
+    mod = importlib.import_module(p)
+    met = getattr(mod, m)
+
+    internal_functions=dict(getmembers(met,isfunction))
+    return HTML(highlight(getsource(internal_functions[function]), PythonLexer(), HtmlFormatter(full=True)))

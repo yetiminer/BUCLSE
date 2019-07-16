@@ -239,7 +239,7 @@ class TradeManager():
 		# FIFO queue that we can use to enqueue unit buys and
 		# dequeue unit sells.
 		self.fifo = deque()
-		self.profit = []
+		self.profit = 0
 		self.cash=0
 		self.accrete_trade='Buy' #arbitrary
 		self.deplete_trade='Sell'
@@ -291,7 +291,7 @@ class TradeManager():
 		if len(self.fifo) == 0:
 			if self.accrete_trade!=direction:
 				self.toggle_position_type()
-				print('Initialising inventory type as', self.direction_dic[self.accrete_trade])
+				#print('Initialising inventory type as', self.direction_dic[self.accrete_trade])
 							
 			
 				
@@ -301,8 +301,9 @@ class TradeManager():
 			if inventory >= quantity:                
 				profit=self.profit_sign*sum([(price - fill.price) for fill in self.execute(direction, quantity, price,oid)])
 				
+				#print(f'depletion trade direction {direction} deplete trade {self.deplete_trade},profit {profit}')
 				#self.calc_avg_cost()
-				return profit
+				#return profit
 				
 			else:
 				profit=self.profit_sign*sum([(price - fill.price) for fill in self.execute(direction, inventory, price,oid)])
@@ -311,11 +312,14 @@ class TradeManager():
 				
 				self.execute2(direction,quantity-inventory,price,oid)
 				
-				return profit                
+				#return profit                
 		else:
 			self.execute2(direction, quantity, price)
 			self.cash=self.cash-self.profit_sign*quantity*price
-			return 0           
+			profit=0
+			
+		self.profit=self.profit+profit
+		return profit           
 			
 	def execute(self, direction, quantity, price,oid=1):        
 		#splits a trade of integer quantity n into n unit trades and adds them to end of fifo queue

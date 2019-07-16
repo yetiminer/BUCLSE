@@ -163,13 +163,16 @@ class WW_Zip(Trader):
 			buy_pref=self.preference[inventory+1]
 			buy_valuation=rmean+buy_pref
 			buy_price=np.random.randint(rmean-self.rmax+buy_pref,rmean-self.rmin+buy_pref)
+			buy_price=self.price_or_best_price(buy_price,'Bid') #choose price no better than best
 			buy_surplus=buy_valuation-buy_price
+			
 			
 			
 		if ask_possible:
 			sell_pref=self.preference[inventory]
 			sell_valuation=rmean+sell_pref
 			sell_price=np.random.randint(rmean+self.rmin+sell_pref,rmean+self.rmax+sell_pref)
+			sell_price=self.price_or_best_price(sell_price,'Ask') #choose price no better than best
 			sell_surplus=sell_price-sell_valuation
 		
 
@@ -207,6 +210,25 @@ class WW_Zip(Trader):
 		trade['profit']=profit
 		
 		self.inventory=self.trade_manager.inventory
+		
+	def price_or_best_price(self,price,otype):
+		#if ask is better than best ask, convert to best ask, likewise bid
+		lob=self.exchange.publish_lob()
+		
+		if  otype=='Bid':
+			best_ask=lob['asks']['best']
+			if best_ask is not None:
+				if price>best_ask: price=best_ask
+			
+		elif otype=='Ask':
+			best_bid=lob['bids']['best']
+			if best_bid is not None:
+				if price<best_bid: price=best_bid
+			
+		return price
+		
+		
+	
 		
 	@property
 	def profit(self):
@@ -266,6 +288,7 @@ class HBL(WW_Zip):
 			
 				#create buy order
 				buy_price=bid_choice.price
+				buy_price=self.price_or_best_price(buy_price,'Bid') #choose price no better than best
 				buy_order=Order(tid=self.tid,otype='Bid',price=buy_price,qty=1,time=self.time,oid=self.get_oid())
 				
 				#record internally
@@ -276,8 +299,9 @@ class HBL(WW_Zip):
 				
 				#create sell order
 				sell_price=ask_choice.price
+				sell_price=self.price_or_best_price(sell_price,'Ask') #choose price no better than best
 				sell_order=Order(tid=self.tid,otype='Ask',price=sell_price,qty=1,time=self.time,oid=self.get_oid())
-			
+				
 				#record internally
 				self.add_order(sell_order)
 				
@@ -481,6 +505,9 @@ class Environment():
 		#get the traders with orders this period
 		period_traders=self.picked_traders[self.time]
 		order_dic={}
+		
+		
+		
 		
 		if len(period_traders)>0:
 			#get the noisy signal assigned to those trader
