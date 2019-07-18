@@ -57,15 +57,18 @@ class Blotter(list):
 
 class Trader:
 
-		def __init__(self, ttype=None, tid=None, balance=0, time=None, n_quote_limit=1,latency=1,timer=None,exchange=None):
+		def __init__(self, ttype=None, tid=None, balance=0, time=None, n_quote_limit=1,latency=1,timer=None,exchange=None,history=False):
 				self.ttype = ttype      # what type / strategy this trader is
 				self.tid = tid          # trader unique ID code
 				self.balance = balance  # money in the bank
 				self.blotter = Blotter()# record of trades executed
 				self.orders = []        # customer orders currently being worked (fixed at 1)
 				#self.orders_dic={}		#customer orders currently being worked, key=OID
+				
 				self.orders_dic=OrderedDict()
-				self.orders_dic_hist={}
+				self.history=history
+				if history: self.orders_dic_hist={}
+				
 				self.orders_lookup={}
 				self.n_orders=0			# number of orders trader has been given
 				self.n_quotes = 0       # number of quotes live on LOB
@@ -110,7 +113,7 @@ class Trader:
 					oldest_trade=self.get_oldest_order()
 					response = ('LOB_Cancel',oldest_trade)
 					reason='cancel'
-					replaced_trade=self.del_order( oldest_trade.oid,reason)
+					self.del_order( oldest_trade.oid,reason)
 					if inform_exchange and oldest_trade.qid is not None: #to check the order has submitted quotes
 						self.cancel_with_exchange(order=oldest_trade)
 						
@@ -184,12 +187,13 @@ class Trader:
 				self.orders_dic[oid]['status']=reason
 				#delete a customer order
 				
-				self.orders_dic_hist[oid]=self.orders_dic[oid]
-				deleted_order=self.orders_dic.pop(oid)
+				
+				deleted_order_dic=self.orders_dic.pop(oid)
+				if self.history: self.orders_dic_hist[oid]=deleted_order_dic
 				self.n_orders=len(self.orders_dic)
 				self.n_quotes-=1
 				self.n_quotes=max(0,self.n_quotes)
-				return deleted_order
+				return deleted_order_dic
 
 
 
@@ -541,10 +545,10 @@ class Trader_ZIP_old(Trader):
 		#    so a single trader can both buy AND sell
 		#    -- in the original, traders were either buyers OR sellers
 
-		def __init__(self, ttype, tid, balance, time,timer=None): #can I use parent init function and then modify?
+		def __init__(self, **kwargs): #can I use parent init function and then modify?
 				
 				#DRY: use parent instantiation before adding child specific properties
-				super().__init__(ttype=ttype,tid=tid,balance=balance,time=time,timer=timer)
+				super().__init__(**kwargs)
 				
 				self.job = None  # this gets switched to 'Bid' or 'Ask' depending on order-type
 				self.active = False  # gets switched to True while actively working an order
@@ -811,10 +815,10 @@ class Trader_ZIP(Trader):
 		#    so a single trader can both buy AND sell
 		#    -- in the original, traders were either buyers OR sellers
 
-		def __init__(self, ttype, tid, balance, time,timer=None,exchange=None): #can I use parent init function and then modify?
+		def __init__(self, **kwargs): #can I use parent init function and then modify?
 				
 				#DRY: use parent instantiation before adding child specific properties
-				super().__init__(ttype=ttype,tid=tid,balance=balance,time=time,timer=timer,exchange=exchange)
+				super().__init__(**kwargs)
 				
 				self.job = None  # this gets switched to 'Bid' or 'Ask' depending on order-type
 				self.active = False  # gets switched to True while actively working an order
