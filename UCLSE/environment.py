@@ -54,7 +54,7 @@ class Market_session:
 				 n_trials=1,trade_file='avg_balance.csv',trial=1,verbose=True,stepmode='fixed',dump_each_trade=False,
 				 trade_record='transactions.csv', random_seed=22,orders_verbose = False,lob_verbose = False,
 	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,
-	market_makers_spec=None,rl_traders={},exchange=None,timer=None,quantity_f=None):
+	market_makers_spec=None,rl_traders={},exchange=None,timer=None,quantity_f=None,trader_record=False):
 
 			self.interval=interval
 			self.timemode=timemode
@@ -70,6 +70,7 @@ class Market_session:
 			self.random_seed=random_seed
 
 			self.traders_spec = {'sellers':sellers_spec, 'buyers':buyers_spec}
+			self.trader_record=trader_record
 			self.n_buyers,self.n_sellers=self.get_buyer_seller_numbers()
 			
 			
@@ -131,7 +132,7 @@ class Market_session:
 			
 			#populate exchange with traders
 			traders={}
-			self.trader_stats=self.populate_market(self.traders_spec,traders,True,self.verbose,timer=self.timer,exchange=self.exchange)
+			self.populate_market(shuffle=True,verbose=self.verbose,)
 			
 			#populate market with market makers
 			self.market_makers={}
@@ -246,27 +247,29 @@ class Market_session:
 		self.sess_id = 'trial%04d' % self.trial
 
 	@staticmethod
-	def trader_type(robottype, name,timer=None,exchange=None):
+	def trader_type(robottype, name,timer=None,exchange=None,trader_record=False):
 			if robottype == 'GVWY':
-					return Trader_Giveaway('GVWY', name, 0.00, 0,timer=timer,exchange=exchange)
+					return Trader_Giveaway(ttype='GVWY', tid=name,timer=timer,exchange=exchange,history=trader_record)
 			elif robottype == 'ZIC':
-					return Trader_ZIC('ZIC', name, 0.00, 0,timer=timer,exchange=exchange)
+					return Trader_ZIC(ttype='ZIC', tid=name,timer=timer,exchange=exchange,history=trader_record)
 			elif robottype == 'SHVR':
-					return Trader_Shaver('SHVR', name, 0.00, 0,timer=timer,exchange=exchange)
+					return Trader_Shaver(ttype='SHVR', tid=name,timer=timer,exchange=exchange,history=trader_record)
 			elif robottype == 'SNPR':
-					return Trader_Sniper('SNPR', name, 0.00, 0,timer=timer,exchange=exchange)
+					return Trader_Sniper(ttype='SNPR', tid=name,timer=timer,exchange=exchange,history=trader_record)
 			elif robottype == 'ZIP':
-					return Trader_ZIP('ZIP', name, 0.00, 0,timer=timer,exchange=exchange)
+					return Trader_ZIP(ttype='ZIP', tid=name,timer=timer,exchange=exchange,history=trader_record)
 			else:
 					sys.exit('FATAL: don\'t know robot type %s\n' % robottype)
 	
 	@classmethod
-	def define_traders_side(cls,traders_spec,side,shuffle=False,timer=None,exchange=None,traders={},verbose=False):
+	def define_traders_side(cls,traders_spec,side,shuffle=False,timer=None,exchange=None,verbose=False,trader_record=False):
 		n_buyers = 0
 		
 		typ=side
 		letter=cls.type_dic[typ]['letter']
 		t_num=0
+		traders={}
+		
 		for bs,num_type in traders_spec[typ].items():
 				ttype = bs
 				trader_nums=np.arange(num_type)
@@ -276,7 +279,7 @@ class Market_session:
 				for b in trader_nums:
 						tname = '%s%02d' % (letter,t_num)  # buyer i.d. string
 						if verbose: print(tname)
-						traders[tname] = cls.trader_type(ttype, tname,timer,exchange)
+						traders[tname] = cls.trader_type(ttype, tname,timer,exchange,trader_record)
 						t_num+=1
 
 		if len(traders)<1:
@@ -286,12 +289,17 @@ class Market_session:
 		return traders,t_num
 					
 		
-	def populate_market(self,traders_spec=None, traders={},
-						shuffle=True, verbose=True,timer=None,exchange=None):
-
-		self.buyers,n_buyers=self.define_traders_side(traders_spec,'buyers',shuffle=shuffle,timer=timer,exchange=exchange,traders={},verbose=verbose)
+	def populate_market(self,shuffle=True, verbose=True):
+						
+		traders_spec=self.traders_spec
+		exchange=self.exchange
+		timer=self.timer
+		trader_record=self.trader_record
 		
-		self.sellers,n_sellers=self.define_traders_side(traders_spec,'sellers',shuffle=shuffle,timer=timer,exchange=exchange,traders={},verbose=verbose)
+
+		self.buyers,n_buyers=self.define_traders_side(traders_spec,'buyers',shuffle=shuffle,timer=timer,exchange=exchange,verbose=verbose,trader_record=trader_record)
+		
+		self.sellers,n_sellers=self.define_traders_side(traders_spec,'sellers',shuffle=shuffle,timer=timer,exchange=exchange,verbose=verbose,trader_record=trader_record)
 
 		self.n_buyers==n_buyers
 
@@ -607,7 +615,7 @@ class Market_session:
 
 	def _traders_respond(self,trade):
 		lob = self.exchange.publish_lob(self.time, self.lob_verbose)
-		tape=self.exchange.publish_tape()
+		tape=self.exchange.publish_tape(length=5)
 		for t in self.participants:
 				# NB respond just updates trader's internal variables
 				# doesn't alter the LOB, so processing each trader in
