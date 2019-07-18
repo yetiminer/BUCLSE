@@ -81,13 +81,14 @@ def test_multi_q_exchange():
 	
 	environ_dic=yamlLoad(config_path)
 	environ_dic['end_time']=50
+	environ_dic['trader_record']=True 
 	
 	def geometric_q():
 		return np.random.geometric(0.6)
 	
 	sess=Market_session(**environ_dic)
 	
-	#sess.process_order=sess.exchange.process_order3w
+	
 	sess.quantity_f=geometric_q
 	sess1=copy.deepcopy(sess)
 	try:
