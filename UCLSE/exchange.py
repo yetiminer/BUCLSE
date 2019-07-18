@@ -656,15 +656,17 @@ class Exchange(Orderbook):
 				
 			if ammended_order.tid is not None: self.make_ammend_record(ammended_order,time=time)
 
-			fill=self.make_transaction_record(time=time,price=price,
-					p1_tid=counterparty,p2_tid=order.tid,
-									 transact_qty=fill_q,verbose=False,p1_qid=p1_qid,p2_qid=qid+0.000001*leg)
+
 									 
 			self.make_fill_record(price=price,tid=counterparty, #passive side
 									transact_qty=fill_q,qid=p1_qid,order=best_ask_order)
 									
 			self.make_fill_record(price=price,tid=order.tid, #active side
 									transact_qty=fill_q,qid=qid+0.000001*leg,order=order)
+									
+			fill=self.make_transaction_record(time=time,price=price,
+					p1_tid=counterparty,p2_tid=order.tid,
+									 transact_qty=fill_q,verbose=False,p1_qid=p1_qid,p2_qid=qid+0.000001*leg)
 
 			return quantity,fill,ammended_order
 
