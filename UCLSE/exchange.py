@@ -319,6 +319,12 @@ class Orderbook(Orderbook_half):
 # Exchange's internal orderbook
 
 class Exchange(Orderbook):
+		def __init__(self,name='exchange1',timer=None,record=False):
+			super().__init__(timer=timer)
+			self.name=name
+			
+			self.record=record
+		
 
 		def __repr__(self):
 			df=self.lob_to_df()
@@ -692,31 +698,35 @@ class Exchange(Orderbook):
 				
 		def make_fill_record(self,price=None,tid=None,
 									transact_qty=None,qid=None,order=None):
-			ammend_record={'type':'Fill',
-				'tape_time':self.time,
-				'tid': tid,
-				'qid':qid,
-				'otype':order.otype,
-				'time':order.time,
-				'price':price,
-				'qty':transact_qty}
-			
-			self.tape.append(ammend_record)
+			if self.record:
+				ammend_record={'type':'Fill',
+					'tape_time':self.time,
+					'tid': tid,
+					'qid':qid,
+					'otype':order.otype,
+					'time':order.time,
+					'price':price,
+					'qty':transact_qty}
+				
+				self.tape.append(ammend_record)
 									
 			
 				
 		def make_ammend_record(self,ammended_order,time=None):
+			if self.record:
 			
-			ammend_record={**{'type':'Ammend','tape_time':self.time},**dict(ammended_order.order._asdict())}
-			self.tape.append(ammend_record)
+				ammend_record={**{'type':'Ammend','tape_time':self.time},**dict(ammended_order.order._asdict())}
+				self.tape.append(ammend_record)
 			
 		def make_cancel_record(self,cancelled_order,time=None):
-			cancel_record= { **{'type': 'Cancel', 'tape_time': self.time}, **cancelled_order._asdict() }
-			self.tape.append(cancel_record)
+			if  self.record:
+				cancel_record= { **{'type': 'Cancel', 'tape_time': self.time}, **cancelled_order._asdict() }
+				self.tape.append(cancel_record)
 			
 		def make_new_order_record(self,new_order):
-			new_order_record= { **{'type': 'New Order', 'tape_time': self.time}, **new_order._asdict() }
-			self.tape.append(new_order_record)
+			if self.record:
+				new_order_record= { **{'type': 'New Order', 'tape_time': self.time}, **new_order._asdict() }
+				self.tape.append(new_order_record)
 
 		# def tape_dump(self, fname, fmode, tmode):
 				# dumpfile = open(fname, fmode)
