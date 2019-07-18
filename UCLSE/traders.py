@@ -107,12 +107,12 @@ class Trader:
 				if self.n_orders >= self.n_quote_limit :
 					# this trader has a live quote on the LOB, from a previous customer order
 					# need response to signal cancellation/withdrawal of that quote
-					oldest_trade_dic=self.get_oldest_order()
-					response = ('LOB_Cancel',oldest_trade_dic)
+					oldest_trade=self.get_oldest_order()
+					response = ('LOB_Cancel',oldest_trade)
 					reason='cancel'
-					self.del_order( oldest_trade_dic.oid,reason)
-					if inform_exchange and oldest_trade_dic.qid is not None:
-						self.cancel_with_exchange(oid=oldest_trade_dic.oid)
+					replaced_trade=self.del_order( oldest_trade.oid,reason)
+					if inform_exchange and oldest_trade.qid is not None: #to check the order has submitted quotes
+						self.cancel_with_exchange(order=oldest_trade)
 						
 						
 					assert self.n_orders<=self.n_quote_limit
@@ -130,12 +130,12 @@ class Trader:
 				if verbose : print('add_order < response=%s (time,oid,qid) %s' % (response[0],response[1]))
 				return response
 				
-		def cancel_with_exchange(self,oid=None,verbose=False):
+		def cancel_with_exchange(self,order=None,verbose=False):
 			#trader contacts exchange directly to inform of cancellation
 			
-			if verbose : print('killing lastquote=%s' % self.orders_dic_hist[oid]['Original'])
+			if verbose : print('killing lastquote=%s' % order)
 
-			self.exchange.del_order(oid=oid, verbose=verbose)
+			self.exchange.del_order(qid=order.qid, verbose=verbose)
 				
 			
 		def get_oldest_order(self):
@@ -158,6 +158,7 @@ class Trader:
 		
 				
 		def add_order_exchange(self,order,qid):
+			#when receiving confirmation of an order being placed at exchange
 			order=copy.deepcopy(order)
 			
 			#order.qid=qid
@@ -178,15 +179,17 @@ class Trader:
 
 
 		def del_order(self, oid,reason):
+			#deletes an order internally. 
 				self.orders_dic[oid]['completion_time']=self.time #record the time of order completion
 				self.orders_dic[oid]['status']=reason
 				#delete a customer order
 				
 				self.orders_dic_hist[oid]=self.orders_dic[oid]
-				del(self.orders_dic[oid])
+				deleted_order=self.orders_dic.pop(oid)
 				self.n_orders=len(self.orders_dic)
 				self.n_quotes-=1
 				self.n_quotes=max(0,self.n_quotes)
+				return deleted_order
 
 
 
