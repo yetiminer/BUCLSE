@@ -110,9 +110,9 @@ class Trader:
 					oldest_trade_dic=self.get_oldest_order()
 					response = ('LOB_Cancel',oldest_trade_dic)
 					reason='cancel'
-					self.del_order( oldest_trade_dic['oid'],reason)
-					if inform_exchange and oldest_trade_dic['last_qid'] is not None:
-						self.cancel_with_exchange(oid=oldest_trade_dic['oid'])
+					self.del_order( oldest_trade_dic.oid,reason)
+					if inform_exchange and oldest_trade_dic.qid is not None:
+						self.cancel_with_exchange(oid=oldest_trade_dic.oid)
 						
 						
 					assert self.n_orders<=self.n_quote_limit
@@ -148,8 +148,12 @@ class Trader:
 				
 				if len(listy)>0:
 					last_qid=listy[-1].qid
-				output= {'time':self.orders_dic[k]['Original'].time,
-				'oid':self.orders_dic[k]['Original'].oid,'last_qid':last_qid,'tid':self.tid}
+				orig=self.orders_dic[k]['Original']
+				output= Order(**{'time':orig.time,
+				'qty':self.orders_dic[k]['qty_remain'],
+				'oid':orig.oid,'qid':last_qid,
+				'tid':self.tid,'otype':orig.otype,
+				'price':orig.price})
 			return output
 		
 				

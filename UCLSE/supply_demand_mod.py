@@ -310,7 +310,7 @@ class SupplyDemand():
 			response = self.traders[tname].add_order(order, verbose,inform_exchange=True)
 			if verbose: print('Customer order: %s %s' % (response[0], order) )
 			if response[0] == 'LOB_Cancel' :
-				assert tname==response[1]['tid']
+				assert tname==response[1].tid
 				cancellations.append(response[1])
 				if verbose: print('Cancellations: %s' % (cancellations))
 			return cancellations
