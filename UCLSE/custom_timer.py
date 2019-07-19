@@ -39,7 +39,7 @@ class CustomTimer():
 	def reset(self):
 		self.time=self.start
 		self.time_left=self._time_left()
-		assert self.time_left==1
+		#assert self.time_left==1
 	
 	@property
 	def get_time(self):

@@ -25,31 +25,33 @@ register_matplotlib_converters()
 
 
 def collect_orders(sd):
-    order_store=[]
-    order_count={}
-    while sd.timer.next_period():    
-        #time=round(sd.timer.get_time,4)
-        time=round(sd.time,4)
+	order_store=[]
+	order_count={}
+	order_dic={}
+	while sd.timer.next_period():    
+		#time=round(sd.timer.get_time,4)
+		time=round(sd.time,4)
 
-        [new_pending, cancellations, dispatched_orders]=sd.customer_orders()
-        #if len(new_pending)>0: print('ok')
-        if len(dispatched_orders)>0:
-            for k in dispatched_orders:
+		[new_pending, cancellations, dispatched_orders]=sd.customer_orders()
+		#if len(new_pending)>0: print('ok')
+		order_dic[time]=dispatched_orders
+		if len(dispatched_orders)>0:
+			for k in dispatched_orders:
 
-                dic=k._asdict()
-                dic['time']=time
-                order_store.append(dic)
+				dic=k._asdict()
+				dic['time']=time
+				order_store.append(dic)
 
-        order_count[time]=len(dispatched_orders)
-    
-    #Format output nicely
-    if len(order_store)>0:
-        order_count=pd.Series(order_count)
-        order_store=pd.DataFrame(order_store).set_index('time')
-    else:
-        print('Reset timer and run again')
-    
-    return order_store,order_count
+		order_count[time]=len(dispatched_orders)
+
+	#Format output nicely
+	if len(order_store)>0:
+		order_count=pd.Series(order_count)
+		order_store=pd.DataFrame(order_store).set_index('time')
+	else:
+		print('Reset timer and run again')
+
+	return order_store,order_count,order_dic
 	
 def bid_ask_window(sd,order_store,periods=100,step=0):
 	#divides orders into rolling window, separates bids and asks, 

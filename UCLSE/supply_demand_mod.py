@@ -305,7 +305,7 @@ class SupplyDemand():
 		return dispatched_orders,cancellations,pending
 		
 		
-	def do_dispatch(self,order,cancellations,verbose=False):
+	def do_dispatch(self,order,cancellations=None,verbose=False):
 			tname = order.tid
 			response = self.traders[tname].add_order(order, verbose,inform_exchange=True)
 			if verbose: print('Customer order: %s %s' % (response[0], order) )
