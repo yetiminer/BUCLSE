@@ -31,7 +31,8 @@ class Messenger():
 			recipient_obj=self.directory[recipient_name].object
 		except KeyError:
 			print(f'Recipient not subscribed: {recipient_name}')
-		recipient_obj.receive_message(message)
+			raise KeyError
+		
 		
 		if self.logging:
 			time=message.time
@@ -49,5 +50,9 @@ class Messenger():
 									dumpfile.write('%s, %s\n' % (time, msg))
 						self.log={}
 						self.open_type='a'
-						
+		
+		#this comes after recording message otherwise, chron order of messages not correct
+		#due to chaining effect
+		
+		recipient_obj.receive_message(message)
 		

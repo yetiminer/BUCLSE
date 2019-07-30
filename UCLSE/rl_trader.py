@@ -1,6 +1,6 @@
 from UCLSE.exchange import Order
 from UCLSE.market_makers import TradeManager
-from UCLSE.traders import Trader
+from UCLSE.message_trader import TraderM as Trader
 
 side_dic={'Long':'Ask','Short':'Bid'}
 order_side_dic={'Ask':'asks','Bid':'bids'}
@@ -11,14 +11,14 @@ buy_sell_dic={'Long':'Buy','Short':'Sell'}
 
 class RLTrader(Trader):
     
-	def __init__(self, ttype=None, tid=None, balance=None,n_quote_limit=100,inventory=1,direction='Long',avg_cost=0,timer=None,exchange=None): 
+	def __init__(self, ttype=None, tid=None, balance=None,n_quote_limit=100,inventory=1,direction='Long',avg_cost=0,timer=None,exchange=None,
+			messenger=None): 
 
 
 		#DRY: use parent instantiation before adding child specific properties
-		super().__init__(ttype=ttype,tid=tid,balance=balance,n_quote_limit=n_quote_limit,timer=timer)
+		super().__init__(ttype=ttype,tid=tid,n_quote_limit=n_quote_limit,timer=timer,messenger=messenger)
 
 		self.quote_count=1
-		#self.trade_manager=TradeManager()
 		self.cash=0
 		self.inventory=inventory
 		self.direction=direction
@@ -36,9 +36,12 @@ class RLTrader(Trader):
 		trade_type=buy_sell_dic[direction]
 		self.initial_setup={'ttype':ttype,'tid':tid,'balance':balance,'quote_limit':n_quote_limit,'inventory':inventory,
 						   'direction':direction,'avg_cost':avg_cost,'trade_type':trade_type}
+						   
+		
 
-
-		self.trade_manager.execute_with_total_pnl(trade_type,self.inventory,price=self.avg_cost,oid=1)
+	def setup_initial_inventory(self,trade_type,inventory,price):
+		self.trade_manager.execute_with_total_pnl(trade_type,inventory,price=price,oid=self.make_oid())
+		self.balance=self.trade_manager.cash
 		
 	def set_exchange(self,exchange):
 		print('adding exchange to RL trader ', self.tid)
@@ -51,7 +54,7 @@ class RLTrader(Trader):
 		self.trade_manager=TradeManager()
 		self.inventory=self.initial_setup['inventory']
 		trade_type=self.initial_setup['trade_type']
-		self.trade_manager.execute_with_total_pnl(trade_type,self.inventory,price=self.avg_cost,oid=1)
+		#self.trade_manager.execute_with_total_pnl(trade_type,self.inventory,price=self.avg_cost,oid=1)
 
 
 	def make_oid(self):
@@ -61,19 +64,15 @@ class RLTrader(Trader):
 		print('oid gen',oid)
 		return oid
 
-	def bookkeep(self, trade, order, verbose, time,active=True):
-		trade=super().bookkeep(trade, order, verbose, time,active)
-		profit=self.trade_manager.execute_with_total_pnl(trade['BS'],trade['qty'],trade['price'],trade['oid'])
+	def bookkeep(self,fill):
+		trade=super().bookkeep(fill,send_confirm=False)
+		profit=self.trade_manager.execute_with_total_pnl(trade['BS'],trade['exec_qty'],trade['exec_price'],trade['oid'])
 		trade['profit']=profit
 		self.balance=self.balance+profit
 		self.inventory=self.trade_manager.inventory
 		
 	def do_order(self,lob,otype='ask',spread=0,qty=1):
 		
-		#if spread=0:
-			#execute at market:
-		#    new_order=Order(self.tid,otype,qty,lob[side]['best'],self.make_oid())
-		#else:
 		side=order_side_dic[otype]
 		anti_side=anti_side_dic[otype]
 		
@@ -84,7 +83,7 @@ class RLTrader(Trader):
 		
 		new_order=Order(self.tid,otype,price,qty,self.time,oid=self.make_oid())
 			
-		verbose=False
+		verbose=True
 		self.add_order(new_order,verbose,inform_exchange=True)
 
 			

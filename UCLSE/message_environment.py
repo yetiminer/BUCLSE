@@ -518,39 +518,11 @@ class MarketSession:
 	
 			
 	def _get_demand(self):
+	#predetermine what and when customer orders are sent to traders
 				
 				[self.pending_cust_orders, self.kills,self.dispatched_orders] = self.sd.customer_orders(verbose= 
 												   self.orders_verbose)
 
-								
-	# def _pick_trader_and_get_order(self):
-
-				# integer_period=round(self.time/self.timestep) #rounding error means that we can't rely on fraction to be int
-			
-				# list_of_traders=np.array(list(self.traders.keys())) #is this always the same?
-				# #list_of_traders=np.array(list(self.traders_with_orders().keys())) #presumably we should only pick traders who actually have an order to submit
-				
-				# tid=None
-				# if len(list_of_traders)>0:
-				
-					# trader_latencies=np.array([self.traders[key].latency for key in list_of_traders]) 
-					# max_latency=np.max(trader_latencies) #just at the beginning to ensure divisor is smaller than numerator
-					# permitted_traders=list_of_traders[np.mod(integer_period+max_latency,trader_latencies)==0]
-					
-					# tid = np.random.choice(permitted_traders)
-					# if self.latency_verbose: print('latencies: number of traders to pick from:',
-					# len(permitted_traders),' pick trader :',
-					# tid,' of type ',self.traders[tid].ttype)
-					# #note that traders will return a dictionary containing at least one order
-					# order_dic = self.traders[tid].getOrderReplace(lob=self.exchange.publish_lob(self.time, self.lob_verbose))
-					# if self.latency_verbose: print('Trader responds with ', len(order_dic), ' quotes to send to exchange')
-						
-
-				# return tid
-				
-	# def traders_with_orders(self):
-		# return {k: val.n_orders for k,val in self.traders.items() if val.n_orders>0}
-	
 
 	def _traders_respond(self,trade):
 		lob = self.exchange.publish_lob(self.time, self.lob_verbose)

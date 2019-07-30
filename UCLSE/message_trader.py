@@ -111,9 +111,9 @@ class TraderM(Trader):
 				self._send_new_order_exchange(new_order)
 		
 		elif type(new_order_list)==Order:
-			self._send_new_order_exchange(self,new_order_list)
+			self._send_new_order_exchange(new_order_list)
 		else:
-			print('unknown order list format')
+			print('unknown order list format: ',type(new_order_list))
 			raise AssertionError
 		
 	def _send_new_order_exchange(self,new_order):
@@ -140,7 +140,7 @@ class TraderM(Trader):
 			return order_dic
 		
 		
-	def bookkeep(self,fill,verbose=False):
+	def bookkeep(self,fill,verbose=False,send_confirm=True):
 		
 		trade_qty=fill.qty
 		qid=fill.qid
@@ -213,7 +213,7 @@ class TraderM(Trader):
 		
 		if trade['status']=='complete': 
 			self.del_order(oid,reason='complete')
-			self.send_confirm(self.exec_summary(oid))
+			if send_confirm: self.send_confirm(self.exec_summary(oid))
 		
 		return trade
 		

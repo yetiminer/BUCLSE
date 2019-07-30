@@ -706,7 +706,8 @@ class Exchange(Orderbook):
 					'otype':order.otype,
 					'time':order.time,
 					'price':price,
-					'qty':transact_qty}
+					'qty':transact_qty,
+					'lob_price':order.price}
 				
 				self.tape.append(ammend_record)
 									
