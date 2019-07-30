@@ -172,7 +172,7 @@ class Exchange(Exchange):
 				[ammend_qid,response]=self.ammend_order(order,verbose,leg=leg+1,qid=qid)
 				order=order._replace(qid=ammend_qid)
 				
-				ammended_order_active=order.copy()
+				ammended_order_active=copy.deepcopy(order)
 				self.make_ammend_record(ammended_order_active,time=time)
 				if verbose: print('order partially filled, new ammended one ',leg,ammend_qid,order)
 				
@@ -193,7 +193,7 @@ class Exchange(Exchange):
 			
 			if verbose: print('partial fill passive side ', best_ask_order.qid,best_ask_order)
 			#ammended_order=(counterparty,best_ask_order.qid,best_ask_order)
-			ammended_order_passive=best_ask_order.copy()
+			ammended_order_passive=copy.deepcopy(best_ask_order)
 			self.make_ammend_record(ammended_order_passive,time=time)
 
 			pty2_side.delete_best()
@@ -225,7 +225,7 @@ class Exchange(Exchange):
 		
 	def make_ammend_record(self,ammended_order,time=None):
 		if self.record:
-			ammend_record={**{'type':'Ammend','tape_time':self.time},**dict(ammended_order.order._asdict())}
+			ammend_record={**{'type':'Ammend','tape_time':self.time},**dict(ammended_order._asdict())}
 			self.tape.append(ammend_record)
 		
 	def make_cancel_record(self,cancelled_order,time=None):
