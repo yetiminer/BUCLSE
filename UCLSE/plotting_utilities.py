@@ -3,9 +3,11 @@ from UCLSE.custom_timer import CustomTimer
 from UCLSE.exchange import Order
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import pandas as pd
 from matplotlib import animation
 from IPython.display import display, clear_output, HTML
+from scipy.sparse import coo_matrix, csr_matrix
 
 
 from pygments import highlight
@@ -294,3 +296,119 @@ def display_func(name,function):
 
     internal_functions=dict(getmembers(met,isfunction))
     return HTML(highlight(getsource(internal_functions[function]), PythonLexer(), HtmlFormatter(full=True)))
+	
+	
+def make_sparse_array(lobish,dims=(5,200)):
+	#outputs a sparse matrix containing boolean data - rows refer to price, cols to quantity.
+	#Input in the form of list of tuples (price,quantity,order in lob)
+	if lobish in [None,[]]:
+		csr_array=csr_matrix(dims,dtype=bool)
+	else:
+		if len(lobish[0])==2:
+			coords=[y for s in [[(1,l,x[0]) for l in range(x[1])] for x in lobish] for y in s]
+		else: #the starting position of the order is specified
+			coords=[y for s in [[(1,l,x[0]) for l in range(x[2],x[2]+x[1])] for x in lobish] for y in s]
+			
+		coords=np.array(coords)
+		csr_array=csr_matrix((coords[:,0],(coords[:,1],coords[:,2])),shape=dims,dtype=bool)
+	return csr_array
+	
+def animate_lob(anim_sparse_lob_bid,anim_sparse_lob_ask,lbound=75,ubound=125,length=100):
+
+    path='lob_animation.mp4'
+    slicer=np.arange(lbound,ubound+1)
+
+    #plots evolution of demand supply curve in mpeg video
+    plt.rcParams['animation.ffmpeg_path']='C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe'
+
+    Writer = animation.writers._registered['ffmpeg']
+    writer = Writer(fps=24, metadata=dict(artist='Me'), bitrate=1800)
+
+    # First set up the figure, the axis, and the plot element we want to animate
+    fig, (ax,ax1) = plt.subplots(nrows=2, figsize=(12, 4), dpi=80, facecolor='w', edgecolor='k')
+    im_bid=ax.imshow(~anim_sparse_lob_bid[1][:,slicer],interpolation='nearest',vmin=0,vmax=1,
+                  cmap=plt.get_cmap('hot'),origin='lower')
+
+    im_ask=ax1.imshow(~anim_sparse_lob_ask[1][:,slicer],interpolation='nearest',vmin=0,vmax=1,
+                  cmap=plt.get_cmap('hot'),origin='upper')
+
+    for a in [ax,ax1]:
+        a.set_xlabel('Price')
+        a.set_ylabel('Quantity')
+        labels = a.get_xticks()
+        a.set_xticklabels(labels+lbound)
+
+    # animation function.  This is called sequentially
+    def animate(i):
+        im_bid.set_array(~anim_sparse_lob_bid[i][:,slicer])
+        im_ask.set_array(~anim_sparse_lob_ask[i][:,slicer])
+
+        return [im_bid,im_ask]
+
+    # call the animator.  blit=True means only re-draw the parts that have changed.
+    anim = animation.FuncAnimation(fig, animate,
+                                   frames=range(1,length), interval=20, blit=True)
+
+    # save the animation as an mp4.  This requires ffmpeg or mencoder to be
+    # installed.  The extra_args ensure that the x264 codec is used, so that
+    # the video can be embedded in html5.  You may need to adjust this for
+    # your system: for more information, see
+    # http://matplotlib.sourceforge.net/api/animation_api.html
+    anim.save(path, writer=writer)
+
+    return HTML("""
+        <video width="960" height="480" controls>
+          <source src="lob_animation.mp4" type="video/mp4">
+        </video>
+        """)
+		
+
+
+def render(anim_sparse_lob_bid,anim_sparse_lob_ask,lbound=75,ubound=125,trader_bids=None,
+		   trader_asks=None,long_inventory=None,short_inventory=None):
+	#render LOB at single  point in time
+	slicer=np.arange(75,126)
+	fig, (ax,ax1) = plt.subplots(nrows=2, figsize=(12, 4),sharex=True, dpi=80, facecolor='w', edgecolor='k')
+
+	im=ax.imshow(~anim_sparse_lob_bid[:,slicer],interpolation='none',cmap=plt.get_cmap('hot'),origin='lower',label='Bids')
+
+	ax.set_xlim(0,len(slicer))
+	labels = ax.get_xticks()
+	ax.set_xticklabels(labels+lbound)
+
+	if trader_bids is not None:
+		trader_bids=np.ma.masked_where(trader_bids == 0, trader_bids)*0.7
+		ax.imshow(trader_bids[:,slicer],interpolation='none',origin='lower',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
+
+	if long_inventory is not None:
+		long_inventory=np.ma.masked_where(long_inventory == 0, long_inventory)*0.3
+		ax.imshow(long_inventory[:,slicer],interpolation='none',origin='lower',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
+
+		
+	col_title_pair=zip([0.7,0.3,0],['Trader Bids','Trader long inventory','Bids'])    
+	patches = [ mpatches.Patch(color=im.cmap(im.norm(i)) , label=j) for i,j in col_title_pair]
+	ax.legend(handles=patches)
+	
+
+	#ax1=ax.twin()
+	im1=ax1.imshow(~anim_sparse_lob_ask[:,slicer],interpolation='nearest',origin='upper',cmap=plt.get_cmap('hot'))
+	ax.set_xlim(0,len(slicer))
+	if trader_asks is not None:
+		trader_asks=np.ma.masked_where(trader_asks == 0, trader_asks)*0.7
+		ax1.imshow(trader_asks[:,slicer],interpolation='none',origin='upper',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
+		
+	if short_inventory is not None:
+		short_inventory=np.ma.masked_where(short_inventory == 0, short_inventory)*0.3
+		ax.imshow(short_inventory[:,slicer],interpolation='none',origin='lower',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
+
+
+	labels = ax1.get_xticks()
+	ax1.set_xticklabels(labels+lbound)
+
+	col_title_pair=zip([0.7,0.3,0],['Trader Asks','Trader short inventory','Asks'])    
+	patches1 = [ mpatches.Patch(color=im1.cmap(im1.norm(i)) , label=j) for i,j in col_title_pair]
+	ax1.legend(handles=patches1,loc=4)
+
+	ax.set_title('LOB')
+	
+	plt.show()

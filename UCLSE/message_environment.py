@@ -422,50 +422,50 @@ class MarketSession:
 
 
 
-	def simulate(self,recording=False,orders_verbose = False,lob_verbose = False,
-	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,dump=False):
+	# def simulate(self,recording=False,orders_verbose = False,lob_verbose = False,
+	# process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,dump=False):
 	
-		self.orders_verbose = orders_verbose
-		self.lob_verbose = lob_verbose
-		self.process_verbose = process_verbose
-		self.respond_verbose = respond_verbose
-		self.bookkeep_verbose = bookkeep_verbose
-		self.latency_verbose=latency_verbose
+		# self.orders_verbose = orders_verbose
+		# self.lob_verbose = lob_verbose
+		# self.process_verbose = process_verbose
+		# self.respond_verbose = respond_verbose
+		# self.bookkeep_verbose = bookkeep_verbose
+		# self.latency_verbose=latency_verbose
 		
-		self.replay_vars={}
+		# self.replay_vars={}
 	
-		while self.timer.next_period():
+		# while self.timer.next_period():
 		
-			self.simulate_one_period(recording)
+			# self.simulate_one_period(recording)
 				
-		if dump:
+		# if dump:
 		
-			self.trade_stats_df(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, self.lob_verbose),final=True)
+			# self.trade_stats_df(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, self.lob_verbose),final=True)
 			
-			self.exchange.tape_dump(self.trade_record, 'w', 'keep')
+			# self.exchange.tape_dump(self.trade_record, 'w', 'keep')
 	
-	def simulate_one_period(self,recording=False):
+	# def simulate_one_period(self,recording=False):
 
-			lob={}
+			# lob={}
 
-			if self.verbose: print('\n%s;  ' % (self.sess_id))
+			# if self.verbose: print('\n%s;  ' % (self.sess_id))
 
-			self.trade = None
+			# self.trade = None
 			
-			self._get_demand()
+			# self._get_demand()
 			
-			# get a limit-order quote (or None) from a randomly chosen trader
-			tid=self._pick_trader_and_get_order()
+			# # get a limit-order quote (or None) from a randomly chosen trader
+			# tid=self._pick_trader_and_get_order()
 			
-			#get last trade if one happened
-			self._get_last_trade()
+			# #get last trade if one happened
+			# self._get_last_trade()
 
-			lob=self._traders_respond(self.trade) #does this need to happen for every update?
+			# lob=self._traders_respond(self.trade) #does this need to happen for every update?
 			
-			if recording: self.replay_vars[self.time]=lob
+			# if recording: self.replay_vars[self.time]=lob
 			
 	
-	def simulate_new(self,recording=False,dump=False,logging=False,log_dump=False):
+	def simulate(self,recording=False,dump=False,logging=False,log_dump=False):
 	
 		self.messenger.logging=logging
 		self.messenger.dumping=log_dump
@@ -476,7 +476,7 @@ class MarketSession:
 	
 		while self.timer.next_period():
 		
-			self.simulate_one_period_new(recording=recording)
+			self.simulate_one_period(recording=recording)
 				
 		if dump:
 		
@@ -485,7 +485,7 @@ class MarketSession:
 			self.exchange.tape_dump(self.trade_record, 'w', 'keep')
 	
 	
-	def simulate_one_period_new(self,recording=False):
+	def simulate_one_period(self,recording=False):
 		
 		new_orders=self.sd.order_dic[self.time]
 		picked_traders=self.traders_picked[self.time]

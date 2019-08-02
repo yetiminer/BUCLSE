@@ -584,16 +584,16 @@ class Environment():
      
 	def simulate(self):    
 		while self.timer.next_period():
-			self._simulate_one_period()
+			self.simulate_one_period()
         
-	def _simulate_one_period(self):
+	def simulate_one_period(self,recording=True):
 		#get orders from traders
 		self.get_orders_from_traders()
 		
 		self.update_traders()
-		
-		self.record_lob()
-		self.record_trader_profits()
+		if recording:
+			self.record_lob()
+			self.record_trader_profits()
 			
 	def get_orders_from_traders(self):
 		
@@ -616,41 +616,41 @@ class Environment():
 				#From here the trader and exchange will mutually communicate to submit
 				#orders and take care of any transactions
 		
-	def send_orders_to_exchange(self,order_dic):
-		for tid,orders in order_dic.items():
-			if orders['bid'] is not None: self._send_order_to_exchange(tid,orders['bid'])
-			if orders['ask'] is not None: self._send_order_to_exchange(tid,orders['ask'])
+	# def send_orders_to_exchange(self,order_dic):
+		# for tid,orders in order_dic.items():
+			# if orders['bid'] is not None: self._send_order_to_exchange(tid,orders['bid'])
+			# if orders['ask'] is not None: self._send_order_to_exchange(tid,orders['ask'])
 		
-	def _send_order_to_exchange(self,tid,order):
-		# send order to exchange
+	# def _send_order_to_exchange(self,tid,order):
+		# # send order to exchange
 		
-		qid, trade,ammended_orders = self.exchange.process_order(order, self.process_verbose)
+		# qid, trade,ammended_orders = self.exchange.process_order(order, self.process_verbose)
 		
-		#'inform' trader what qid is
-		self.participants[tid].add_order_exchange(order,qid)
+		# #'inform' trader what qid is
+		# self.participants[tid].add_order_exchange(order,qid)
 		
-		if trade != None:
-				if self.process_verbose: print(trade)
-				lob=self.exchange.publish_lob(self.time, self.lob_verbose)
+		# if trade != None:
+				# if self.process_verbose: print(trade)
+				# lob=self.exchange.publish_lob(self.time, self.lob_verbose)
 				
-				for trade_leg,ammended_order in zip(trade,ammended_orders):
-					# trade occurred,
-					# so the counterparties update order lists and blotters
+				# for trade_leg,ammended_order in zip(trade,ammended_orders):
+					# # trade occurred,
+					# # so the counterparties update order lists and blotters
 					
-					self.participants[trade_leg['party1']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time,active=False)
-					self.participants[trade_leg['party2']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
+					# self.participants[trade_leg['party1']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time,active=False)
+					# self.participants[trade_leg['party2']].bookkeep(trade_leg, order, self.bookkeep_verbose, self.time)
 					
-					ammend_tid=ammended_order.tid
+					# ammend_tid=ammended_order.tid
 					
-					if ammend_tid is not None:
-						#ammend_qid=ammended_order[1]
-						ammend_qid=ammended_order.qid
+					# if ammend_tid is not None:
+						# #ammend_qid=ammended_order[1]
+						# ammend_qid=ammended_order.qid
 						
-						if self.process_verbose: print('ammend trade ', ammended_order.order)
+						# if self.process_verbose: print('ammend trade ', ammended_order.order)
 						
-						self.participants[ammend_tid].add_order_exchange(ammended_order.order,ammend_qid)
+						# self.participants[ammend_tid].add_order_exchange(ammended_order.order,ammend_qid)
 										  
-				return trade
+				# return trade
 				
 	def update_traders(self):
 		recent_tape=list(filter(lambda x: x['tape_time']>=self.time,self.exchange.publish_tape(30))) #make sure this is enough

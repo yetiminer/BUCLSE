@@ -86,6 +86,7 @@ class Orderbook_half:
 			# dictionary of orders received, indexed by Trader ID
 			self.orders = {} #dictionary of trades indexed by oid 
 			self.q_orders={} #dictionary of trades indexed by qid
+			self.t_orders={} #dictionary of traders containing dictionary of prices indexed by qid
 			
 			# limit order book, dictionary indexed by price, with order info
 			self.lob = {}
@@ -152,6 +153,11 @@ class Orderbook_half:
 
 			if lob_verbose : print(self.lob)
 
+	def add_trader_lookup(self,order):
+		#a facility for the exchange to help reveal where a trader's trades are in the book
+			if order.tid in self.t_orders: self.t_orders[order.tid][order.qid]=order.price
+			else:  self.t_orders[order.tid]={order.qid:order.price}
+	
 
 	def book_add(self, order,overwrite=True):
 			# add order to the dictionary holding the list of orders
@@ -167,6 +173,8 @@ class Orderbook_half:
 
 			self.orders[order.oid] = order
 			self.q_orders[order.qid]=order
+			self.add_trader_lookup(order)
+
 
 			self.build_lob()
 			assert len(self.orders)==len(self.q_orders)
@@ -187,6 +195,7 @@ class Orderbook_half:
 
 			self.orders[order.oid] = order
 			self.q_orders[order.qid]=order
+			self.add_trader_lookup(order)
 
 			#self.lob[order.price].orders.popleft()
 			self.lob[order.price].popleft()
@@ -208,6 +217,7 @@ class Orderbook_half:
 			if self.orders.get(order.oid) != None :
 					del(self.orders[order.oid])
 					del(self.q_orders[order.qid])
+					del(self.t_orders[order.tid][order.qid])
 
 			if rebuild:
 				self.build_lob()
@@ -233,6 +243,7 @@ class Orderbook_half:
 					del(self.lob[self.best_price])
 					del(self.orders[best_price_oid])
 					del(self.q_orders[best_price_counterparty_qid])
+					del(self.t_orders[best_price_counterparty][best_price_counterparty_qid])
 					
 
 			else:
@@ -245,6 +256,8 @@ class Orderbook_half:
 					# update the bid list: counterparty's bid has been deleted
 					del(self.orders[best_price_oid])
 					del(self.q_orders[best_price_counterparty_qid])
+					del(self.t_orders[best_price_counterparty][best_price_counterparty_qid])
+					
 					
 			self.build_lob()
 			return best_price_counterparty
@@ -297,6 +310,34 @@ class Orderbook_half:
 	def lob_depth(self):
 
 		return len(self.lob.keys())
+		
+	@staticmethod
+	def order_find(olist,qid):
+		#given an orderlist, find orders matching a given qid and return order position and quantity
+		rank=0
+		qty=None
+		found=False
+		for o in olist:
+			t_qty=o.qty
+			if o.qid==qid:
+				found=True
+				qty=o.qty
+				break
+					  
+			rank+=t_qty #gotcha - multi quantity orders possible
+			
+			
+		if not(found):
+
+			rank=None
+		
+		return  qty,rank
+		
+	def lob_where(self,tid):
+		#returns list of tuples pertaining to position of orders belonging to a trader
+		
+		if tid in self.t_orders: #return tuple (quantity, rank, price)
+			return [(price, *self.order_find(self.lob[price],qid)) for qid, price in self.t_orders[tid].items()]
 			
 
 # Orderbook for a single instrument: list of bids and list of asks
@@ -772,6 +813,11 @@ class Exchange(Orderbook):
 						print('ASK_lob=%s' % public_data['asks']['lob'])
 
 				return public_data
+				
+		def publish_lob_trader(self,tid):
+			#returns a list of tuples for each side, corresponding to (price,quantity,order in queue) for a given trader tid
+			return {'Bids':self.bids.lob_where(tid),'Asks':self.asks.lob_where(tid)}
+			
 				
 		def publish_tape(self,length=0):
 			#don't want to always publish full tape, as this could be big!
