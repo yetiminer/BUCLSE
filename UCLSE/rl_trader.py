@@ -1,6 +1,7 @@
 from UCLSE.exchange import Order
 from UCLSE.market_makers import TradeManager
 from UCLSE.message_trader import TraderM as Trader
+from UCLSE.plotting_utilities import get_dims
 
 side_dic={'Long':'Ask','Short':'Bid'}
 order_side_dic={'Ask':'asks','Bid':'bids'}
@@ -89,4 +90,83 @@ class RLTrader(Trader):
 			
 			
 		return new_order
+		
+	def spoof_policy2(self,lobenv,profit_target=0):
+		auto_cancel=False
+		action=(0,0,0)
+		max_lob_depth=max(get_dims(lobenv.lob['bids']['lob']),get_dims(lobenv.lob['asks']['lob']))
+		dims=(max(max_lob_depth+1,10),200)
+		positions_dic=lobenv.spatial_render(show=False,dims=dims)
+
+		if self.inventory>0:
+
+			#because traders can cancel and place orders in same period, need to be 'safe distance' behind best bid
+
+			#check to see not the next order in line to be executed
+
+			best_bid=lobenv.lob['bids']['best']
+			
+			if lobenv.best_bid>lobenv.trader.trade_manager.avg_cost+profit_target:
+					action=(-1,-1,-1)
+					auto_cancel=True #hit the bid, cancel everything else
+			
+			#if best bid q>=2 and not already positioned in first two positions
+			elif positions_dic['bids'][0:2,best_bid].all() and not positions_dic['trader_bids'][0:2,best_bid].any():
+				#add to best bid
+					action=(1,1,0)
+			else:
+					auto_cancel=True
+					total=0
+					spread=0
+					while total<2 and spread<5: 
+						own_position=positions_dic['trader_bids'][:,best_bid-spread].sum()
+						total=total+positions_dic['bids'][:,best_bid-spread].sum()-own_position
+						spread=spread+1
+					#do trade at spread
+					print('total',total,spread)
+					action=(1,1,spread)
+					
+					
+		else:
+			action=(1,0,0) 
+		
+		return action,auto_cancel,positions_dic
  
+	def spoof_policy(self,lobenv,profit_target=0):
+		auto_cancel=False
+		action=(0,0,0)
+		positions_dic={}
+		
+		if self.inventory>0:
+		
+			#because traders can cancel and place orders in same period, need to be 'safe distance' behind best bid
+			personal_lob=lobenv.sess.exchange.publish_lob_trader('RL')
+			personal_bids=personal_lob['Bids']
+
+			#check to see not the next order in line to be executed
+			max_lob_depth=max(get_dims(lobenv.lob['bids']['lob']),get_dims(lobenv.lob['asks']['lob']))
+			dims=(max(max_lob_depth+1,10),200)
+			positions_dic=lobenv.spatial_render(show=False,dims=dims)
+
+
+			order_check=positions_dic['trader_bids'][0,:].any() #check if any orders first in queue
+
+			orders_out=len(lobenv.trader.orders_dic)
+
+			if orders_out>5 or lobenv.bid_change<0 or order_check:
+					auto_cancel=True
+			else:
+					auto_cancel=False
+
+			if lobenv.best_bid>lobenv.trader.trade_manager.avg_cost+profit_target:
+					action=(-1,-1,-1)
+					auto_cancel=True #hit the bid, cancel everything else
+
+			elif lobenv.lob_history[lobenv.time]['bids']['lob'][-1][1]>1:
+					action=(1,1,1) #add bid behind best              
+			elif auto_cancel:
+				action=(1,0,0)
+		
+		
+		
+		return action,auto_cancel,positions_dic
