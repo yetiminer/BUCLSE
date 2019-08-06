@@ -148,9 +148,12 @@ class RLEnv(gym.Env):
 
 	def step(self, action,auto_cancel=True):
 		#action should be converted into an order dic.
-		order_dic=self.action_converter(action,auto_cancel)
 		self.sess.timer.next_period()
-		self.sess.simulate_one_period(recording=False)
+		order_dic=self.action_converter(action,auto_cancel)
+		#self.sess.update_traders() #now update traders
+		
+		self.sess.simulate_one_period(recording=False,updating=True) #try to only update traders once per period
+
 		self.period_count+=1
 		self.time=self.sess.time
 		done=self.stop_checker()
@@ -159,6 +162,8 @@ class RLEnv(gym.Env):
 		
 		reward=self.reward_get()
 		info=self.sess
+		
+		
 		return observation,reward,done,info
 
 	def reset(self):
@@ -255,13 +260,16 @@ class RLEnv(gym.Env):
 	def parse_inventory(lobenv,dims=(10,200)):
 		#converts inventory into sparse spatial matrix form required
 		trader_inventory={'long_inventory':None,'short_inventory':None}
-		if lobenv.trader.trade_manager.inventory!=0: #check there is any inventory
-			inventory=make_sparse_array([(lobenv.trader.trade_manager.avg_cost,lobenv.trader.trade_manager.inventory)],dims=dims)
-			inventory=inventory.toarray()
-			if lobenv.trader.trade_manager.direction=='Long':
-				trader_inventory['long_inventory']=inventory
-			else:
-				trader_inventory['short_inventory']=inventory
+		if lobenv.trader.trade_manager.inventory==0:input=None #check there is any inventory
+				
+		else: input=[(lobenv.trader.trade_manager.avg_cost,lobenv.trader.trade_manager.inventory)]
+			
+		inventory=make_sparse_array(input,dims=dims)
+		inventory=inventory.toarray()
+		if lobenv.trader.trade_manager.direction=='Long':
+			trader_inventory['long_inventory']=inventory
+		else:
+			trader_inventory['short_inventory']=inventory
 		return trader_inventory
 
 	def parse_lob(lobenv,dims=(10,200)):
@@ -284,6 +292,25 @@ class RLEnv(gym.Env):
 		#make pretty picture
 		if show: render(bids,asks,**position_dic,**trader_inventory)
 		return {'bids':bids,'asks':asks,**trader_inventory,**position_dic}
+	
+	@staticmethod
+	def format_for_render(positions_dic):
+		#format positions dic for render animate
+		lob_bids_arr={}
+		trader_bids={}
+		long_inventory={}
+		lob_asks_arr={}
+		trader_asks={}
+		short_inventory={}
+		for k,dic in positions_dic.items():
+			lob_bids_arr[k]=dic['bids']
+			trader_bids[k]=dic['trader_bids']
+			long_inventory[k]=dic['long_inventory']
+			lob_asks_arr[k]=dic['asks']
+			trader_asks[k]=dic['trader_asks']
+			short_inventory[k]=dic['short_inventory']
+			
+		return lob_bids_arr,trader_bids,long_inventory,lob_asks_arr,trader_asks,short_inventory
 		
 class Action():
 	def __init__(self,otype=None,spread=0,qty=0,trader=None):
