@@ -296,7 +296,6 @@ class HBL(WW_Zip):
 		
 	@classmethod
 	def set_fso(cls,grace_period=20,memory=6000):
-		if cls.fso is None:
 			cls.fso=FSO(grace_period=grace_period,memory=memory)
 			cls.fso.last_update=-1
 	
@@ -496,7 +495,8 @@ class Environment():
 
 	def _set_trader_arrival(self,lamb):
 		#ascertain when traders arrive for orders
-		self.trader_arrive_times=np.random.poisson(lamb,self.periods)
+		#self.trader_arrive_times=np.random.poisson(lamb,self.periods) #allows multiple traders to appear per period
+		self.trader_arrive_times=np.random.choice([0,1],size=self.periods,p=[1-lamb,lamb]) #one trader per period
 		
 	def set_pick_traders(self):
 		#select which traders get orders when
@@ -586,11 +586,11 @@ class Environment():
 		while self.timer.next_period():
 			self.simulate_one_period()
         
-	def simulate_one_period(self,recording=True):
+	def simulate_one_period(self,updating=True,recording=True):
 		#get orders from traders
 		self.get_orders_from_traders()
 		
-		self.update_traders()
+		if updating: self.update_traders()
 		if recording:
 			self.record_lob()
 			self.record_trader_profits()
