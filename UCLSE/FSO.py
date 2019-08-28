@@ -1,4 +1,5 @@
 from collections import deque,Counter, namedtuple
+from functools import reduce  
 
 class FSO():
 	#an object that is able to calculate a lob from list of new_orders, fills and cancels
@@ -176,9 +177,9 @@ class FSO():
 
 					
 		#check everything in the input has been accounted for
-		assert (len(bid_list)+len(ask_list)+ \
-		len(cancelled_list_bid)+len(cancelled_list_ask)+ \
-		len(trade_list)+len(trade_bid_list)+len(trade_ask_list))==len(input_list)
+		#assert (len(bid_list)+len(ask_list)+ \
+		#len(cancelled_list_bid)+len(cancelled_list_ask)+ \
+		#len(trade_list)+len(trade_bid_list)+len(trade_ask_list))==len(input_list)
 		
 		return bid_list,ask_list,cancelled_list_bid,cancelled_list_ask, \
 					trade_bid_list,trade_ask_list,reject_list_bid,reject_list_ask
@@ -272,8 +273,9 @@ class FSO():
 		c=Counter({k:len(dic) for k,dic in fso.order_time_ask.items()})
 		assert a==b==c
 		
-        
-		
+
+	
+
 class CumCounter(Counter):
 	def __init__(self,input_counter,other=[],reverse=False):
 		#other is defined when we want cumulative counter defined over more keys than in source set
@@ -288,3 +290,115 @@ class CumCounter(Counter):
 		keys=set().union(self,denom) 
 		return Counter({k:self[k]/denom[k] for k in keys})
 	
+class SimpleFSO():
+	def __init__(self,memory=100):
+
+		
+		self.memory=memory
+		self.last_update=-1 #monitor time when the last update was done
+
+		self.ask_q=deque() #a queue of new ask orders as they come in 
+		self.bid_q=deque()		
+		self.cancelled_ask_q=deque() # a queue of all cancelled asks,
+		self.cancelled_bid_q=deque()
+
+	@property
+	def bids(self):
+		return reduce(lambda x,y: x+y,self.bid_q)-reduce(lambda x,y: x+y,self.cancelled_bid_q)
+
+	@property
+	def asks(self):
+		return reduce(lambda x,y: x+y,self.ask_q)-reduce(lambda x,y: x+y,self.cancelled_ask_q)
+
+	@property
+	def bid_weighted(self):
+		bids=self.bids
+		denom=sum(bids.values())
+		
+		if denom==0:
+			ans=None
+		else:
+			ans=sum(bids.elements())/denom
+		return ans
+
+	@property
+	def ask_weighted(self):
+		asks=self.asks
+		denom=sum(asks.values())
+		if denom==0:
+			ans=None
+		else:
+			ans=sum(asks.elements())/denom
+		return ans
+
+	def __repr__(self):
+		return f'ask side: {self.ask_q} bid side: {self.bid_q}'
+
+	def update(self,input_list,time):
+		#add events to memory, delete oldest records if applicable
+		if self.last_update<time:
+			self.last_update=time
+
+			self.add_all(input_list)
+			if len(self.ask_q)>self.memory:
+				self.subtract_all()
+
+	def filter_input(self,input_list):
+		bid_list=[]
+		ask_list=[]
+		cancelled_list_bid=[]
+		cancelled_list_ask=[]
+
+		if len(input_list)>0:
+			for o in input_list:
+
+					if o['type']=='New Order' and o['otype']=='Bid':
+						bid_list.append(o)
+					elif o['type']=='New Order' and o['otype']=='Ask':
+						ask_list.append(o)
+					elif o['type'] in ['Cancel'] and o['otype']=='Bid':
+						cancelled_list_bid.append(o)
+					elif o['type'] in ['Cancel'] and o['otype']=='Ask':
+						cancelled_list_ask.append(o)
+
+		return bid_list,ask_list,cancelled_list_bid,cancelled_list_ask
+
+	def add_all(self,input_list):
+		#given an input list of events, parse and update records
+		bid_list,ask_list,cancelled_list_bid,cancelled_list_ask=self.filter_input(input_list)
+
+		data=[(self.bid_q,bid_list),
+				   (self.ask_q,ask_list),
+				   (self.cancelled_bid_q,cancelled_list_bid),
+				   (self.cancelled_ask_q,cancelled_list_ask),
+						 ]
+
+		for q,input_list in data: self.add_to_queue(q,input_list)
+
+	def subtract_all(self):
+		#forget the oldest data point
+
+		queue_count=[self.ask_q,
+					self.bid_q,
+					self.cancelled_ask_q,
+					self.cancelled_bid_q]
+
+		for q in queue_count:
+			self.subtract_from_queue(q)
+			
+
+	def subtract_from_queue(self,target_q):
+		old_counts=target_q.popleft()       
+		
+		
+	def add_to_queue(self,target_q,input_list):
+
+		if len(input_list)>0:
+			listy=[(o['price'],o['qty']) for o in input_list]
+			new_counts=Counter()
+			for p,q in listy:
+				new_counts[p]+=q #gotcha! the dict() method overwrites duplicates in the list
+		else: #because each position in queue represents a time period, even periods with no data have positions
+			new_counts=Counter()
+
+		target_q.append(new_counts)

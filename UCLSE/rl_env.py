@@ -6,7 +6,7 @@ from UCLSE.market_makers import TradeManager
 from UCLSE.test.utils import pretty_lob_print
 from UCLSE.rl_trader import RLTrader
 from UCLSE.messenger import Message
-from UCLSE.plotting_utilities import render, make_sparse_array
+from UCLSE.plotting_utilities import render, make_sparse_array, trunc_render
 
 import numpy as np
 
@@ -15,6 +15,8 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 
 from collections import OrderedDict
+
+from scipy.sparse import  csr_matrix
 
 class RLEnv(gym.Env):
 	metadata = {'render.modes': ['human']}
@@ -32,7 +34,7 @@ class RLEnv(gym.Env):
 			
 		self.assert_exchange()
 		self.ID=ID
-		self.time=self.sess.time
+		
 		self.time_limit=time_limit
 		self.period_count=0
 		self.lob_history=OrderedDict()
@@ -41,8 +43,9 @@ class RLEnv(gym.Env):
 		self.messenger=messenger #this is how we will communicate with other objects in environment
 		self.setup_actions() #establish what actions are available to the agent
 		
-		
-		
+	@property	
+	def time(self):
+		return self.sess.time
 	 
 	def __repr__(self):
 
@@ -69,13 +72,15 @@ class RLEnv(gym.Env):
 
 	@property
 	def best_bid(self):
-		time=next(reversed(self.lob_history))
+		#time=next(reversed(self.lob_history))
+		time=self.time
 		return self.best_side_hist(time,side='bids')   
 
 
 	@property
 	def best_ask(self):
-		time=next(reversed(self.lob_history))
+		#time=next(reversed(self.lob_history))
+		time=self.time
 		return self.best_side_hist(time,side='asks')
 
 	def best_side_hist(self,time,side='asks'):
@@ -127,7 +132,8 @@ class RLEnv(gym.Env):
 		#traders chosen is predetermined
 		sess.set_traders_pick()
 		
-		sess.lob=sess.exchange.publish_lob()
+		sess.lob=self.update_traders()
+		
 		sess.trade=None
 		
 		#self.ready_sess(sess,order_thresh)
@@ -152,10 +158,10 @@ class RLEnv(gym.Env):
 		order_dic=self.action_converter(action,auto_cancel)
 		#self.sess.update_traders() #now update traders
 		
-		self.sess.simulate_one_period(recording=False,updating=True) #try to only update traders once per period
+		self.sess.simulate_one_period() #try to only update traders once per period
 
 		self.period_count+=1
-		self.time=self.sess.time
+		#self.time=self.sess.time
 		done=self.stop_checker()
 		self.add_lob(self.sess.exchange.publish_lob())
 		observation=self.lob
@@ -239,17 +245,19 @@ class RLEnv(gym.Env):
 			return stop
 			
 			
-	def _parse_position(self,position_dic,dims=(10,200)):
+	def _parse_position(self,position_dic,dims=None,array=False):
 		#converts the personal position lob returned from exchange into
 		#the sparse spatial matrix form required    
 		position_dic_sp={}
 		convert_dic={'Bids':'trader_bids','Asks':'trader_asks'}
 		for side in ['Bids','Asks']:
-			position_dic_sp[convert_dic[side]]=make_sparse_array(position_dic[side],dims).toarray()
+			d=make_sparse_array(position_dic[side],dims)
+			if array: d=d.toarray()
+			position_dic_sp[convert_dic[side]]=d
 			
 		return position_dic_sp
 
-	def parse_position(lobenv,dims):
+	def parse_position(lobenv,dims=None,array=False):
 		#converts the personal position lob returned from exchange into
 		#the sparse spatial matrix form required
 		t_name=lobenv.trader.name
@@ -257,41 +265,70 @@ class RLEnv(gym.Env):
 		position_dic=lobenv._parse_position(position_dic,dims=dims)
 		return position_dic
 
-	def parse_inventory(lobenv,dims=(10,200)):
+	def parse_inventory(lobenv,dims=None,array=False):
 		#converts inventory into sparse spatial matrix form required
 		trader_inventory={'long_inventory':None,'short_inventory':None}
-		if lobenv.trader.trade_manager.inventory==0:input=None #check there is any inventory
+		if lobenv.trader.trade_manager.inventory==0:inp=None #check there is any inventory
 				
-		else: input=[(lobenv.trader.trade_manager.avg_cost,lobenv.trader.trade_manager.inventory)]
+		else: inp=[[f.price,1] for f in lobenv.trader.trade_manager.fifo]
 			
-		inventory=make_sparse_array(input,dims=dims)
-		inventory=inventory.toarray()
+		inventory=make_sparse_array(inp,dims=dims)
+		if array: inventory=inventory.toarray()
 		if lobenv.trader.trade_manager.direction=='Long':
 			trader_inventory['long_inventory']=inventory
 		else:
 			trader_inventory['short_inventory']=inventory
 		return trader_inventory
 
-	def parse_lob(lobenv,dims=(10,200)):
+	def parse_lob(lobenv,dims=None,array=False):
 		
-		bids=make_sparse_array(lobenv.lob['bids']['lob'],dims=dims).toarray()
-		asks=make_sparse_array(lobenv.lob['asks']['lob'],dims=dims).toarray()
+		bids=make_sparse_array(lobenv.lob['bids']['lob'],dims=dims)
+		asks=make_sparse_array(lobenv.lob['asks']['lob'],dims=dims)
+		
+		if array:
+			bids=bids.toarray()
+			asks=asks.toarray()
+		
 		return bids,asks
 
-	def spatial_render(lobenv,dims=(10,200),show=True):
+	def spatial_render(lobenv,dims=None,array=False,show=True,dim_min=None):
 		
 		#get lob spatial matrix
-		bids,asks=lobenv.parse_lob(dims=dims)
+		bids,asks=lobenv.parse_lob(dims=dims,array=array)
 		
 		#get inventory spatial matrix
-		trader_inventory=lobenv.parse_inventory(dims=dims)
+		trader_inventory=lobenv.parse_inventory(dims=dims,array=array)
 		
 		#get open orders spatial matrix
-		position_dic=lobenv.parse_position(dims=dims)
+		position_dic=lobenv.parse_position(dims=dims,array=array)
 		
-		#make pretty picture
-		if show: render(bids,asks,**position_dic,**trader_inventory)
-		return {'bids':bids,'asks':asks,**trader_inventory,**position_dic}
+		#construct output
+		out_dic={'bids':bids,'asks':asks,**trader_inventory,**position_dic}
+		
+		#standardize dimensions
+		lobenv.make_uniform(out_dic,dim_min=dim_min)
+		fig=None
+		if show:
+				#make pretty picture
+				temp_dic={k:d.toarray() for k,d in out_dic.items() if d is not None}
+				fig=render(**temp_dic)
+		return out_dic,fig
+		
+	@staticmethod
+	def get_largest_dims(position_dic):
+		#returns maximum dimensions tuple from a dictionary of arrays (with shape property)
+		return tuple(np.array([d.shape for k,d in position_dic.items() if d is not None]).max(axis=0))
+	
+	@staticmethod
+	def make_uniform(position_dic,dim_min=None):
+		#inplace function to make position_dic dimensions equal and equal to largest in either dim
+		dim=RLEnv.get_largest_dims(position_dic)
+		
+		if dim_min is not None:
+			dim=np.array([dim,dim_min]).max(axis=0)
+		
+		for _,p in position_dic.items():
+			if p is not None: p.resize(dim)
 	
 	@staticmethod
 	def format_for_render(positions_dic):
@@ -311,6 +348,37 @@ class RLEnv(gym.Env):
 			short_inventory[k]=dic['short_inventory']
 			
 		return lob_bids_arr,trader_bids,long_inventory,lob_asks_arr,trader_asks,short_inventory
+		
+	def trunc_state(lobenv,position_dic_array,best_ask,best_bid,window=10,max_quant=10):
+
+		#requires input to be in numpy array
+		position_dic_array={k:d.toarray()  if d is not None and type(d)==csr_matrix else d for k,d in position_dic_array.items()}
+
+		bid_slice=slice(best_ask-window,best_ask)
+		ask_slice=slice(best_bid+1,best_bid+window+1)
+		quant_slice=slice(max_quant)
+
+		trunc_pd={}
+
+		inventory='long_inventory'
+		if position_dic_array[inventory] is None: inventory='short_inventory'
+		trunc_pd['near_inventory']=position_dic_array[inventory][quant_slice,bid_slice]
+		trunc_pd['far_inventory']=np.flip(position_dic_array[inventory][quant_slice,ask_slice],1)
+
+		for k in ['bids','trader_bids']:
+			trunc_pd[k]=position_dic_array[k][quant_slice,bid_slice]
+			
+		for k in ['asks','trader_asks']:
+			trunc_pd[k]=np.flip(position_dic_array[k][quant_slice,ask_slice],1)
+			
+		trunc_pd['best_bid']=best_bid
+		trunc_pd['best_ask']=best_ask
+
+		return trunc_pd
+	
+	@staticmethod
+	def trunc_render(**kwargs):
+		return trunc_render(**kwargs)
 		
 class Action():
 	def __init__(self,otype=None,spread=0,qty=0,trader=None):

@@ -79,7 +79,6 @@ class Trader:
 				self.lastquote = {}     # record of what its last quote was
 				self.latency=latency    # integer=duration of periods between views of lob
 				self.total_quotes=0     # total number of quotes sent to exchange
-				self.inventory=0        # how many shares does a trader have on their own book
 				self.timer=timer		# the reference time source for the trader
 				if time is None:
 					self.birthtime = self.time   # used when calculating age of a trader/strategy
@@ -301,8 +300,10 @@ class Trader:
 			
 			if quantity_left<0:
 				lob=lob['asks']['lob']
+				cash_mult=-1
 			else:
-				lob=lob['bids']['lob']
+				lob=list(reversed(lob['bids']['lob']))
+				cash_mult=1
 				
 			quantity_left=abs(quantity_left)
 			
@@ -321,8 +322,10 @@ class Trader:
 		def calc_cost_to_liquidate3(self,lob,quantity_left):
 			if quantity_left<0:
 				lob=lob['asks']['lob']
+				cash_mult=-1
 			else:
-				lob=lob['bids']['lob']
+				lob=list(reversed(lob['bids']['lob']))
+				cash_mult=1
 				
 			quantity_left=abs(quantity_left)
 			
@@ -337,7 +340,9 @@ class Trader:
 				running_cost=sum(unit_lob[0:quantity_left])
 				quantity_left=0
 			
-			return running_cost,quantity_left
+			
+			
+			return cash_mult*running_cost,quantity_left
 			
 		def getOrderReplace(self, time=None, countdown=None, lob=None):
 			#method which gets order from trader and also directly informs exchange of order replacement.

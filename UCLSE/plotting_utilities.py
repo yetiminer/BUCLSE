@@ -370,54 +370,55 @@ def animate_lob(anim_sparse_lob_bid,anim_sparse_lob_ask,lbound=75,ubound=125,len
 		
 
 
-def render(anim_sparse_lob_bid,anim_sparse_lob_ask,lbound=75,ubound=125,trader_bids=None,
+def render(bids=None,asks=None,lbound=75,ubound=125,trader_bids=None,
 		   trader_asks=None,long_inventory=None,short_inventory=None):
-	#render LOB at single  point in time
-	slicer=np.arange(75,126)
-	fig, (ax,ax1) = plt.subplots(nrows=2, figsize=(12, 4),sharex=True, dpi=80, facecolor='w', edgecolor='k')
+    #render LOB at single  point in time
+    shape=bids.shape
+    slicer=np.arange(lbound,min(ubound,shape[1]))
+    fig, (ax,ax1) = plt.subplots(nrows=2, figsize=(12, 4),sharex=True, facecolor='w', edgecolor='k')
 
-	im=ax.imshow(~anim_sparse_lob_bid[:,slicer],interpolation='none',cmap=plt.get_cmap('hot'),origin='lower',label='Bids')
+    im=ax.imshow(~bids[:,slicer],interpolation='none',cmap=plt.get_cmap('hot'),origin='lower',vmin=0,vmax=1)
 
-	ax.set_xlim(0,len(slicer))
-	labels = ax.get_xticks()
-	ax.set_xticklabels(labels+lbound)
+    ax.set_xlim(0,len(slicer))
+    labels = ax.get_xticks()
+    ax.set_xticklabels(labels+lbound)
 
-	if trader_bids is not None:
-		trader_bids=np.ma.masked_where(trader_bids == 0, trader_bids)*0.7
-		ax.imshow(trader_bids[:,slicer],interpolation='none',origin='lower',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
+    if trader_bids is not None:
+        trader_bids=np.ma.masked_where(trader_bids == 0, trader_bids)*0.7
+        ax.imshow(trader_bids[:,slicer],interpolation='none',origin='lower',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
 
-	if long_inventory is not None:
-		long_inventory=np.ma.masked_where(long_inventory == 0, long_inventory)*0.3
-		ax.imshow(long_inventory[:,slicer],interpolation='none',origin='lower',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
-
-		
-	col_title_pair=zip([0.7,0.3,0],['Trader Bids','Trader long inventory','Bids'])    
-	patches = [ mpatches.Patch(color=im.cmap(im.norm(i)) , label=j) for i,j in col_title_pair]
-	ax.legend(handles=patches)
-	
-
-	#ax1=ax.twin()
-	im1=ax1.imshow(~anim_sparse_lob_ask[:,slicer],interpolation='nearest',origin='upper',cmap=plt.get_cmap('hot'))
-	ax.set_xlim(0,len(slicer))
-	if trader_asks is not None:
-		trader_asks=np.ma.masked_where(trader_asks == 0, trader_asks)*0.7
-		ax1.imshow(trader_asks[:,slicer],interpolation='none',origin='upper',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
-		
-	if short_inventory is not None:
-		short_inventory=np.ma.masked_where(short_inventory == 0, short_inventory)*0.3
-		ax1.imshow(short_inventory[:,slicer],interpolation='none',origin='lower',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
+    if long_inventory is not None:
+        long_inventory=np.ma.masked_where(long_inventory == 0, long_inventory)*0.3
+        ax.imshow(long_inventory[:,slicer],interpolation='none',origin='lower',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
 
 
-	labels = ax1.get_xticks()
-	ax1.set_xticklabels(labels+lbound)
+    col_title_pair=zip([0.7,0.3,0],['Trader Bids','Trader long inventory','Bids'])    
+    patches = [ mpatches.Patch(color=im.cmap(im.norm(i)) , label=j) for i,j in col_title_pair]
+    ax.legend(handles=patches)
 
-	col_title_pair=zip([0.7,0.3,0],['Trader Asks','Trader short inventory','Asks'])    
-	patches1 = [ mpatches.Patch(color=im1.cmap(im1.norm(i)) , label=j) for i,j in col_title_pair]
-	ax1.legend(handles=patches1,loc=4)
 
-	ax.set_title('LOB')
-	
-	plt.show()
+    #ax1=ax.twin()
+    im1=ax1.imshow(~asks[:,slicer],interpolation='nearest',origin='upper',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
+    ax.set_xlim(0,len(slicer))
+    if trader_asks is not None:
+        trader_asks=np.ma.masked_where(trader_asks == 0, trader_asks)*0.7
+        ax1.imshow(trader_asks[:,slicer],interpolation='none',origin='upper',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
+
+    if short_inventory is not None:
+        short_inventory=np.ma.masked_where(short_inventory == 0, short_inventory)*0.3
+        ax1.imshow(short_inventory[:,slicer],interpolation='none',origin='lower',cmap=plt.get_cmap('hot'),vmin=0,vmax=1)
+
+
+    labels = ax1.get_xticks()
+    ax1.set_xticklabels(labels+lbound)
+
+    col_title_pair=zip([0.7,0.3,0],['Trader Asks','Trader short inventory','Asks'])    
+    patches1 = [ mpatches.Patch(color=im1.cmap(im1.norm(i)) , label=j) for i,j in col_title_pair]
+    ax1.legend(handles=patches1,loc=4)
+
+    ax.set_title('LOB')
+
+    return fig
 	
 def animate_lob(anim_sparse_lob_bid,anim_sparse_lob_ask,lbound=75,ubound=125,length=100,trader_bids=None,
 		   trader_asks=None,long_inventory=None,short_inventory=None,path='lob_animation.mp4'):
@@ -442,7 +443,7 @@ def animate_lob(anim_sparse_lob_bid,anim_sparse_lob_ask,lbound=75,ubound=125,len
         
 
     # First set up the figure, the axis, and the plot element we want to animate
-    fig, (ax,ax1) = plt.subplots(nrows=2, figsize=(12, 4), dpi=80, facecolor='w', edgecolor='k')
+    fig, (ax,ax1) = plt.subplots(nrows=2, figsize=(12, 4), facecolor='w', edgecolor='k')
     im_bid=ax.imshow(~anim_sparse_lob_bid[key_list[0]][:,slicer],interpolation='nearest',vmin=0,vmax=1,
                   cmap=plt.get_cmap('hot'),origin='lower')
 
@@ -514,5 +515,171 @@ def animate_lob(anim_sparse_lob_bid,anim_sparse_lob_ask,lbound=75,ubound=125,len
     return HTML("""
         <video width="960" height="480" controls>
           <source src="lob_animation.mp4" type="video/mp4">
+        </video>
+        """)
+
+def array_mask_plot(array,colour_num,im=None,ax=None,origin='lower',alpha=1):
+	
+	if array is not None:      
+		masked_array=np.ma.masked_where(array == 0,array)*colour_num
+		if ax is not None:
+			im=ax.imshow(masked_array,interpolation='none',origin=origin,cmap=plt.get_cmap('hot'),vmin=0,vmax=1,alpha=alpha,
+			aspect='auto')
+		elif im is not None:
+			im=im.set_array(masked_array)
+
+	return im
+
+def array_mask_plot(array,colour_num,im=None,ax=None,origin='lower',alpha=1):
+	
+	if array is not None:      
+		masked_array=np.ma.masked_where(array == 0,array)*colour_num
+		if ax is not None:
+			im=ax.imshow(masked_array,interpolation='none',origin=origin,cmap=plt.get_cmap('hot'),
+                         vmin=0,vmax=1,alpha=alpha,aspect='auto')
+		elif im is not None:
+			im=im.set_array(masked_array)
+
+	return im
+
+def trunc_render(bids=None,asks=None,trader_bids=None,
+           trader_asks=None,near_inventory=None,far_inventory=None,best_ask=0,best_bid=0,show=False,tight_layout=True):
+    #render LOB at single  point in time
+    window=bids.shape[1]
+
+    fig, (ax,ax1) = plt.subplots(figsize=(8,4),nrows=2,sharex=False,dpi=96, facecolor='w', edgecolor='k')
+
+    im_bids=ax.imshow(~bids,interpolation='none',cmap=plt.get_cmap('hot'),origin='lower',label='Bids',aspect='auto')
+
+    #ax.set_xlim(0,ubound-lbound)
+
+
+    ax.set_xlim(0,window)
+    ax.xaxis.set_ticks(np.arange(0, window+1, 1))
+    labels = ax.get_xticks()
+    ax.set_xticklabels(list(reversed(best_ask-labels)))
+
+    im_trader_bids=array_mask_plot(trader_bids,0.7,ax=ax,origin='lower',alpha=1)
+
+    im_inventory_near=array_mask_plot(near_inventory,0.3,ax=ax,origin='lower',alpha=0.5)
+
+    col_title_pair=zip([0.7,0.3,0],['Trader Bids','Trader inventory','Bids'])    
+    patches = [ mpatches.Patch(color=im_bids.cmap(im_bids.norm(i)) , label=j) for i,j in col_title_pair]
+    
+    # Shrink current axis by 20%
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+    # Put a legend to the right of the current axis
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5),handles=patches)
+    
+    #ax.legend(handles=patches)
+
+    im_asks=ax1.imshow(~asks,interpolation='nearest',origin='upper',cmap=plt.get_cmap('hot'),aspect='auto')
+
+    im_trader_asks=array_mask_plot(trader_asks,0.7,ax=ax1,origin='upper')
+
+    im_inventory_far=array_mask_plot(far_inventory,0.3,ax=ax1,origin='upper',alpha=0.5)
+
+    ax1.set_xlim(0,window)
+    ax1.xaxis.set_ticks(np.arange(0, window+1, 1))
+    labels1 = ax1.get_xticks()
+    ax1.set_xticklabels(list(reversed(labels1+best_bid)))
+
+    col_title_pair=zip([0.7,0.3,0],['Trader Asks','Trader inventory','Asks'])    
+    patches1 = [ mpatches.Patch(color=im_asks.cmap(im_asks.norm(i)) , label=j) for i,j in col_title_pair]
+
+
+    # Shrink current axis by 20%
+    box = ax1.get_position()
+    ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+    # Put a legend to the right of the current axis
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5),handles=patches1)
+
+    #ax1.legend(handles=patches1,loc=4)
+
+    ax.set_title('LOB')
+
+    if show: plt.show()
+    return fig,im_bids,im_trader_bids,im_inventory_near,im_asks,im_trader_asks,im_inventory_far
+
+def trunc_animate(position_dic_dic,path='lob_animation_trunc.mp4',length=None):
+        
+    if length is None: length=len(position_dic_dic.keys())    
+    plt.rcParams['animation.ffmpeg_path']='C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe'
+
+    Writer = animation.writers._registered['ffmpeg']
+    writer = Writer(fps=24, metadata=dict(artist='Me'), bitrate=-1)
+
+    key_list=list(position_dic_dic.keys())
+    
+    
+
+    init_position=position_dic_dic[key_list[0]]
+    fig,im_bids,im_trader_bids,im_inventory_near,im_asks,im_trader_asks,im_inventory_far=trunc_render(**init_position)
+    
+    window=init_position['bids'].shape[1]
+    ax,ax1=fig.axes
+    
+    def update_axis(i):
+        time_key=key_list[i]
+        best_bid=position_dic_dic[time_key]['best_bid']
+        best_ask=position_dic_dic[time_key]['best_ask']
+
+        
+        ax.set_xlim(0,window)
+        ax.xaxis.set_ticks(np.arange(0, window+1, 1))
+        labels = ax.get_xticks()
+        ax.set_xticklabels(list(reversed(best_ask-labels)))
+        
+        ax1.set_xlim(0,window)
+        ax1.xaxis.set_ticks(np.arange(0, window+1, 1))
+        labels1 = ax1.get_xticks()
+        ax1.set_xticklabels(list(reversed(labels1+best_bid)))
+        
+
+    def animate(i):
+        time_key=key_list[i]
+        im_bids.set_array(~position_dic_dic[time_key]['bids'])
+        im_asks.set_array(~position_dic_dic[time_key]['asks'])
+
+        output=[im_bids,im_asks]
+
+        if im_trader_bids is not None:
+            array_mask_plot(position_dic_dic[time_key]['trader_bids'],0.7,origin='lower',im=im_trader_bids)
+            output.append(im_trader_bids)
+
+        if im_inventory_near is not None:
+            array_mask_plot(position_dic_dic[time_key]['near_inventory'],0.3,origin='lower',im=im_inventory_near)
+            output.append(im_inventory_near)
+
+        if im_trader_asks is not None:
+             array_mask_plot(position_dic_dic[time_key]['trader_asks'],0.7,origin='upper',im=im_trader_asks)
+             output.append(im_trader_asks)
+
+        if im_inventory_far is not None:
+            array_mask_plot(position_dic_dic[time_key]['far_inventory'],0.3,origin='upper',im=im_inventory_far)
+            output.append(im_inventory_far)
+        
+        update_axis(i)
+        
+
+        return output
+
+    # call the animator.  blit=True means only re-draw the parts that have changed.
+    anim = animation.FuncAnimation(fig, animate,
+                                   frames=range(1,length), interval=20, blit=True)
+
+    # save the animation as an mp4.  This requires ffmpeg or mencoder to be
+    # installed.  The extra_args ensure that the x264 codec is used, so that
+    # the video can be embedded in html5.  You may need to adjust this for
+    # your system: for more information, see
+    # http://matplotlib.sourceforge.net/api/animation_api.html
+    anim.save(path, writer=writer)
+
+    return HTML("""
+        <video width="960" height="480" controls>
+          <source src="lob_animation_trunc.mp4" type="video/mp4">
         </video>
         """)

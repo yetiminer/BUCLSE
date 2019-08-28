@@ -21,7 +21,7 @@ class RLTrader(Trader):
 
 		self.quote_count=1
 		self.cash=0
-		self.inventory=inventory
+		
 		self.direction=direction
 		self.avg_cost=avg_cost
 		self.cost_to_liquidate=0
@@ -38,7 +38,9 @@ class RLTrader(Trader):
 		self.initial_setup={'ttype':ttype,'tid':tid,'balance':balance,'quote_limit':n_quote_limit,'inventory':inventory,
 						   'direction':direction,'avg_cost':avg_cost,'trade_type':trade_type}
 						   
-		
+	@property
+	def inventory(self):
+		return self.trade_manager.inventory
 
 	def setup_initial_inventory(self,trade_type,inventory,price):
 		self.trade_manager.execute_with_total_pnl(trade_type,inventory,price=price,oid=self.make_oid())
@@ -62,7 +64,7 @@ class RLTrader(Trader):
 
 		oid=self.tid+'_'+str(self.time)+'_'+str(self.quote_count)
 		self.quote_count+=1
-		print('oid gen',oid)
+		
 		return oid
 
 	def bookkeep(self,fill):
@@ -70,7 +72,7 @@ class RLTrader(Trader):
 		profit=self.trade_manager.execute_with_total_pnl(trade['BS'],trade['exec_qty'],trade['exec_price'],trade['oid'])
 		trade['profit']=profit
 		self.balance=self.balance+profit
-		self.inventory=self.trade_manager.inventory
+
 		
 	def do_order(self,lob,otype='ask',spread=0,qty=1):
 		
@@ -84,19 +86,19 @@ class RLTrader(Trader):
 		
 		new_order=Order(self.tid,otype,price,qty,self.time,oid=self.make_oid())
 			
-		verbose=True
+		verbose=False
 		self.add_order(new_order,verbose,inform_exchange=True)
 
 			
 			
 		return new_order
 		
-	def spoof_policy2(self,lobenv,profit_target=0):
+	def spoof_policy2(self,lobenv,positions_dic,best_bid,best_ask,profit_target=0):
 		auto_cancel=False
 		action=(0,0,0)
-		max_lob_depth=max(get_dims(lobenv.lob['bids']['lob']),get_dims(lobenv.lob['asks']['lob']))
-		dims=(max(max_lob_depth+1,10),200)
-		positions_dic=lobenv.spatial_render(show=False,dims=dims)
+		#max_lob_depth=max(get_dims(lobenv.lob['bids']['lob']),get_dims(lobenv.lob['asks']['lob']))
+		#dims=(max(max_lob_depth+1,10),200)
+		#positions_dic=lobenv.spatial_render(show=False,dims=dims)
 
 		if self.inventory>0:
 
@@ -104,7 +106,6 @@ class RLTrader(Trader):
 
 			#check to see not the next order in line to be executed
 
-			best_bid=lobenv.lob['bids']['best']
 			
 			if lobenv.best_bid>lobenv.trader.trade_manager.avg_cost+profit_target:
 					action=(-1,-1,-1)
@@ -130,7 +131,7 @@ class RLTrader(Trader):
 		else:
 			action=(1,0,0) 
 		
-		return action,auto_cancel,positions_dic
+		return action,auto_cancel
  
 	def spoof_policy(self,lobenv,profit_target=0):
 		auto_cancel=False
@@ -170,3 +171,69 @@ class RLTrader(Trader):
 		
 		
 		return action,auto_cancel,positions_dic
+		
+	def spoof_policy3(self,lobenv,positions_dic,best_bid,best_ask,profit_target=0,mean=100):
+		auto_cancel=False
+		action=(0,0,0)
+		#max_lob_depth=max(get_dims(lobenv.lob['bids']['lob']),get_dims(lobenv.lob['asks']['lob']))
+		#dims=(max(max_lob_depth+1,10),200)
+		#positions_dic=lobenv.spatial_render(show=False,dims=dims)
+
+		if self.inventory>0 and best_bid is not None:
+
+			#because traders can cancel and place orders in same period, need to be 'safe distance' behind best bid
+
+			#check to see not the next order in line to be executed
+
+			
+			if lobenv.best_bid>self.trade_manager.avg_cost+profit_target:
+					action=(-1,-1,-1)
+					auto_cancel=True #hit the bid, cancel everything else
+			
+			#if best bid q>=2 and not already positioned in first two positions
+			elif positions_dic['bids'][0:2,best_bid].all() and not positions_dic['trader_bids'][0:2,best_bid].any():
+				#add to best bid
+					action=(1,1,0)
+			else:
+					auto_cancel=True
+					total=0
+					spread=0
+					while total<2 and spread<5: 
+						own_position=positions_dic['trader_bids'][:,best_bid-spread].sum()
+						total=total+positions_dic['bids'][:,best_bid-spread].sum()-own_position
+						spread=spread+1
+					#do trade at spread
+					action=(1,1,spread)
+					
+					
+		elif self.inventory==0 and best_ask is not None:
+			if  best_ask<mean-profit_target and (lobenv.bid_change>0 or  lobenv.ask_change>0):
+				action=(1,1,-1) #hit the best ask
+				
+		else:
+		
+			action=(0,0,0) #wait for a better entry point
+		
+		return action,auto_cancel
+		
+	def non_spoof_policy(self,lobenv,positions_dic,best_bid,best_ask,profit_target=0,mean=100):
+		auto_cancel=False
+		action=(0,0,0)
+
+		if self.inventory>0 and best_bid is not None:
+			
+			if lobenv.best_bid>self.trade_manager.avg_cost+profit_target:
+					action=(-1,-1,-1)
+					auto_cancel=True #hit the bid, cancel everything else
+					print(f'inventory {self.inventory}')
+
+		elif self.inventory==0 and best_ask is not None:
+			if best_ask<mean-profit_target and (lobenv.bid_change>0 or  lobenv.ask_change>0):
+				action=(1,1,-1) #hit the best ask
+				
+		else:
+		
+			action=(0,0,0) #wait for a better entry point
+		
+		return action,auto_cancel
+	

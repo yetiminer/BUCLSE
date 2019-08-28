@@ -4,25 +4,30 @@ Message=namedtuple('Message',['too','fromm','subject','time','order'])
 DirectoryEntry=namedtuple('DirectoryEntry',['name','type','object'])
 
 class Messenger():
-	def __init__(self,logging=False,dumping=False):
+	def __init__(self,logging=False,dumping=False,asserting=True):
 		self.directory={}
 		self.logging=logging
 		self.log={}
 		self.open_type='w'
 		self.dumping=dumping
+		self.asserting=asserting
 
 	def subscribe(self,name=None,tipe=None,obj=None):
-		assert name not in self.directory
+		if self.asserting: assert name not in self.directory
 		
 		self.directory[name]=DirectoryEntry(name,tipe,obj)   
 
 
 	def send(self,message):
-		if isinstance(message,Message):
-			self._send(message)
-		elif isinstance(message,list):
-			for m in message:
+		try:
+			if isinstance(message,Message):
 				self._send(message)
+			elif isinstance(message,list):
+				for m in message:
+					self._send(message)
+		except:
+			print(message)
+			raise
 
 	def _send(self,message):
 		assert isinstance(message,Message)
