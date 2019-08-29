@@ -346,13 +346,13 @@ class HBL(WW_Zip):
 	#oid=-1
 	#fso=None
 	
-	@classmethod #gotcha! I need a different numbering system for a child class since it won't use the 
-					#class variable of its parent, but a parallel one of its own - leading to non-unique OIDs
-					#and certain disaster.
-					
-	def get_oid(cls):
-		cls.oid=cls.oid-1
-		return cls.oid
+
+	def get_oid(self):
+
+		oid=self.tid+'_'+str(self.time)+'_'+str(self.oid)
+		self.oid+=1
+		
+		return oid
 		
 	@classmethod
 	def set_fso(cls,grace_period=20,memory=6000):
@@ -475,14 +475,6 @@ class NoiseTrader(WW_Zip):
 		cls.oid=-1
 		cls.set_fso()
 
-
-
-	def make_oid(self):
-
-		oid=self.tid+'_'+str(self.time)+'_'+str(self.oid)
-		self.oid+=1
-		
-		return oid
 
 	@classmethod
 	def set_fso(cls,memory=6000):
@@ -892,12 +884,15 @@ class PriceSequenceStep(PriceSequence):
 class GaussNoise():
 	def __init__(self,sigma):
 		self.sigma=sigma
+		self.made=False
 		
 	def __repr__(self):
 		return f'Gaussian noise with zero mean and sigma={self.sigma}'
 		
 	def make(self,dims):
-		return np.random.normal(0,self.sigma,dims)
+		self.sequence=np.random.normal(0,self.sigma,dims)
+		self.made=True
+		return self.sequence
 
 
 class Environment():
@@ -993,8 +988,12 @@ class Environment():
 			self.noise_obj=GaussNoise(sigma_n)
 			print(f' Using {self.noise_obj}')
 		
-		dims=(self.price_sequence.size,self.max_traders_period)
-		randos=self.noise_obj.make(dims)
+		if not(self.noise_obj.made):
+			dims=(self.price_sequence.size,self.max_traders_period)
+			randos=self.noise_obj.make(dims)
+			print('Making noise obj sequence')
+		else:
+			randos=self.noise_obj.sequence
 		
 		prices=np.expand_dims(self.price_sequence,1)
 		self.noise=randos+prices

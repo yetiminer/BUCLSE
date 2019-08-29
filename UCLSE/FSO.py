@@ -56,7 +56,7 @@ class FSO():
 
 			side=self.side_dic[otype]
 
-			if order['type']=='New Order':
+			if order['type'] in ['New Order', 'Ammend']: #for ammendments this will break if the fill appears on the tape before the ammendment
 
 					if price not in side: side[price]={}
 					side[price][qid]=(time,qty)
@@ -65,8 +65,18 @@ class FSO():
 				#the order is no longer active so delete from dictionary order_time_bid/ask
 					#if order['type']=='Fill': price=order['lob_price'] #gotcha! multiple trades can be submitted in this formulation, meaning asks can go in below bids - price improvement
 					#since this dictionary is indexed by submission price, this will result in key error. Fill record should include record of submitted price as well as exec price.
+					try:
+						assert price in side
+					except AssertionError:
+						print(order)
+						raise KeyError
+						
+					#new_qty=side[price][qid][1]-order['qty']
+					#if new_qty==0:
 					side[price].pop(qid)
 					if len(side[price])==0: side.pop(price)
+					#else:
+					#	side[price][qid]=(side[price][qid][0],new_qty)
 				
 
 

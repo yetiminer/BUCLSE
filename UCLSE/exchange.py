@@ -121,25 +121,15 @@ class Orderbook_half:
 					if price in self.lob:
 							# update existing entry
 
-							#qty = self.lob[price].qty
-							
-							#orderlist=self.lob[price].orders
 							orderlist=self.lob[price].append(order)
-
-							#orderlist.append(order)
-
-							#self.lob[price]=OrderList(orders=orderlist)
-							
 							
 					else:
 
-							#self.lob[price]=OrderList(orders=deque([order]))
 							self.lob[price]=OrderList([order])
 			
 			try:	
 				for k,val in self.lob.items():
-					#val=val._replace(orders=sorted(val.orders,key=lambda x:x.time))
-					#val=val._replace(orders=sorted(val,key=lambda x:x.time))
+
 					val=sorted(val,key=lambda x:x.time)
 					
 			except AttributeError:
