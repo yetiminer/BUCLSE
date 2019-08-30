@@ -109,6 +109,7 @@ class Orderbook_half:
 
 	def build_lob(self):
 			lob_verbose = False
+			#DEPRECATED from MAIN PROCESS
 			# take a list of orders and build a limit-order-book (lob) from it
 			# NB the exchange needs to know arrival times and trader-id associated with each order
 			# returns lob as a dictionary (i.e., unsorted)
@@ -142,6 +143,30 @@ class Orderbook_half:
 
 
 			if lob_verbose : print(self.lob)
+			
+	def rebuild_order_list(self,order,price=None):
+		#when an order has been deleted, need to redefine orderlist
+		price=order.price
+		qid=order.qid
+		orderlist=self.lob[price]
+		orderlist=OrderList(filter(lambda x: x.qid!=qid,orderlist)) #assuming filter maintains order?
+		if len(orderlist)==0:
+			self.lob.pop(price)
+		else:
+			self.lob[price]=orderlist
+			
+	def add_build(self,order):
+		#if we're adding orders chronologically, this should be same as above
+		price = order.price
+		if price in self.lob:
+							# update existing entry
+
+			orderlist=self.lob[price].append(order)
+				
+		else:
+
+			self.lob[price]=OrderList([order])
+
 
 	def add_trader_lookup(self,order):
 		#a facility for the exchange to help reveal where a trader's trades are in the book
@@ -156,17 +181,19 @@ class Orderbook_half:
 			# checks whether length or order list has changed, to distinguish addition/overwrite
 			n_orders = self.n_orders
 			
-			
+			#assert order.oid not in self.orders
 			if order.oid in self.orders:
 						#I want to explicitly show that previous orders are overwritten
-						self.book_del(self.orders[order.oid],rebuild=False)
+						self.book_del(self.orders[order.oid],rebuild=True)
 
 			self.orders[order.oid] = order
 			self.q_orders[order.qid]=order
 			self.add_trader_lookup(order)
 
 
-			self.build_lob()
+			self.add_build(order)
+			
+			
 			assert len(self.orders)==len(self.q_orders)
 
 			if n_orders != self.n_orders :
@@ -187,13 +214,14 @@ class Orderbook_half:
 			self.q_orders[order.qid]=order
 			self.add_trader_lookup(order)
 
-			#self.lob[order.price].orders.popleft()
+			
+			#this assumes ammendments happen at the first position.
 			self.lob[order.price].popleft()
 			
-			#self.lob[order.price].orders.appendleft(order)
+			
 			self.lob[order.price].appendleft(order)
 
-			self.build_lob() #not sure if necessary, but needed to ensure anon lob is correct
+
 			assert len(self.orders)==len(self.q_orders)
 		
 		
@@ -203,21 +231,23 @@ class Orderbook_half:
 	def book_del(self, order, rebuild=True):
 			# delete order from the dictionary holding the orders
 			# assumes max of one order per oid per list
-			# checks that the Trade OID does actually exist in the dict before deletion
-			if self.orders.get(order.oid) != None :
-					del(self.orders[order.oid])
-					del(self.q_orders[order.qid])
-					del(self.t_orders[order.tid][order.qid])
+			
+			
+			del(self.orders[order.oid])
+			del(self.q_orders[order.qid])
+			del(self.t_orders[order.tid][order.qid])
 
 			if rebuild:
-				self.build_lob()
+				self.rebuild_order_list(order)
+
 
 
 
 	def delete_best(self):
 			# delete order: when the best bid/ask has been hit, delete it from the book
 			# the TraderID of the deleted order is return-value, as counterparty to the trade
-			best_price_orders = self.lob[self.best_price]
+			old_best=self.best_price
+			best_price_orders = self.lob[old_best]
 			best_price_qty = best_price_orders.qty
 			
 			#best_price_counterparty = best_price_orders.orders[0].tid
@@ -230,7 +260,7 @@ class Orderbook_half:
 			
 			if best_price_qty == 1:
 					# here the order deletes the best price
-					del(self.lob[self.best_price])
+					del(self.lob[old_best])
 					del(self.orders[best_price_oid])
 					del(self.q_orders[best_price_counterparty_qid])
 					del(self.t_orders[best_price_counterparty][best_price_counterparty_qid])
@@ -240,8 +270,10 @@ class Orderbook_half:
 					#best_price_orders.orders.popleft()
 					best_price_orders.popleft()
 
-					#self.lob[self.best_price]=OrderList(orders=best_price_orders.orders)
-					self.lob[self.best_price]=OrderList(best_price_orders)
+					if len(best_price_orders)>0:
+						self.lob[self.best_price]=OrderList(best_price_orders)
+					else:
+						self.lob.pop(old_best)
 
 					# update the bid list: counterparty's bid has been deleted
 					del(self.orders[best_price_oid])
@@ -249,7 +281,8 @@ class Orderbook_half:
 					del(self.t_orders[best_price_counterparty][best_price_counterparty_qid])
 					
 					
-			self.build_lob()
+			#self.build_lob()
+			#self.anonymize_lob()
 			return best_price_counterparty
 
 	@property
@@ -364,6 +397,10 @@ class Exchange(Orderbook):
 			else:
 				ans=df.to_string()
 			return ans
+			
+		def update_anon_lob(self):
+			self.bids.anonymize_lob()
+			self.asks.anonymize_lob()
 		
 		
 		
@@ -533,6 +570,7 @@ class Exchange(Orderbook):
 				# NB at this point we have deleted the order from the exchange's records
 				# but the two traders concerned still have to be notified
 				if verbose: print('counterparty %s' % counterparty)
+				self.update_anon_lob()
 				if counterparty != None:
 						# process the trade
 						if verbose: print('>>>>>>>>>>>>>>>>>TRADE t=%5.2f $%d %s %s' % (time, price, counterparty, order.tid))
@@ -546,6 +584,7 @@ class Exchange(Orderbook):
 											   'p2_qid':qid
 											  }
 						self.tape.append(transaction_record)
+						
 						return qid,[transaction_record],[AmmendedOrderRecord(None,None,None)] #note as a one length array to make forward compatible with multi leg trades
 				else:
 						return qid, None, None
@@ -561,6 +600,7 @@ class Exchange(Orderbook):
 						print('QUID: order.quid=%d' % order.qid)
 						print('RESPONSE: %s' % response)
 			tr,ammended_orders=self._process_order(time=time,order=order,verbose=verbose)
+			self.update_anon_lob()
 			return qid,tr,ammended_orders
 		
 		def _process_order(self,time=None,order=None,verbose=False):
