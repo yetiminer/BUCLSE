@@ -24,7 +24,7 @@
 import random, sys
 random.seed(22)
 
-from UCLSE.exchange import Exchange
+from UCLSE.exchange2 import Exchange
 from UCLSE.traders import (Trader_Giveaway, Trader_ZIC, Trader_Shaver,
                            Trader_Sniper, Trader_ZIP)
 from UCLSE.market_makers import  MarketMakerSpread
@@ -129,6 +129,9 @@ class Market_session:
 			else:
 				self.exchange=exchange
 				self.exchange.timer=self.timer
+				
+			#for testing how changes in process_order effect things
+			self.process_order=self.exchange.process_order
 			
 			#populate exchange with traders
 			traders={}
@@ -150,12 +153,12 @@ class Market_session:
 			self.first_open=True
 			
 			
-			#testing how changes in process_order effect things
-			self.process_order=self.exchange.process_order
+
 			
 			#specify the quantity function for new orders
 			if quantity_f is not None:
 				self.quantity_f=quantity_f
+				print('setting custom quantity function', quantity_f)
 			else:
 				self.quantity_f=SupplyDemand.do_one
 			
@@ -315,6 +318,15 @@ class Market_session:
 			
 		return n_buyers,n_sellers
 			
+	def set_exchange(exchange):
+		#for side by testing different exchanges
+		self.exchange=exchange
+		for _,p in self.participants:
+			p.exchange=exchange
+			
+		self.process_order=self.exchange.process_order
+			
+		
 	
 	def add_market_makers(self,verbose=False):
 			
@@ -479,7 +491,8 @@ class Market_session:
 
 			# get a limit-order quote (or None) from a randomly chosen trader
 			order_dic,tid=self._pick_trader_and_get_order(replay,replay_vars)
-			
+			self.order_dic=order_dic
+			self.tid=tid
 
 			
 			if verbose and len(order_dic)>0:
@@ -614,8 +627,8 @@ class Market_session:
 				return trade
 
 	def _traders_respond(self,trade):
-		lob = self.exchange.publish_lob(self.time, self.lob_verbose)
-		tape=self.exchange.publish_tape(length=5)
+		self.lob = self.exchange.publish_lob(self.time, self.lob_verbose)
+		self.tape=self.exchange.publish_tape(length=5)
 		for t in self.participants:
 				# NB respond just updates trader's internal variables
 				# doesn't alter the LOB, so processing each trader in
@@ -625,8 +638,8 @@ class Market_session:
 					last_trade_leg=trade[-1] #henry: we only see the state of the lob after a multileg trade is executed. 
 				else: last_trade_leg=None
 				
-				self.participants[t].respond(self.time, lob, last_trade_leg, verbose=self.respond_verbose,tape=tape)
-		return lob
+				self.participants[t].respond(self.time, self.lob, last_trade_leg, verbose=self.respond_verbose,tape=self.tape)
+		return self.lob
 		
 	def _record_period(self,lob=None,tid=None,order_dic=None,trade=None):
 		
@@ -715,7 +728,7 @@ def yamlLoad(path):
 	
 	with open(path, 'r') as stream:
 		try:
-			cfg=yaml.load(stream)
+			cfg=yaml.safe_load(stream)
 		except yaml.YAMLError as exc:
 			print(exc)
 	return cfg
