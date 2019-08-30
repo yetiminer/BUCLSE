@@ -28,7 +28,15 @@ class SupplyDemand():
 		self.set_buyers_sellers() #set the buyers and sellers
 		self.set_buyer_seller_tuples()
 		
-		self.quantity_f=quantity_f if quantity_f is not None else self.do_one
+		
+
+		
+		if quantity_f is None:
+			quantity_f=self.do_one
+		else:
+			self.quantity_f=quantity_f
+			
+		
 		
 		self.oid=-1
 		self.pending_orders=[]
@@ -54,8 +62,8 @@ class SupplyDemand():
 		return self.timer.get_time	
 	
 	
-	@classmethod
-	def do_one(cls):
+	@staticmethod
+	def do_one():
 		return 1
 	
 	@staticmethod
