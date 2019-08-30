@@ -1083,7 +1083,7 @@ class Trader_ZIP(Trader):
 							print(tape,cls.prev_best_bid_p)
 							raise
 							
-						if last_tape_item['type'] == 'Trade' :
+						if last_tape_item['type'] == 'Trade' and last_tape_item['tape_time']==time:
 								bid_hit = True
 						else:
 								bid_hit = False
@@ -1115,7 +1115,7 @@ class Trader_ZIP(Trader):
 							print(tape,cls.prev_best_bid_p)
 							raise
 						
-						if last_tape_item['type'] == 'Trade' :
+						if last_tape_item['type'] == 'Trade' and last_tape_item['tape_time']==time:
 								ask_lifted = True
 						else:
 								ask_lifted = False
@@ -1128,7 +1128,7 @@ class Trader_ZIP(Trader):
 				deal = bid_hit or ask_lifted
 				
 				#store the response variable on the class
-				cls.respond_record[time]={'deal':deal,'bid_improved':bid_improved,'bid_hit':bid_hit,'ask_improved':ask_improved,'ask_lifted':ask_lifted}
+				cls.respond_record[time]={'deal':deal,'bid_improved':bid_improved,'bid_hit':bid_hit,'ask_improved':ask_improved,'ask_lifted':ask_lifted,'prev_best_ask_q':cls.prev_best_ask_p,'prev_best_bid_q':cls.prev_best_bid_p}
 				
 				#store the best LOB data ready for next response on the class
 				cls.prev_best_bid_p = lob_best_bid_p
