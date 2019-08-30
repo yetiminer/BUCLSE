@@ -1,5 +1,5 @@
 from UCLSE.environment import Market_session, yamlLoad
-from UCLSE.exchange import Order, Exchange
+from UCLSE.exchange2 import Order, Exchange
 import yaml
 import pandas as pd
 
@@ -125,7 +125,7 @@ def yamlLoad(path):
 	
 	with open(path, 'r') as stream:
 		try:
-			cfg=yaml.load(stream)
+			cfg=yaml.safe_load(stream)
 		except yaml.YAMLError as exc:
 			print(exc)
 	return cfg		
@@ -221,3 +221,10 @@ def pretty_lob_print(exchange,df=None,verbose=False):
 	pdf=df.groupby(['price','time','qid','qty','otype']).first().unstack()
 	if verbose: print(pdf)
 	return pdf
+
+def reset_trader_class_variables(sess1):
+	for _,t in sess1.traders.items():
+		try:
+		   t.reset_class_variables()
+		except AttributeError:
+			pass

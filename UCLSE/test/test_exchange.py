@@ -63,30 +63,30 @@ def recover_old_order_list(exchange,side='bids'):
 	
 	return dic
 			
-def test_different_process_order_function():
-	pa=os.getcwd()
-	config_name='UCLSE\\test\\fixtures\\mkt_cfg.yml'
-	config_path=os.path.join(pa,config_name)
+# def test_different_process_order_function():
+	# pa=os.getcwd()
+	# config_name='UCLSE\\test\\fixtures\\mkt_cfg.yml'
+	# config_path=os.path.join(pa,config_name)
 	
-	environ_dic=yamlLoad(config_path)
-	environ_dic['end_time']=20
+	# environ_dic=yamlLoad(config_path)
+	# environ_dic['end_time']=20
 	
-	sess=Market_session(**environ_dic)
-	sess1=copy.deepcopy(sess)
+	# sess=Market_session(**environ_dic)
+	# sess1=copy.deepcopy(sess)
 	
-	sess.process_order=sess.exchange.process_order_old
-	side_by_side_period_by_period_difference_checker(sess,sess1)
+	# sess.process_order=sess.exchange.process_order_old
+	# side_by_side_period_by_period_difference_checker(sess,sess1)
 	
-	assert identical_replay_vars(sess,sess1)=={}
-	assert (sess1.df.fillna(0)==sess.df.fillna(0)).all().all()
+	# assert identical_replay_vars(sess,sess1)=={}
+	# assert (sess1.df.fillna(0)==sess.df.fillna(0)).all().all()
 	
 	
-	sess=Market_session(**environ_dic)
-	sess1=copy.deepcopy(sess)
+	# sess=Market_session(**environ_dic)
+	# sess1=copy.deepcopy(sess)
 	
-	sess1.process_order=sess1.exchange.process_order_old
+	# sess1.process_order=sess1.exchange.process_order_old
 	
-	side_by_side_period_by_period_difference_checker(sess,sess1)
+	# side_by_side_period_by_period_difference_checker(sess,sess1)
 	
-	assert identical_replay_vars(sess,sess1)=={}
-	assert (sess1.df.fillna(0)==sess.df.fillna(0)).all().all()
+	# assert identical_replay_vars(sess,sess1)=={}
+	# assert (sess1.df.fillna(0)==sess.df.fillna(0)).all().all()

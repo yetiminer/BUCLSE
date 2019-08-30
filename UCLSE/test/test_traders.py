@@ -2,7 +2,7 @@ from UCLSE.traders import Trader
 from UCLSE.test.utils import (yamlLoad,
                               order_from_dic,build_df_from_dic_dic,build_lob_from_df)
 
-from UCLSE.exchange import Exchange
+from UCLSE.exchange2 import Exchange
 import pandas as pd
 import os
 from UCLSE.custom_timer import CustomTimer
@@ -26,13 +26,13 @@ def test_bookkeep():
 
 		new_order=order_from_dic(fixture_dic['new_trade'])
 		
-		new_order=new_order._replace(oid=1)
+		#new_order=new_order._replace(oid=1)
 
 		qid,_=exchange.add_order(new_order,verbose=False)
 
 		henry.add_order(new_order, True)
 		henry.add_order_exchange(new_order,qid)
-		order_at_exchange=henry.orders_dic[1]['submitted_quotes'][0]
+		order_at_exchange=henry.orders_dic[new_order.oid]['submitted_quotes'][0]
 
 		#pretty_lob_print(exchange)
 
