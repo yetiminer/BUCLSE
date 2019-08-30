@@ -2,7 +2,7 @@ from UCLSE.traders import Trader
 from UCLSE.test.utils import (yamlLoad,
                               order_from_dic,build_df_from_dic_dic,build_lob_from_df)
 
-from UCLSE.exchange2 import Exchange
+from UCLSE.exchange import Exchange
 import pandas as pd
 import os
 from UCLSE.custom_timer import CustomTimer

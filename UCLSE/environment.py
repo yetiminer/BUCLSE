@@ -24,7 +24,7 @@
 import random, sys
 random.seed(22)
 
-from UCLSE.exchange2 import Exchange
+from UCLSE.exchange import Exchange
 from UCLSE.traders import (Trader_Giveaway, Trader_ZIC, Trader_Shaver,
                            Trader_Sniper, Trader_ZIP)
 from UCLSE.market_makers import  MarketMakerSpread
