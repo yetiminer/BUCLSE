@@ -50,6 +50,22 @@ import numpy as np
 buy_sell_bid_ask_dic={'Bid':'Buy','Ask':'Sell'}
 
 
+class LimitedSizeDict(OrderedDict):
+    def __init__(self, *args, **kwds):
+        self.size_limit = kwds.pop("size_limit", None)
+        OrderedDict.__init__(self, *args, **kwds)
+        self._check_size_limit()
+
+    def __setitem__(self, key, value):
+        OrderedDict.__setitem__(self, key, value)
+        self._check_size_limit()
+
+    def _check_size_limit(self):
+        if self.size_limit is not None:
+            while len(self) > self.size_limit:
+                self.popitem(last=False)
+
+
 class Blotter(list):
 	def __repr__(self):
 		return pd.DataFrame(self).to_string()
@@ -808,7 +824,8 @@ class Trader_ZIP_old(Trader):
 class Trader_ZIP(Trader):
 		
 		#these are class variables available to all members of the class. 
-		respond_record={}
+		size_limit=10
+		respond_record=LimitedSizeDict(size_limit=size_limit)
 		prev_best_bid_p = None
 		prev_best_bid_q = None
 		prev_best_ask_p = None
@@ -1027,7 +1044,7 @@ class Trader_ZIP(Trader):
 
 		@classmethod
 		def reset_class_variables(cls):
-			cls.respond_record={}
+			cls.respond_record=respond_record=LimitedSizeDict(size_limit=cls.size_limit)
 			cls.prev_best_bid_p = None
 			cls.prev_best_bid_q = None
 			cls.prev_best_ask_p = None
@@ -1083,7 +1100,7 @@ class Trader_ZIP(Trader):
 						# non-empty ask LOB
 						lob_best_ask_q = lob['asks']['lob'][0][1]
 						#if cls.prev_best_ask_p > lob_best_ask_p : #python3 port
-						if cls.prev_best_ask_p is not None and cls.prev_best_ask_p > lob_best_ask_p :
+						if cls.prev_best_ask_p is None or cls.prev_best_ask_p > lob_best_ask_p :
 								# best ask has improved -- NB doesn't check if the improvement was by self
 								ask_improved = True
 						elif trade != None and ((cls.prev_best_ask_p < lob_best_ask_p) or ((cls.prev_best_ask_p == lob_best_ask_p) and (cls.prev_best_ask_q > lob_best_ask_q))):
@@ -1091,7 +1108,13 @@ class Trader_ZIP(Trader):
 								ask_lifted = True
 				elif cls.prev_best_ask_p != None:
 						# the ask LOB is empty now but was not previously: canceled or lifted?
-						last_tape_item = tape[-1]
+						
+						try:
+							last_tape_item = tape[-1]
+						except IndexError:
+							print(tape,cls.prev_best_bid_p)
+							raise
+						
 						if last_tape_item['type'] == 'Trade' :
 								ask_lifted = True
 						else:
