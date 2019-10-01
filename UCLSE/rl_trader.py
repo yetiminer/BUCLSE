@@ -12,7 +12,7 @@ buy_sell_dic={'Long':'Buy','Short':'Sell'}
 
 class RLTrader(Trader):
     
-	def __init__(self, ttype=None, tid=None, balance=None,n_quote_limit=100,inventory=1,direction='Long',avg_cost=0,timer=None,exchange=None,
+	def __init__(self, ttype=None, tid=None, balance=0,n_quote_limit=100,direction='Long',timer=None,exchange=None,
 			messenger=None): 
 
 
@@ -20,10 +20,8 @@ class RLTrader(Trader):
 		super().__init__(ttype=ttype,tid=tid,n_quote_limit=n_quote_limit,timer=timer,messenger=messenger)
 
 		self.quote_count=1
-		self.cash=0
-		
 		self.direction=direction
-		self.avg_cost=avg_cost
+		
 		self.cost_to_liquidate=0
 		self.trade_manager=TradeManager()
 		self.timer=timer
@@ -31,32 +29,36 @@ class RLTrader(Trader):
 		self.exchange=self.set_exchange(exchange)
 
 		assert direction in ['Long','Short']
-		if direction=='Long': assert inventory>=0
-		if direction=='Short':assert inventory<=0
+		#if direction=='Long': assert inventory>=0
+		#if direction=='Short':assert inventory<=0
 
-		trade_type=buy_sell_dic[direction]
-		self.initial_setup={'ttype':ttype,'tid':tid,'balance':balance,'quote_limit':n_quote_limit,'inventory':inventory,
-						   'direction':direction,'avg_cost':avg_cost,'trade_type':trade_type}
+		#trade_type=buy_sell_dic[direction]
+		self.initial_setup={'ttype':ttype,'tid':tid,'quote_limit':n_quote_limit,
+						   'direction':direction}
 						   
 	@property
 	def inventory(self):
 		return self.trade_manager.inventory
-
-	def setup_initial_inventory(self,trade_type,inventory,price):
-		self.trade_manager.execute_with_total_pnl(trade_type,inventory,price=price,oid=self.make_oid())
-		self.balance=self.trade_manager.cash
+		
+	@property
+	def cash(self):
+		return self.trade_manager.cash
+		
+	@property
+	def avg_cost(self):
+		return self.trade_manager.avg_cost
+		
 		
 	def set_exchange(self,exchange):
 		print('adding exchange to RL trader ', self.tid)
 		self.exchange=exchange
     
 	def reset(self):
-		self.cash=0
+		
 		self.direction=self.initial_setup['direction']
-		self.avg_cost=self.initial_setup['avg_cost']
 		self.trade_manager=TradeManager()
-		self.inventory=self.initial_setup['inventory']
-		trade_type=self.initial_setup['trade_type']
+		
+		#trade_type=self.initial_setup['trade_type']
 		#self.trade_manager.execute_with_total_pnl(trade_type,self.inventory,price=self.avg_cost,oid=1)
 
 

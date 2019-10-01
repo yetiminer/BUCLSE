@@ -388,7 +388,14 @@ class Exchange(Orderbook):
 			self.name=name
 			
 			self.record=record
+			self.lob_call=deque([(0,0)])
+			self._tape_index=0
 		
+		@property
+		def tape_index(self):
+			ans=self._tape_index
+			self._tape_index+=1
+			return ans
 
 		def __repr__(self):
 			df=self.lob_to_df()
@@ -401,6 +408,23 @@ class Exchange(Orderbook):
 		def update_anon_lob(self):
 			self.bids.anonymize_lob()
 			self.asks.anonymize_lob()
+			
+			#update the version info on a period's lob
+			self.create_lob_version()
+			
+			
+		def create_lob_version(self):
+			#records when a different lob is produced within a time period.
+			if len(self.lob_call)==0:
+				self.lob_call.append((self.time,0))
+			else:
+				t,version=self.lob_call.popleft()
+				
+				next_version=0
+				if t==self.time: next_version=version+1
+				
+				self.lob_call.append((self.time,next_version))
+				assert len(self.lob_call)==1
 		
 		
 		
@@ -755,6 +779,7 @@ class Exchange(Orderbook):
 				if verbose: print('>>>>>>>>>>>>>>>>>TRADE t=%5.2f $%d %s %s' % (time, price, p1_tid, p2_tid))
 				transaction_record = { 'type': 'Trade',
 									   'tape_time': time,
+									   'tidx': self.tape_index,
 									   'price': price,
 									   'party1':p1_tid,
 									   'party2':p2_tid,
@@ -820,7 +845,9 @@ class Exchange(Orderbook):
 		def publish_lob(self, time=None, verbose=False):
 				time=self.time
 				public_data = {}
+				
 				public_data['time'] = time
+				public_data['version']=self.lob_call[-1]
 				public_data['bids'] = {'best':self.bids.best_price,
 									 'worst':self.bids.worstprice,
 									 'n': self.bids.n_orders,
@@ -849,18 +876,28 @@ class Exchange(Orderbook):
 			return {'Bids':self.bids.lob_where(tid),'Asks':self.asks.lob_where(tid)}
 			
 				
-		def publish_tape(self,length=0):
-			#don't want to always publish full tape, as this could be big!
-			if length>0:
-				length=min(len(self.tape),length)
-			else:
-				length=len(self.tape)
+		def publish_tape(self,length=0,tidx=None,df=False):
+		
+			if tidx is None:
+				#don't want to always publish full tape, as this could be big!
+				if length>0:
+					length=min(len(self.tape),length)
+				else:
+					length=len(self.tape)
+				
+				ans=self.tape[-length:]
+				if df: ans=pd.DataFrame(ans)
+				
+			else: ans=self.publish_filter_tape(tidx,df)
 			
-			return self.tape[-length:]
+			return ans
 
-			
+		def publish_filter_tape(self,tidx,df=False):
+			ans=list(filter(lambda x: x['tidx']>=tidx,self.tape))
 
+			if df: ans=pd.DataFrame(ans)
 			
+			return ans
 		#
 		
 		

@@ -35,6 +35,7 @@ class Exchange(Exchange):
 			cancel_order=message.order
 			#print(f'Trader Cancel {message}')
 			self.del_order(order=cancel_order)
+			self.update_anon_lob()
 			
 			
 		
@@ -63,6 +64,8 @@ class Exchange(Exchange):
 		   
 			#trade,ammended_orders=self._process_order(time=time,order=order,verbose=verbose)
 			tr_active,ammended_orders_active,tr_passive,ammended_orders_passive=self._process_order(time=time,order=order,verbose=verbose)
+			
+			self.update_anon_lob()
 			
 			if len(tr_active)>0:
 				#inform the traders of fills and ammended orders
@@ -101,8 +104,10 @@ class Exchange(Exchange):
 			pty_2_name='Ask'
 
 		quantity=temp_order.qty
+		
 
-		while pty1_side.n_orders > 0 and self.bids.best_price >= self.asks.best_price and quantity>0:
+		
+		while pty1_side.n_orders > 0 and pty2_side.n_orders>0 and self.bids.best_price >= self.asks.best_price and quantity>0:
 				#do enough fills until the remaining order quantity is zero
 				quantity,fill_passive,ammended_order_passive,fill_active,ammended_order_active= \
 				self._do_one_fill(time,temp_order,quantity,pty1_side,pty2_side,pty_1_name,pty_2_name,leg=leg,qid=qid,verbose=verbose)
@@ -218,24 +223,24 @@ class Exchange(Exchange):
 		
 	def make_fill_record(self,order):
 		if self.record:
-			fill_record={'type':'Fill','tape_time':self.time,
+			fill_record={'type':'Fill','tape_time':self.time,'tidx':self.tape_index,
 				**dict(order._asdict())}
 			
 			self.tape.append(fill_record)
 		
 	def make_ammend_record(self,ammended_order,time=None):
 		if self.record:
-			ammend_record={**{'type':'Ammend','tape_time':self.time},**dict(ammended_order._asdict())}
+			ammend_record={**{'type':'Ammend','tape_time':self.time,'tidx':self.tape_index},**dict(ammended_order._asdict())}
 			self.tape.append(ammend_record)
 		
 	def make_cancel_record(self,cancelled_order,time=None):
 		if self.record:
-			cancel_record= { **{'type': 'Cancel', 'tape_time': self.time}, **cancelled_order._asdict() }
+			cancel_record= { **{'type': 'Cancel', 'tape_time': self.time,'tidx':self.tape_index}, **cancelled_order._asdict() }
 			self.tape.append(cancel_record)
 		
 	def make_new_order_record(self,new_order):
 		if self.record:
-			new_order_record= { **{'type': 'New Order', 'tape_time': self.time}, **new_order._asdict() }
+			new_order_record= { **{'type': 'New Order', 'tape_time': self.time,'tidx':self.tape_index}, **new_order._asdict() }
 			self.tape.append(new_order_record)
 
 		

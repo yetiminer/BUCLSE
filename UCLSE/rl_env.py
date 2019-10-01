@@ -18,10 +18,26 @@ from collections import OrderedDict
 
 from scipy.sparse import  csr_matrix
 
+class LimitedSizeDict(OrderedDict):
+    def __init__(self, *args, **kwds):
+        self.size_limit = kwds.pop("size_limit", None)
+        OrderedDict.__init__(self, *args, **kwds)
+        self._check_size_limit()
+
+    def __setitem__(self, key, value):
+        OrderedDict.__setitem__(self, key, value)
+        self._check_size_limit()
+
+    def _check_size_limit(self):
+        if self.size_limit is not None:
+            while len(self) > self.size_limit:
+                self.popitem(last=False)
+
+
 class RLEnv(gym.Env):
 	metadata = {'render.modes': ['human']}
 
-	def __init__(self,ID='henry',RL_trader=None,inventory_limit=1,time_limit=50,environ_dic=None,thresh=4,messenger=None,sess=None):
+	def __init__(self,ID='henry',RL_trader=None,inventory_limit=1,time_limit=50,environ_dic=None,thresh=4,messenger=None,sess=None,memory=10):
 		
 		self.trader=RL_trader
 		self.thresh=thresh
@@ -37,7 +53,7 @@ class RLEnv(gym.Env):
 		
 		self.time_limit=time_limit
 		self.period_count=0
-		self.lob_history=OrderedDict()
+		self.lob_history=LimitedSizeDict(size_limit=memory)
 		self.add_lob(self.sess.exchange.publish_lob(self.time,False))
 		self.inventory_limit=inventory_limit
 		self.messenger=messenger #this is how we will communicate with other objects in environment

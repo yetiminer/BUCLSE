@@ -20,6 +20,9 @@ Confirm.__new__.__defaults__ = (None,) * 2
 class Blotter(dict):
 	def __repr__(self):
 		return pd.DataFrame(self).to_string()
+		
+class UnknownMessageSubject(Exception):
+    pass
 
 class TraderM(Trader):
 	buy_sell_bid_ask_dic={'Bid':'Buy','Ask':'Sell'}
@@ -27,6 +30,11 @@ class TraderM(Trader):
 	def __init__(self,messenger=None,**kwargs):
 		super().__init__(**kwargs)
 		self.name=self.tid
+		try:
+			assert messenger is not None
+		except AssertionError:
+			print('Messenger cannot be None in instantiation')
+			raise
 		self.subscribe(messenger)
 		self.blotter={}
 
@@ -46,7 +54,12 @@ class TraderM(Trader):
 			
 			#print(f'receive NCO {message}')
 			
-		if message.subject=='Cancel Customer':
+		elif message.subject=='Get Order':
+			lob=message.order
+			self.getOrderReplace(time=self.time, lob=lob)
+			
+			
+		elif message.subject=='Cancel Customer':
 			cancel_oid=message.order.oid
 			self.del_order( cancel_oid,'cancel')
 			
@@ -55,21 +68,26 @@ class TraderM(Trader):
 				self.send_confirm(self.exec_summary(oid))
 			
 			
-		if message.subject=='Confirm':
+		elif message.subject=='Confirm':
 			confirm_order=message.order
 			qid=message.order.qid
 			self.add_order_exchange(confirm_order,qid)
 			
 			
-		if message.subject=='Fill':
+		elif message.subject=='Fill':
 			fill=message.order
 			self.bookkeep(fill)
 			
 			
-		if message.subject=='Ammend':
+		elif message.subject=='Ammend':
 			ammend_order=message.order
 			qid=ammend_order.qid
 			self.add_order_exchange(ammend_order,qid)
+			
+		else: 
+			print(f'Unknown message subject {message.subject}')
+			raise UnknownMessageSubject
+			
 			
 			
 		

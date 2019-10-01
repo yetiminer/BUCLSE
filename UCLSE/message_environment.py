@@ -29,7 +29,7 @@ from UCLSE.message_trader import (Trader_Giveaway, Trader_ZIC, Trader_Shaver,
                            Trader_Sniper, Trader_ZIP)
 
 from UCLSE.custom_timer import CustomTimer
-from UCLSE.messenger import Messenger
+from UCLSE.messenger import Messenger, Message
 						   
 #from UCLSE.supply_demand import customer_orders,set_customer_orders, do_one
 from UCLSE.message_supply_demand import SupplyDemand
@@ -45,7 +45,7 @@ class MarketSession:
 	type_dic={'buyers':{'letter':'B'},
 			 'sellers':{'letter':'S'}}
 
-	def __init__(self,start_time=0.0,end_time=600.0,
+	def __init__(self,name='Sess',start_time=0.0,end_time=600.0,
 				supply_starts=None,supply_ends=None,demand_starts=None,demand_ends=None,
 				supply_price_low=95,supply_price_high=95,
 				  demand_price_low=105,demand_price_high=105,interval=30,timemode='drip-poisson',
@@ -56,7 +56,8 @@ class MarketSession:
 				 trade_record='transactions.csv', random_seed=22,orders_verbose = False,lob_verbose = False,
 	process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,
 	market_makers_spec=None,rl_traders={},exchange=None,timer=None,quantity_f=None,messenger=None,trader_record=False):
-
+			
+			self.name=name
 			self.interval=interval
 			self.timemode=timemode
 			self.buyers_dic=buyers_spec
@@ -74,11 +75,12 @@ class MarketSession:
 			self.trader_record=trader_record
 			self.n_buyers,self.n_sellers=self.get_buyer_seller_numbers()
 			
-			#init messenger
+			#init messenger and subscribe to it.
 			if messenger is None:
 				self.messenger=Messenger()
 			else:
 				self.messenger=messenger
+			self.messenger.subscribe(name=self.name,tipe='MarketSession',obj=self)
 			
 			
 			#init timer
@@ -420,50 +422,6 @@ class MarketSession:
 			print(dumpfile)
 			self.df.to_csv(dumpfile)
 
-
-
-	# def simulate(self,recording=False,orders_verbose = False,lob_verbose = False,
-	# process_verbose = False,respond_verbose = False,bookkeep_verbose=False,latency_verbose=False,dump=False):
-	
-		# self.orders_verbose = orders_verbose
-		# self.lob_verbose = lob_verbose
-		# self.process_verbose = process_verbose
-		# self.respond_verbose = respond_verbose
-		# self.bookkeep_verbose = bookkeep_verbose
-		# self.latency_verbose=latency_verbose
-		
-		# self.replay_vars={}
-	
-		# while self.timer.next_period():
-		
-			# self.simulate_one_period(recording)
-				
-		# if dump:
-		
-			# self.trade_stats_df(self.sess_id, self.traders, self.trade_file, self.time, self.exchange.publish_lob(self.time, self.lob_verbose),final=True)
-			
-			# self.exchange.tape_dump(self.trade_record, 'w', 'keep')
-	
-	# def simulate_one_period(self,recording=False):
-
-			# lob={}
-
-			# if self.verbose: print('\n%s;  ' % (self.sess_id))
-
-			# self.trade = None
-			
-			# self._get_demand()
-			
-			# # get a limit-order quote (or None) from a randomly chosen trader
-			# tid=self._pick_trader_and_get_order()
-			
-			# #get last trade if one happened
-			# self._get_last_trade()
-
-			# lob=self._traders_respond(self.trade) #does this need to happen for every update?
-			
-			# if recording: self.replay_vars[self.time]=lob
-			
 	
 	def simulate(self,recording=False,dump=False,logging=False,log_dump=False):
 	
@@ -496,7 +454,9 @@ class MarketSession:
 		
 		#prompt chosen trader for trade
 		for tid in picked_traders:
-			order_dic = self.traders[tid].getOrderReplace(lob=self.lob)
+			message=Message(fromm=self.name,too=tid,time=self.time,order=self.lob,subject='Get Order')
+			self.messenger.send(message)
+
 			
 		#get last trade if one happened
 		self._get_last_trade()
@@ -612,13 +572,29 @@ class MarketSession:
 	
 	def show_completions(self):
 		return pd.DataFrame([o._asdict() for o in self.log[self.log.subject.isin(['Exec Confirm'])].order.values])
+		
+	def bid_ask_window(self,order_store,periods=100,step=10):
+		return self.sd.bid_ask_window(order_store,periods=periods,step=step)
+	
+	@staticmethod
+	def schedule_offsetfn_wrapper(wavelength,gradient=0,amplitude=50):
+
+		def schedule_offsetfn(t): #weird function that affects price as a function of t
+			pi2 = np.pi * 2
+			periods=len(t)
+			offset = gradient + amplitude * np.sin(pi2*wavelength/periods * t)
+			ans=np.round(offset,0)
+
+			return  ans
+
+		return schedule_offsetfn
 	
 
 def yamlLoad(path):
 	
 	with open(path, 'r') as stream:
 		try:
-			cfg=yaml.load(stream)
+			cfg=yaml.safe_load(stream)
 		except yaml.YAMLError as exc:
 			print(exc)
 	return cfg

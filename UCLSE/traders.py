@@ -164,14 +164,18 @@ class Trader:
 				k=next(reversed(self.orders_dic))
 				listy=self.orders_dic[k]['submitted_quotes']
 				
+				orig=self.orders_dic[k]['Original']
 				if len(listy)>0:
 					last_qid=listy[-1].qid
-				orig=self.orders_dic[k]['Original']
+					price=listy[-1].price
+				else:
+					price=orig.price
+				
 				output= Order(**{'time':orig.time,
 				'qty':self.orders_dic[k]['qty_remain'],
 				'oid':orig.oid,'qid':last_qid,
 				'tid':self.tid,'otype':orig.otype,
-				'price':orig.price})
+				'price':price})
 			return output
 		
 				

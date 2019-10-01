@@ -143,7 +143,7 @@ def crude_plot(bids,asks,intersect):
 		
 		max_time=max(bid.index.max(),ask.index.max())
 		relv_time=time_ax<=max_time      
-		ax2.plot(time_ax[relv_time],intersect[relv_time],label='intersect',color='g')
+		ax2.plot(time_ax[relv_time].values,intersect[relv_time].values,label='intersect',color='g')
 		
 		combine_legend(fig)
 		
@@ -189,7 +189,7 @@ def demand_curve_intersect(bids,asks,intersect,order_store,path='basic_animation
     line, = ax.plot([], [], lw=2,label='supply (asks)')
     ax.set_xlabel('Quantity')
     ax.set_ylabel('Price')
-    plt.legend(loc=3)
+    #plt.legend(loc=3)
 
     ax1=ax.twiny()    
     ax1.set_xlim(order_store.index.min(),order_store.index.max())
@@ -240,7 +240,7 @@ def demand_curve_intersect(bids,asks,intersect,order_store,path='basic_animation
     # http://matplotlib.sourceforge.net/api/animation_api.html
     anim.save(path, writer=writer)
 
-    return HTML("""
+    return fig,HTML("""
         <video width="640" height="480" controls>
           <source src="basic_animation.mp4" type="video/mp4">
         </video>
@@ -278,7 +278,7 @@ def bid_ask_last_plot(best_bid,best_ask,last_trans,intersect):
     ax1.plot(best_bid,label='best bid',color='g',alpha=0.5)
     ax1.plot(best_ask,label='best ask',color='r',alpha=0.5)
     ax1.plot(intersect,label='Supply demand intersect')
-    ax1.set_ylim(75,180)
+    ax1.set_ylim(last_trans.min()-5,last_trans.max()+5)
     ax1.set_xlim(best_bid.index.min(),best_bid.index.max())
     ax1.set_xlabel('Time/secs')
     ax1.set_ylabel('Price')

@@ -32,7 +32,7 @@ class SupplyDemand():
 
 		
 		if quantity_f is None:
-			quantity_f=self.do_one
+			self.quantity_f=self.do_one
 		else:
 			self.quantity_f=quantity_f
 			
@@ -40,7 +40,9 @@ class SupplyDemand():
 		
 		self.oid=-1
 		self.pending_orders=[]
-		self.timer=timer
+		
+		
+		self.set_timer(timer)
 		self.schedrange=None
 		self.fit_to_interval=fit_to_interval
 		self.shuffle_times=shuffle_times
@@ -51,6 +53,9 @@ class SupplyDemand():
 			self.time_mode_function=time_mode_func
 			
 		self.accuracy=len(str(n_buyers+n_sellers)) #want to get the issue times nicely rounded.
+		
+	def set_timer(self,timer):
+		self.timer=timer
 		
 		
 	def __repr__(self):
