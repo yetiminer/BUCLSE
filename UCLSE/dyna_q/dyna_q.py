@@ -57,7 +57,7 @@ class Done_net(nn.Module):
 	def forward(self,x):
 		x=self.fc1(x)
 		x=torch.relu(x)
-		done_value=self.out(x)
+		done_value=torch.sigmoid(self.out(x))
 		
 		return done_value
 		
@@ -202,6 +202,7 @@ class DynaQ(object):
 			self.loss_func=loss_func()
 		#self.mse_element_loss = nn.MSELoss(reduce=False)
 		self.l1_loss = nn.L1Loss(reduction='none')
+		self.done_loss_func=self.loss_func  #nn.binary_cross_entropy()
 		#self.loss_func = nn.SmoothL1Loss()
 		
 	def initialise_memory(self):
@@ -242,7 +243,7 @@ class DynaQ(object):
 			action = action if self.env_a_shape == 0 else action.reshape(self.env_a_shape)
 		return action
 		
-	def choose_actions(self, x, EPSILON):
+	def choose_actions_old(self, x, EPSILON):
 		x = torch.unsqueeze(torch.Tensor(x), 0)
 		# input only one sample
 		if np.random.uniform() > EPSILON:   # greedy
@@ -258,6 +259,32 @@ class DynaQ(object):
 		except AttributeError:
 			print(action)
 			raise AttributeError
+			
+			
+	def choose_actions(self, x, EPSILON):
+	
+		device=x.device
+		x = torch.unsqueeze(x, 1)
+		#x = torch.unsqueeze(torch.Tensor(x), 1)
+		
+
+		actions_value = self.eval_net.forward(x)
+		
+		#greedy strategy - choose index with max q value=action with max value
+		action =  actions_value.max(-1)[1]#.data.numpy()
+		action=action.squeeze()
+		
+		#choose a bunch of random actions
+		random_action = torch.tensor(np.random.randint(0, self.n_actions,size=x.shape[0]),dtype=torch.long,device=device)
+		
+		#boolean to denote when random action should be taken
+		random_action_selector=torch.tensor(np.random.uniform(size=x.shape[0])>EPSILON,device=device)
+		
+		#insert random actions in action list according to boolean
+		action[random_action_selector]=random_action[random_action_selector]
+		action=torch.unsqueeze(action,1)
+
+		return action 
 
 	def store_transition(self, s, a, r, s_, d):
 		transition = np.hstack((s, [a, r, d], s_))
@@ -336,7 +363,7 @@ class DynaQ(object):
 			b_d=self.doneModel(b_y_s)
 			
 		loss_r = self.loss_func(b_r, b_y_r)
-		loss_d = self.loss_func(b_d, b_y_d)
+		loss_d = self.done_loss_func(b_d, b_y_d)
 		
 		if self.CVAE:
 			loss_s = self.cvae_loss(b_in_x,b_s_,z_mu,z_var,self.loss_func)
@@ -426,7 +453,9 @@ class DynaQ(object):
 	def _predict_next_state_CVAE(self,b_in):
 		#predict next state value when simulating learning
 		
-		batch_size=self.config['batch_size']
+		#batch_size=self.config['batch_size']
+		batch_size=b_in.shape[0]
+		
 		#sample random latent vectors - this is the stochasticity in the transition model
 		z = torch.randn(batch_size, self.latent_dim).to(self.device)
 		
@@ -465,9 +494,12 @@ class DynaQ(object):
 		b_s = torch.tensor(b_s,device=self.device,dtype=torch.float)
 		
 		##choose action
-		b_a = np.random.randint(self.n_actions, size=b_s.shape[0])
-		b_a = np.reshape(b_a, (b_a.shape[0], 1))
-		b_a=torch.tensor(b_a,device=self.device,dtype=torch.long)
+		#b_a = np.random.randint(self.n_actions, size=b_s.shape[0])
+		
+		b_a=self.choose_actions(b_s,EPSILON)
+		#b_a = np.reshape(b_a, (b_a.shape[0], 1))
+		
+		#b_a=torch.tensor(b_a,device=self.device,dtype=torch.long)
 
 		
 		if self.CVAE:

@@ -7,6 +7,24 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 import matplotlib.pyplot as plt
+from math import sin,pi
+
+
+def steppy(x):
+    if type(x)==torch.Tensor:
+        _sin=torch.sin
+        
+    elif isinstance(x,(np.ndarray)): _sin=np.sin
+    else: _sin=sin
+    
+    return x-_sin(2*pi*x)/(2*pi)
+
+def steppy2(x,reps=1):
+    ans=x
+    for i in range(reps):
+        ans=steppy(ans)
+        
+    return ans
 
 
 class Encoder(nn.Module):
@@ -80,6 +98,9 @@ class Decoder(nn.Module):
 		x = torch.relu(self.latent_to_hidden(x))
 		# x is of shape [batch_size, hidden_dim]
 		state_prime = torch.relu(self.hidden_to_out(x))
+		state_prime=steppy(state_prime)
+		state_prime=steppy(state_prime)
+		
 		# x is of shape [batch_size, output_dim]
 		reward_value=self.reward(state_prime)
 		if self.reward_layer:
