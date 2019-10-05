@@ -114,7 +114,7 @@ class EnvModel(nn.Module):
 
 class DynaQ(object):
 	def __init__(self, config,envModel=None,env_H1Size = 64,env_H2Size = 32,Q_H1Size = 64,Q_H2Size = 32,doneModel=None,
-						rewardModel=None,loss_func=None,latent_dim=2,recon_weight=100,CVAE=False):
+						rewardModel=None,loss_func=None,latent_dim=2,recon_weight=1,kl_thresh=0,CVAE=False):
 		self.config = config
 		self.n_states = self.config['n_states']
 		self.n_actions = self.config['n_actions']
@@ -162,7 +162,8 @@ class DynaQ(object):
 		if CVAE:
 			self.CVAE=True
 			self.recon_weight=recon_weight
-			self.cvae_loss,self.cvae_loss_parts=CVAE_loss_make(self.recon_weight)
+			self.kl_thresh=kl_thresh
+			self.cvae_loss,self.cvae_loss_parts=CVAE_loss_make(self.recon_weight,self.kl_thresh)
 			self.latent_dim=latent_dim
 			
 			if envModel is None: envModel=CVAE_model

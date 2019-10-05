@@ -158,14 +158,14 @@ class CVAE(nn.Module):
 
 		return generated_x,reward_value,done_value, z_mu, z_var
 		
-def CVAE_loss_make(weight):
+def CVAE_loss_make(weight,thresh=0):
 	def CVAE_loss(x, reconstructed_x, mean, log_var,recon_loss):
 		# reconstruction loss
 		RCL = recon_loss(reconstructed_x, x)
 		# kl divergence loss
 		KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
 
-		return weight*RCL + KLD
+		return weight*RCL + max(KLD,thresh)
 		
 	def CVAE_loss_parts(x, reconstructed_x, mean, log_var,recon_loss):
 		# reconstruction loss
@@ -173,6 +173,6 @@ def CVAE_loss_make(weight):
 		# kl divergence loss
 		KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
 
-		return weight*RCL, KLD
+		return RCL, KLD
 		
 	return CVAE_loss, CVAE_loss_parts
