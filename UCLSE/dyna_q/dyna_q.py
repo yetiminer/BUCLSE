@@ -410,6 +410,7 @@ class DynaQ(object):
 		# target parameter update
 		if self.learn_step_counter % self.config['target_update_freq'] == 0:
 			self.target_net.load_state_dict(self.eval_net.state_dict())
+			print('copying eval net to target net')
 		self.learn_step_counter += 1
 
 		# sample batch transitions
@@ -479,8 +480,8 @@ class DynaQ(object):
 		self.env_model.eval()
 		
 		# target parameter update
-		if self.learn_step_counter % self.config['target_update_freq'] == 0:
-			self.target_net.load_state_dict(self.eval_net.state_dict())
+		# if self.learn_step_counter % self.config['target_update_freq'] == 0:
+			# self.target_net.load_state_dict(self.eval_net.state_dict())
 		self.learn_step_counter += 1
 
 		# sample batch transitions
@@ -536,24 +537,26 @@ class DynaQ(object):
 	def _learn(self,b_a,b_s,b_s_,b_r,b_d,EPSILON):
 			# q_eval w.r.t the action in experience
 		q_eval = self.eval_net(b_s).gather(1, b_a)  # shape (batch, 1) #gather 
+		batch_size=self.config['batch_size']
 		
 		if self.config['double_q_model']:
 			q_eval_next = self.eval_net(b_s_) #vector of value s associated with actions
-			q_argmax = np.argmax(q_eval_next.data.numpy(), axis=1) #choose action with respect to eval_net
+			q_argmax = np.argmax(q_eval_next.data.cpu().numpy(), axis=1) #choose action with respect to eval_net
 			q_next = self.target_net(b_s_) #vector of values associated with actions from target_net
-			q_next_numpy = q_next.data.numpy()
-			q_update = np.zeros((self.config['batch_size'], 1))
-			for i in range(self.config['batch_size']): #can this be replaced with q_update=q_next_numpy[np.arange(batch_size),q_argmax]??????
-				q_update[i] = q_next_numpy[i, q_argmax[i]] 
+			q_next_numpy = q_next.cpu().data.numpy()
+			#q_update = np.zeros((self.config['batch_size'], 1))
+			#for i in range(self.config['batch_size']): #can this be replaced with q_update=q_next_numpy[np.arange(batch_size),q_argmax]??????
+			#	q_update[i] = q_next_numpy[i, q_argmax[i]]
+			q_update=q_next_numpy[np.arange(batch_size),q_argmax]
 			q_target = b_r + torch.tensor(self.config['discount'] * q_update,device=self.device) * b_d
 		else:
 			q_next = self.target_net(b_s_).detach()     # detach from graph, don't backpropagate
-			q_target = b_r + self.config['discount'] * q_next.max(1)[0].view(self.config['batch_size'], 1) * b_d  # shape (batch, 1)
+			q_target = b_r + self.config['discount'] * q_next.max(1)[0].view(batch_size, 1) * b_d  # shape (batch, 1)
 			
 		#tensor.max(1) returns largest value and its index in two tensors. tensor.max(1)[0] returns values
 		#tensor.view(r,c) reshapes tensor into whatever tensor shape (r,c)
 
-		loss = self.loss_func(q_eval, q_target)
+		loss = self.loss_func(q_eval, q_target) #we are optimising with respect to the evaluation net
 		self.optimizer.zero_grad()
 		loss.backward()
 		
