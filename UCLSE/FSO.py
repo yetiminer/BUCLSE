@@ -11,7 +11,7 @@ class FSO():
 		
 		self.grace_period=grace_period
 		self.memory=memory
-		self.last_update=-1 #monitor time when the last update was done
+		self.last_version=(-1,0) #monitor version of lob when the last update was done
 		
 		self.ask_q=deque() #a queue of new ask orders as they come in 
 		self.bid_q=deque()
@@ -37,10 +37,18 @@ class FSO():
 		self.order_time_ask={}
 		self.side_dic={'Bid':self.order_time_bid,'Ask':self.order_time_ask}
 		
+		self.tidx=-1 #the exchange maintains a uid for each tape entry. Track this here to avoid double entries when LOB queried more than once in a period
+		self.processed=deque() #purely a debugging thing to see what events have been engorged
+		
 		pass
 
 	def __repr__(self):
 		return f'ask side: {self.order_time_bid} bid side: {self.order_time_ask}'
+
+	def add_to_processed(self,tidx):
+		if len(self.processed)>100: self.processed.popleft()
+		
+		self.processed.append(tidx)
 
 	def calculate_active_order_times(self,order):
 		#
@@ -151,41 +159,47 @@ class FSO():
 		trade_list=[]
 		reject_list_bid=[]
 		reject_list_ask=[]
+		self.temp_largest_tidx=self.tidx
 		
 		if len(input_list)>0:
 			for o in input_list:
-			
-				if o['type']=='Trade':
-					trade_list.append(o)
-					
-				else:
+				tidx=o['tidx']
 				
-					#create lob of active order times
-					self.calculate_active_order_times(o)
-					 
-					 
+				if tidx>self.tidx:
+					self.add_to_processed(tidx)
+					if tidx>self.temp_largest_tidx: self.temp_largest_tidx=tidx
 					
-					if o['type']=='New Order' and o['otype']=='Bid':
-						bid_list.append(o)
-					elif o['type']=='New Order' and o['otype']=='Ask':
-						ask_list.append(o)
-					elif o['type'] in ['Cancel'] and o['otype']=='Bid':
-						cancelled_list_bid.append(o)
-						reject_list_bid.append(o)
+					if o['type']=='Trade':
+						trade_list.append(o)
 						
-					elif o['type'] in ['Cancel'] and o['otype']=='Ask':
-						cancelled_list_ask.append(o)
-						reject_list_ask.append(o)
+					else:
+					
+						#create lob of active order times
+						self.calculate_active_order_times(o)
+						 
+						 
 						
-					elif o['type'] in ['Fill'] and o['otype']=='Bid':
-						trade_bid_list.append(o)
-						reject_list_bid.append(o)
-					elif o['type'] in ['Fill'] and o['otype']=='Ask':
-						trade_ask_list.append(o)  
-						reject_list_ask.append(o)
+						if o['type']=='New Order' and o['otype']=='Bid':
+							bid_list.append(o)
+						elif o['type']=='New Order' and o['otype']=='Ask':
+							ask_list.append(o)
+						elif o['type'] in ['Cancel'] and o['otype']=='Bid':
+							cancelled_list_bid.append(o)
+							reject_list_bid.append(o)
+							
+						elif o['type'] in ['Cancel'] and o['otype']=='Ask':
+							cancelled_list_ask.append(o)
+							reject_list_ask.append(o)
+							
+						elif o['type'] in ['Fill'] and o['otype']=='Bid':
+							trade_bid_list.append(o)
+							reject_list_bid.append(o)
+						elif o['type'] in ['Fill'] and o['otype']=='Ask':
+							trade_ask_list.append(o)  
+							reject_list_ask.append(o)
 					
 
-					
+			self.tidx=self.temp_largest_tidx	#A long way of doing things, but might not be guaranteed passed tape in order?
 		#check everything in the input has been accounted for
 		#assert (len(bid_list)+len(ask_list)+ \
 		#len(cancelled_list_bid)+len(cancelled_list_ask)+ \
@@ -225,10 +239,10 @@ class FSO():
 		for q,c in queue_count_pairs:
 			self.subtract_from_queue_counter(q,c)
 
-	def update(self,input_list,time):
+	def update(self,input_list,version):
 		#add events to memory, delete oldest records if applicable
-		if self.last_update<time:
-			self.last_update=time
+		if self.last_version!=version:
+			self.last_version=version
 		
 			self.add_all(input_list)
 			if len(self.ask_q)>self.memory:
@@ -305,12 +319,13 @@ class SimpleFSO():
 
 		
 		self.memory=memory
-		self.last_update=-1 #monitor time when the last update was done
+		self.last_version=(-1,0) #monitor lob version when the last update was done
 
 		self.ask_q=deque() #a queue of new ask orders as they come in 
 		self.bid_q=deque()		
 		self.cancelled_ask_q=deque() # a queue of all cancelled asks,
 		self.cancelled_bid_q=deque()
+		self.tidx=-1
 
 	@property
 	def bids(self):
@@ -344,10 +359,10 @@ class SimpleFSO():
 	def __repr__(self):
 		return f'ask side: {self.ask_q} bid side: {self.bid_q}'
 
-	def update(self,input_list,time):
+	def update(self,input_list,version):
 		#add events to memory, delete oldest records if applicable
-		if self.last_update<time:
-			self.last_update=time
+		if self.last_version!=version:
+			self.last_version=version
 
 			self.add_all(input_list)
 			if len(self.ask_q)>self.memory:
@@ -358,9 +373,13 @@ class SimpleFSO():
 		ask_list=[]
 		cancelled_list_bid=[]
 		cancelled_list_ask=[]
+		temp_max_tidx=self.tidx
 
 		if len(input_list)>0:
 			for o in input_list:
+				tidx=o['tidx']
+				if tidx>self.tidx: #only want to add orders that haven't happened before
+					if tidx>temp_max_tidx: temp_max_tidx=tidx
 
 					if o['type']=='New Order' and o['otype']=='Bid':
 						bid_list.append(o)
@@ -370,6 +389,7 @@ class SimpleFSO():
 						cancelled_list_bid.append(o)
 					elif o['type'] in ['Cancel'] and o['otype']=='Ask':
 						cancelled_list_ask.append(o)
+			self.tidx=temp_max_tidx
 
 		return bid_list,ask_list,cancelled_list_bid,cancelled_list_ask
 
