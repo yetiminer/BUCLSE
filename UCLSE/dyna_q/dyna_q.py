@@ -131,7 +131,7 @@ class DynaQ(object):
 		self.target_net = deepcopy(self.eval_net)
 		self.eval_net.to(self.device)
 		self.target_net.to(self.device)
-		
+		self.novel=0 #a counter to see how many novel state action pairs have been encountered
 		
 		
 		if rewardModel is not None:
@@ -212,6 +212,10 @@ class DynaQ(object):
 			self.memory = PriorExpReplay(self.config['memory']['memory_capacity'])
 		else:
 			self.memory = np.zeros((self.config['memory']['memory_capacity'], self.n_states * 2 + 3))     		# initialize memory
+			
+		if 'tabular memory' in self.config['memory']:
+			print('setup tabular memory')
+			self.tabular=TabularMemory(self.n_actions)
 		
 	def idx2onehot(self,idx):
 		#use this for CVAE
@@ -229,6 +233,26 @@ class DynaQ(object):
 			raise RuntimeError
 		
 		return onehot
+		
+	def _random_action(self,x):
+		action = np.random.randint(0, self.n_actions)
+		action = action if self.env_a_shape == 0 else action.reshape(self.env_a_shape)
+		return action
+		
+	def _least_action(self,x):
+	
+		#deals with ties. is this really neceessary?
+		#least_count=self.tabular.action_counter[tuple([*x])].most_common()[-1][1]
+		#action=np.random.choice([a[0] for a in filter(lambda c: c[1]==least_count,ct.items())])
+		
+		#presumably ties become less likely as time progresses, so any accidental favouritism from action numbering disappears
+		try:
+			action=self.tabular.action_counter[tuple([*x])].most_common()[-1][0] 
+		except KeyError: #no action experience at this state
+			self.novel+=1
+			action=self._random_action(x)
+		
+		return action
 
 	def choose_action(self, x, EPSILON):
 		x = torch.unsqueeze(torch.Tensor(x), 0)
@@ -240,8 +264,10 @@ class DynaQ(object):
 			action = torch.max(actions_value, 1)[1].cpu().data.numpy()
 			action = action[0] if self.env_a_shape == 0 else action.reshape(self.env_a_shape)  	# return the argmax index
 		else:   # random
-			action = np.random.randint(0, self.n_actions)
-			action = action if self.env_a_shape == 0 else action.reshape(self.env_a_shape)
+			if self.config['exploration']['choice']=='random':
+				action=self._random_action(x)
+			elif self.config['exploration']['choice']=='least_bonus':
+				action=self._least_action(x)
 		return action
 		
 	def choose_actions_old(self, x, EPSILON):
@@ -287,7 +313,7 @@ class DynaQ(object):
 
 		return action 
 
-	def store_transition(self, s, a, r, s_, d):
+	def store_transition(self, s, a, r, s_, d,initial=False):
 		transition = np.hstack((s, [a, r, d], s_))
 		if self.config['memory']['prioritized']:
 			self.memory.store(transition)
@@ -296,6 +322,11 @@ class DynaQ(object):
 			index = self.memory_counter % self.config['memory']['memory_capacity']
 			self.memory[index, :] = transition
 		self.memory_counter += 1
+		
+		if 'tabular memory' in self.config['memory'] and self.config['memory']['tabular memory']:
+				
+			self.tabular.tabulate(s, a, r, s_, d,initial)
+			
 
 	def store_batch_transitions(self, experiences):
 		index = self.memory_counter % self.config['memory']['memory_capacity']
@@ -473,6 +504,49 @@ class DynaQ(object):
 		
 		return statePrime_value,reward_value,done_value
 		
+	def _predict_next_state_tabular(self,state,action):
+		return self.tabular.sample_next_state(state,action)
+		
+		
+	def simulate_learn_tabular(self,EPSILON=None,reps=None):
+		#choose initial state
+		if reps is None: reps=self.config['batch_size']
+		
+		#we are not sampling state uniformly here - picking by frequency of occurence. 
+		#that said, we are not replacing (to avoid duplicate backups per session.
+		
+		states=self.tabular.sample_state(reps,replace=False)
+		
+		#choose action that taken before in that state
+		
+		actions=np.array([self.tabular.sample_action_from_state(s) for s in states])
+		
+		#make prediction of next state and reward and done
+		predictions=np.vstack([self._predict_next_state_tabular(s,a).tolist() for s,a in zip(states,actions)])
+		
+		
+		states=np.asarray(list(states)) #states is otherwise an array of state tuples
+		b_s=torch.tensor(states,device=self.device,dtype=torch.float)
+		b_a=torch.tensor(actions,device=self.device,dtype=torch.long)
+		b_a=torch.unsqueeze(b_a,1)
+		b_r=torch.tensor(predictions[:,0].astype(float),device=self.device,dtype=torch.float)
+		b_r=torch.unsqueeze(b_r,1)
+		b_s_=np.array(predictions[:,1].tolist())
+		b_s_=torch.tensor(b_s_,device=self.device,dtype=torch.float)
+		b_d=torch.tensor(predictions[:,2].astype(float),device=self.device,dtype=torch.float)
+		b_d=torch.unsqueeze(b_d,1)
+		
+		
+		#send to q network
+		learn='Q'
+		if 'learn' in self.config:
+			learn=self.config['learn']
+		if learn=='Q':
+			self._learn(b_a,b_s,b_s_,b_r,b_d,EPSILON)
+		elif learn=='SARSA':
+			self._learn_sarsa(b_a,b_s,b_s_,b_r,b_d,EPSILON)
+		
+		
 
 	def simulate_learn(self,EPSILON=None):
 		
@@ -496,14 +570,8 @@ class DynaQ(object):
 		b_s = torch.tensor(b_s,device=self.device,dtype=torch.float)
 		
 		##choose action
-		#b_a = np.random.randint(self.n_actions, size=b_s.shape[0])
-		
 		b_a=self.choose_actions(b_s,EPSILON)
-		#b_a = np.reshape(b_a, (b_a.shape[0], 1))
-		
-		#b_a=torch.tensor(b_a,device=self.device,dtype=torch.long)
 
-		
 		if self.CVAE:
 				
 				#b_a=torch.tensor(b_a,device=self.device,dtype=torch.long)
@@ -555,7 +623,8 @@ class DynaQ(object):
 			
 		#tensor.max(1) returns largest value and its index in two tensors. tensor.max(1)[0] returns values
 		#tensor.view(r,c) reshapes tensor into whatever tensor shape (r,c)
-
+		
+		assert q_eval.shape=q_target.shape
 		loss = self.loss_func(q_eval, q_target) #we are optimising with respect to the evaluation net
 		self.optimizer.zero_grad()
 		loss.backward()
@@ -591,3 +660,66 @@ class DynaQ(object):
 		# for param in self.eval_net.parameters():
 		# 	param.grad.data.clamp_(-0.5, 0.5)
 		self.optimizer.step()
+
+from collections import Counter
+
+class TabularMemory():
+	def __init__(self,N_ACTIONS):
+		self.memory={}
+		self.default_counter=Counter({k:0 for k in range(N_ACTIONS)})
+		self.action_counter={}
+		self.initial_counter=Counter()
+		self.state_counter=Counter()
+		self.reverse_memory={}
+		
+	def tabulate(self,s,a,r,s_,d,initial=False):
+		s=tuple([*s])
+		s_=tuple([*s_])
+		if s not in self.memory: self.memory[s]={}
+
+		if a not in self.memory[s]: self.memory[s][a]={'count':0,'reward':Counter(),'done':Counter(),'s_':Counter()}
+		
+		self.memory[s][a]['count']+=1
+		self.memory[s][a]['reward'].update([r])
+		self.memory[s][a]['done'].update([d])
+		self.memory[s][a]['s_'].update([(r,s_,d)]) #because in this setting r and d are functiond of s_ only.
+		
+		if s not in self.action_counter: self.action_counter[s]=self.default_counter.copy()
+		
+		if s_ not in self.reverse_memory: self.reverse_memory[s_]=Counter()
+		self.reverse_memory[s_].update([(s,a)]) #maintain a count for state action pairs that led to a state
+		
+		self.action_counter[s].update({a:1}) #maintain count for every action taken per state
+		
+		self.state_counter.update([s]) #maintain count over all states reached
+		
+		if initial: self.initial_counter.update({s:1}) #maintain count of initial states
+			
+	def sample_state(self,reps,replace=True):
+		table=self.state_counter
+		return self.numpy_select1(table,reps=reps,replace=replace)
+		
+	def sample_action_from_state(self,state):
+		return np.random.choice(list(self.action_counter[state]+Counter()))
+	
+		
+	def sample_next_state(self,state,action):
+		table=self.memory[state][action]['s_']
+		return self.numpy_select1(table) #this returns reward,s_,done tuple
+		
+	@staticmethod		
+	def numpy_select1(table,reps=1,replace=True):
+		#selects next state according to its distribution in the counter table.
+		#twice as fast as numpy select2
+		t_count=sum(table.values())
+		np_table=np.array([(a,b) for a,b in table.items()])
+		probs=(np_table[:,1]/t_count).astype(np.float)
+		states=np_table[:,0] #could also return the full prob distribution
+		return np.random.choice(states,size=reps,p=probs,replace=replace)
+
+	@staticmethod    
+	def numpy_select2(table):
+		np_tab=np.array(list(table.elements()))
+		t_count=sum(table.values())
+		rdx=np.random.choice(t_count)
+		return tuple(np_tab[rdx])
