@@ -233,13 +233,13 @@ class SimpleRLEnv(RLEnv):
 		
 		
 		
-	def reset(self,wait_period=100):
+	def reset(self,wait_period=100,hard=False):
 
 		#cancel bids and offers
 		self.liquidate()
 
 		#if the sess has little time to run, do a hard reset
-		if self.sess.timer.time_left<1000:
+		if self.sess.timer.time_left<1000 or hard:
 			self.sess=self.sess_factory.setup()
 			
 			#self.sess_init(order_thresh=self.thresh)
@@ -261,7 +261,8 @@ class SimpleRLEnv(RLEnv):
 			self.trader.reset()
 			
 			buffer=0
-			while buffer<wait_period-2 and self.sess.timer.next_period():
+			while buffer<wait_period-2:
+				self.sess.timer.next_period()
 				self.sess.simulate_one_period(updating=True)
 				buffer=buffer+1
 				

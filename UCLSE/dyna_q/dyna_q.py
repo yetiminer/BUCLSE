@@ -514,8 +514,11 @@ class DynaQ(object):
 		
 		#we are not sampling state uniformly here - picking by frequency of occurence. 
 		#that said, we are not replacing (to avoid duplicate backups per session.
+		replace=False
+		if reps>len(self.tabular.state_counter):replace=True #can't sample more than length of counter if replace is false!
 		
-		states=self.tabular.sample_state(reps,replace=False)
+		
+		states=self.tabular.sample_state(reps,replace=replace)
 		
 		#choose action that taken before in that state
 		
@@ -616,7 +619,8 @@ class DynaQ(object):
 			#for i in range(self.config['batch_size']): #can this be replaced with q_update=q_next_numpy[np.arange(batch_size),q_argmax]??????
 			#	q_update[i] = q_next_numpy[i, q_argmax[i]]
 			q_update=q_next_numpy[np.arange(batch_size),q_argmax]
-			q_target = b_r + torch.tensor(self.config['discount'] * q_update,device=self.device) * b_d
+			discounted_q_update=torch.tensor(self.config['discount'] *q_update,device=self.device).unsqueeze(1)
+			q_target = b_r + discounted_q_update * b_d
 		else:
 			q_next = self.target_net(b_s_).detach()     # detach from graph, don't backpropagate
 			q_target = b_r + self.config['discount'] * q_next.max(1)[0].view(batch_size, 1) * b_d  # shape (batch, 1)
@@ -624,7 +628,11 @@ class DynaQ(object):
 		#tensor.max(1) returns largest value and its index in two tensors. tensor.max(1)[0] returns values
 		#tensor.view(r,c) reshapes tensor into whatever tensor shape (r,c)
 		
-		assert q_eval.shape=q_target.shape
+		try: 
+			assert q_eval.shape==q_target.shape
+		except AssertionError:
+			print(q_eval.shape,q_target.shape)
+			raise
 		loss = self.loss_func(q_eval, q_target) #we are optimising with respect to the evaluation net
 		self.optimizer.zero_grad()
 		loss.backward()
