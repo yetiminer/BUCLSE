@@ -309,6 +309,8 @@ class WW_Zip(TraderM):
 				if best_bid is not None: #this is necessary for traders that submit bids and asks concurrently 
 					if price>best_bid:
 						self.lob['bids']['best']=price
+						
+				if price<1: price=1 #no bids below equal 0
 				
 			elif otype=='Ask':
 				

@@ -268,17 +268,21 @@ class SimpleRLEnv(RLEnv):
 				
 		#also ensure that viable lob exists
 		self.ready_sess(self.sess,self.thresh)
+		
+		#assert there is enough time again, else do a hard reset
+		if self.sess.timer.time_left<2*self.cutoff:
+			observation=self.reset(wait_period=wait_period,hard=True)
+		else:
+			#coordinate lobs again
+			self.add_lob(self.sess.exchange.publish_lob(self.time,False))
 			
-		#coordinate lobs again
-		self.add_lob(self.sess.exchange.publish_lob(self.time,False))
-		
-		#do a step to register lob
-		observation,reward,done,info=self.step((0,0,0),auto_cancel=True)
-		
-		#buy at best ask
-		self.period_count=-1
-		observation,reward,done,info=self.step((1,1,-1),auto_cancel=True)
-		assert self.trader.inventory==1
+			#do a step to register lob
+			observation,reward,done,info=self.step((0,0,0),auto_cancel=True)
+			
+			#buy at best ask
+			self.period_count=-1
+			observation,reward,done,info=self.step((1,1,-1),auto_cancel=True)
+			assert self.trader.inventory==1
 		
 		return observation
 		

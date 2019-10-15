@@ -678,7 +678,11 @@ class TabularMemory():
 		self.action_counter={}
 		self.initial_counter=Counter()
 		self.state_counter=Counter()
+		self.state_action_counter=Counter()
 		self.reverse_memory={}
+		
+	def __repr__(self):
+		return f'state counter length: {len(self.state_counter)}, state_action counter length: {len(self.state_action_counter)}, total experiences: {sum(self.state_action_counter.values())}'
 		
 	def tabulate(self,s,a,r,s_,d,initial=False):
 		s=tuple([*s])
@@ -700,6 +704,7 @@ class TabularMemory():
 		self.action_counter[s].update({a:1}) #maintain count for every action taken per state
 		
 		self.state_counter.update([s]) #maintain count over all states reached
+		self.state_action_counter.update([(s,a)]) #maintain count over all state actions reached
 		
 		if initial: self.initial_counter.update({s:1}) #maintain count of initial states
 			
@@ -708,7 +713,7 @@ class TabularMemory():
 		return self.numpy_select1(table,reps=reps,replace=replace)
 		
 	def sample_action_from_state(self,state):
-		return np.random.choice(list(self.action_counter[state]+Counter()))
+		return np.random.choice(list(self.action_counter[state]+Counter())) #adding Counter() gets rid of zero entries
 	
 		
 	def sample_next_state(self,state,action):
@@ -731,3 +736,20 @@ class TabularMemory():
 		t_count=sum(table.values())
 		rdx=np.random.choice(t_count)
 		return tuple(np_tab[rdx])
+		
+	@staticmethod
+	def load_tabular(memory=None,default_counter=None,action_counter=None,initial_counter=None,state_counter=None,state_action_counter=None,reverse_memory=None):
+		
+		N_ACTIONS=len(default_counter)
+		
+		tabular=TabularMemory(N_ACTIONS)
+		
+		tabular.memory=memory
+		tabular.action_counter=action_counter
+		tabular.initial_counter=initial_counter
+		tabular.state_counter=state_counter
+		tabular.state_action_counter=state_action_counter
+		tabular.reverse_memory=reverse_memory
+		
+		return tabular
+	
