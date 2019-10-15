@@ -181,7 +181,8 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 class GetOutOfLoop(Exception):
     pass
 		
-		
+class ProfitWeird(Exception):
+	pass
 
 
 loss_fields=['i_episode','timestep','reward','profit']
@@ -330,11 +331,6 @@ class Experiment():
 			
 			try: 
 				lobenv=self.env_selector(start_episode,self.lobenvs)
-				try:
-					s = lobenv.reset()
-				except KeyError:
-					s=lobenv.reset(hard=True)
-			
 			
 				for i_episode in range(start_episode,MaxEpisodes):
 					
@@ -342,7 +338,7 @@ class Experiment():
 					start_balance=lobenv.trader.balance
 					ep_r = 0
 					timestep = 0
-					
+					s = lobenv.reset()
 					
 					while True:
 						total_steps += 1
@@ -355,7 +351,7 @@ class Experiment():
 						)
 						assert self.EPSILON>=self.dyna_config['exploration']['min_epsilon']
 						
-						# env.render()
+						
 						a = self.dyna_q_agent.choose_action(s, self.EPSILON)
 
 						# take action
@@ -371,9 +367,10 @@ class Experiment():
 						
 						timestep += 1
 						self.total_steps+=total_steps
-						self.episode+=i_episode
+						self.episode+=1
 						
 						if done:
+							lobenv.liquidate()
 							end_balance=lobenv.trader.balance
 							profit=end_balance-start_balance
 							# start update policy when memory has enough exps
@@ -414,16 +411,20 @@ class Experiment():
 							
 							#save every 1000 episodes 							
 							if i_episode%1000 and i_episode>1000: self.__checkpointModel(True,setup=True,tabular=True,memory=True)
-								
+							
+							if profit==0 and ep_r>5: 
+								print('environment time:',lobenv.sess.time)
+								raise ProfitWeird
 
 							#select a new environment
 							lobenv=self.env_selector(i_episode,self.lobenvs)
 							
 							#and then reset it.
 
-							s = lobenv.reset()
+							
 
-									
+							
+							
 							if stopping and i_episode>50: raise GetOutOfLoop
 							break
 							
@@ -433,6 +434,9 @@ class Experiment():
 						
 			except GetOutOfLoop:
 				print('stopping')
+				
+			except ProfitWeird:
+				print('stopping, weird profit')
 
 				pass
 				
