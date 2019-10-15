@@ -215,9 +215,10 @@ class SimpleRLEnv(RLEnv):
 		
 	def liquidate(self):
 		#cancel bids and offers, liquidates remaining inventory
-		self.step((1,0,0),auto_cancel=True)
-		self.step((-1,0,0),auto_cancel=True)
-		assert self.trader.n_orders==0
+		if self.trader.n_orders>0:
+			self.step((1,0,0),auto_cancel=True)
+			self.step((-1,0,0),auto_cancel=True)
+			assert self.trader.n_orders==0
 		inventory=self.trader.inventory
 		
 		
@@ -230,6 +231,7 @@ class SimpleRLEnv(RLEnv):
 			
 			
 		assert self.trader.n_orders==0
+		assert inventory==0
 		
 		
 		
