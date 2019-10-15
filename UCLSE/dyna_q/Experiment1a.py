@@ -283,7 +283,7 @@ class Experiment():
 			
 
 		def _train_setup(self,MaxEpisodes=100,planning_steps=5,lookback=50,thresh=5,planning=True,graph=False,epsilon=None,
-							total_steps=0,episode=0,novel_list=[],rwd_dyna=[],best_rew=None):
+							total_steps=0,episode=0,novel_list=[],rwd_dyna=[],best_rew=0):
 				self.MaxEpisodes=MaxEpisodes
 				self.planning_steps=planning_steps #number of planning sweeps
 				self.exp=0
@@ -389,6 +389,9 @@ class Experiment():
 							self.rwd_dyna.append(LossRecord(i_episode,timestep,ep_r,profit))
 							stopping,median_loss,mean_loss=self.stopper(self.rwd_dyna,lookback=self.lookback,thresh=self.thresh)
 							
+							#save if a record breaker
+							if median_loss>max(0,self.best_rew): self.__checkpointModel(True,setup=True,tabular=False,memory=True)
+							
 							#store number of novel state requests during training, length of state, state action dictionaries per period
 							explo_data=(i_episode,self.dyna_q_agent.novel,len(self.dyna_q_agent.tabular.state_counter),len(self.dyna_q_agent.tabular.state_action_counter))
 							temp_explo_data.append(explo_data)
@@ -408,6 +411,10 @@ class Experiment():
 									self.plot_results_bar(i_episode)
 								print('Dyna-Q - EXP ', self.exp+1, '| Ep: ', i_episode + 1, '| timestep: ', 
 									  timestep, '| Ep_r: ', ep_r, 'Avg loss:',mean_loss)
+							
+							#save every 1000 episodes 							
+							if i_episode%1000 and i_episode>1000: self.__checkpointModel(True,setup=True,tabular=True,memory=True)
+								
 
 							#select a new environment
 							lobenv=self.env_selector(i_episode,self.lobenvs)
@@ -537,13 +544,24 @@ class Experiment():
 			
 		def __checkpointModel(self, is_best,setup=False,memory=False,tabular=False):
         
-			save_dic={
-			'episode': self.i_episode,
-			'state_dict': self.dyna_q_agent.eval_net.state_dict(),
+			train_dic={ 
+			'planning_steps':self.planning_steps,
+			'lookback':self.lookback,
+			'thresh':self.thresh,
+			'planning':self.planning,
+			'graph':self.graph,
+			'epsilon':self.EPSILON,
+			'total_steps':self.total_steps,
+			'episode': self.episode,
+			'novel_list':self.novel_list,
+			'rwd_dyna':self.rwd_dyna,
 			'best_rew': self.best_rew,
+				}
+			
+			save_dic={'episode': self.episode,        
+			'state_dict': self.dyna_q_agent.eval_net.state_dict(),        
 			'optimizer' : self.dyna_q_agent.optimizer.state_dict(),
-			 'rwd_dyna':self.rwd_dyna,
-			'novel_list':self.novel_list}
+			'train_dic':train_dic}
 		
 			
 			if setup:
