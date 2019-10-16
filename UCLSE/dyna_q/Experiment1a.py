@@ -187,7 +187,7 @@ class ProfitWeird(Exception):
 
 
 loss_fields=['i_episode','timestep','reward','profit']
-LossRecord=namedtuple('rec',loss_fields)
+LossRecord=namedtuple('LossRecord',loss_fields)
 loss_record_dtype=LossRecord(int,int,np.float,np.float)
 		
 class Experiment():
@@ -452,7 +452,7 @@ class Experiment():
 				
 		def checkpoint_make(self,i_episode):
 			#save every 1000 episodes 							
-			if i_episode%1000 and i_episode>=1000:
+			if i_episode%1000==0 and i_episode>=1000:
 				print(f'Saving checkpoint at episode {i_episode}')
 				self.__checkpointModel(False,setup=True,tabular=True,memory=True)
 			
