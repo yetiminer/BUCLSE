@@ -13,6 +13,7 @@ import torch
 import visdom
 import time
 import os
+import shutil
 
 from collections import namedtuple,deque
 
@@ -284,7 +285,7 @@ class Experiment():
 			
 
 		def _train_setup(self,MaxEpisodes=100,planning_steps=5,lookback=50,thresh=5,planning=True,graph=False,epsilon=None,
-							total_steps=0,episode=0,novel_list=[],rwd_dyna=[],best_rew=0):
+							total_steps=0,episode=0,novel_list=[],rwd_dyna=[],best_rew=(0,0)):
 				self.MaxEpisodes=MaxEpisodes
 				self.planning_steps=planning_steps #number of planning sweeps
 				self.exp=0
@@ -327,21 +328,26 @@ class Experiment():
 			
 		def train(self,MaxEpisodes=100,start_episode=0,total_steps=0):
 			print(f'Planning is {self.planning}, double Q model is {self.dyna_config["double_q_model"]}, tabular memory is {self.dyna_config["memory"]["tabular memory"]}')
-			temp_explo_data=[]
+			self.temp_explo_data=[]
+			self.best_counter=0 #this is a counter that increments
 			
 			try: 
-				lobenv=self.env_selector(start_episode,self.lobenvs)
+
 			
 				for i_episode in range(start_episode,MaxEpisodes):
 					
-
+					#select a new environment
+					lobenv=self.env_selector(i_episode,self.lobenvs)
 					start_balance=lobenv.trader.balance
 					ep_r = 0
 					timestep = 0
 					s = lobenv.reset()
+					initial=True
 					
 					while True:
 						total_steps += 1
+						timestep += 1
+						self.total_steps=total_steps
 
 						# decay exploration
 						self.EPSILON = utils.epsilon_decay(
@@ -359,20 +365,20 @@ class Experiment():
 						ep_r += r
 
 						# store current transition
-						initial=False
-						if timestep==0:initial=True 
 						self.dyna_q_agent.store_transition(s, a, r, s_, done,initial)
-						#assert tuple([*s]) in dyna_q_agent.tabular.action_counter
+
 						
 						
-						timestep += 1
-						self.total_steps+=total_steps
-						self.episode+=1
 						
 						if done:
+							self.episode+=1
+							
+							#agent should liquidate any remaining holdings and cancel orders - ncessary for correct balance calculation
 							lobenv.liquidate()
+							
 							end_balance=lobenv.trader.balance
 							profit=end_balance-start_balance
+							
 							# start update policy when memory has enough exps
 							if self.dyna_q_agent.memory_counter > self.dyna_config['first_update']:
 								self.dyna_q_agent.learn(EPSILON=self.EPSILON)
@@ -381,64 +387,83 @@ class Experiment():
 								if self.planning and i_episode%10<=2:
 									for _ in range(self.planning_steps):
 										self.dyna_q_agent.simulate_learn_tabular(EPSILON=self.EPSILON)
-							stopping=False
+							
+							
+							#store,plot and display data
+							self.store_train_data(i_episode,timestep,ep_r,profit)
 
-							self.rwd_dyna.append(LossRecord(i_episode,timestep,ep_r,profit))
-							stopping,median_loss,mean_loss=self.stopper(self.rwd_dyna,lookback=self.lookback,thresh=self.thresh)
-							
-							#save if a record breaker
-							if median_loss>max(0,self.best_rew): self.__checkpointModel(True,setup=True,tabular=False,memory=True)
-							
-							#store number of novel state requests during training, length of state, state action dictionaries per period
-							explo_data=(i_episode,self.dyna_q_agent.novel,len(self.dyna_q_agent.tabular.state_counter),len(self.dyna_q_agent.tabular.state_action_counter))
-							temp_explo_data.append(explo_data)
-							self.novel_list.append(explo_data)
-							
-							
 							#plot results at visdom
-							if i_episode%20==0 and i_episode>=20:
-
-								if i_episode/20%2==0:
-									self.plot_results(np.array([i_episode]),np.array([mean_loss]),np.array([median_loss]))
-									self.plot_exploration(temp_explo_data)
-									temp_explo_data=[]
-									
-									
-								else:
-									self.plot_results_bar(i_episode)
-								print('Dyna-Q - EXP ', self.exp+1, '| Ep: ', i_episode + 1, '| timestep: ', 
-									  timestep, '| Ep_r: ', ep_r, 'Avg loss:',mean_loss)
+							self.display_train_data(i_episode,timestep)
 							
-							#save every 1000 episodes 							
-							if i_episode%1000 and i_episode>1000: self.__checkpointModel(True,setup=True,tabular=True,memory=True)
+							#store checkpoint if necessary
+							self.checkpoint_make(i_episode)
 							
-							if profit==0 and ep_r>5: 
+							#check on stopping conditions
+							if self.lr.profit==0 and self.lr.reward>5: 
 								print('environment time:',lobenv.sess.time)
 								raise ProfitWeird
 
-							#select a new environment
-							lobenv=self.env_selector(i_episode,self.lobenvs)
 							
-							#and then reset it.
-
-							
-
-							
-							
-							if stopping and i_episode>50: raise GetOutOfLoop
+							if self.stopping and i_episode>50: raise GetOutOfLoop
 							break
 							
 						else:
 							s = s_
-							
+							initial=False
 						
 			except GetOutOfLoop:
 				print('stopping')
+				
+				pass
 				
 			except ProfitWeird:
 				print('stopping, weird profit')
 
 				pass
+				
+		def store_train_data(self,i_episode,timestep,ep_r,profit):
+			self.lr=LossRecord(i_episode,timestep,ep_r,profit)
+			self.rwd_dyna.append(self.lr)
+			self.stopping=False
+			self.stopping,self.median_loss,self.mean_loss=self.stopper(self.rwd_dyna,lookback=self.lookback,thresh=self.thresh)
+			
+			#store number of novel state requests during training, length of state, state action dictionaries per period
+			explo_data=(i_episode,self.dyna_q_agent.novel,len(self.dyna_q_agent.tabular.state_counter),len(self.dyna_q_agent.tabular.state_action_counter))
+			self.temp_explo_data.append(explo_data)
+			self.novel_list.append(explo_data)
+		
+		def display_train_data(self,i_episode,timestep):
+			if i_episode%20==0 and i_episode>=20:
+				
+				if self.graph:
+					if i_episode/20%2==0:
+						self.plot_results(np.array([i_episode]),np.array([self.mean_loss]),np.array([self.median_loss]))
+						self.plot_exploration(self.temp_explo_data)
+						self.temp_explo_data=[]
+						
+						
+					else:
+						self.plot_results_bar(i_episode)
+					
+					
+				print(f'Dyna-Q - EXP: {self.exp+1} | Ep: {i_episode + 1} | timestep: {timestep} | Ep_r:  {self.lr.reward} Profit: {self.lr.profit} Avg loss:{self.mean_loss}')
+		
+				
+				
+		def checkpoint_make(self,i_episode):
+			#save every 1000 episodes 							
+			if i_episode%1000 and i_episode>=1000:
+				print(f'Saving checkpoint at episode {i_episode}')
+				self.__checkpointModel(False,setup=True,tabular=True,memory=True)
+			
+			#save if a record breaker
+			elif self.mean_loss>max(0,self.best_rew[0]) and self.best_rew[1]-i_episode>50:
+					print(f'Saving best checkpoint at episode {i_episode} with reward {self.best_rew[0]}')
+					self.__checkpointModel(True,setup=True,tabular=False,memory=True)
+					self.best_rew=(self.mean_loss,i_episode)
+					
+
+				
 				
 		def test_setup(self,lobenv_kwargs=None,MaxEpisodes=250):
 			if lobenv_kwargs is None: lobenv_kwargs=self.lobenv_kwargs
@@ -589,7 +614,7 @@ class Experiment():
 			if tabular:
 				save_dic.update({'tabular': self.dyna_q_agent.tabular.__dict__})
 			
-			__save_checkpoint(save_dic, is_best)
+			self.__save_checkpoint(save_dic, is_best)
 		
 		@staticmethod
 		def _resume( best = False):
