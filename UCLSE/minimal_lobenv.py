@@ -208,30 +208,47 @@ class SimpleRLEnv(RLEnv):
 
 	def action_converter(self,action_num,auto_cancel=True):
 		
-		if action_num not in self.action_dic:
-			self.action_adder(action_num,auto_cancel=auto_cancel)
-		 
-		super().action_converter(action_num,auto_cancel)
+		if isinstance(action_num,(tuple,int,np.int64)): action_list=[action_num]
+		elif type(action_num)==list:
+			action_list=action_num
+			for action in action_num:
+				assert isinstance(action,(tuple,int,np.int64))
+		else:
+			print('unknown action type',action_num,type(action_num))
+			raise AssertionError
+		
+		for _action_num in action_list:
+			if _action_num not in self.action_dic:
+				self.action_adder(_action_num,auto_cancel=auto_cancel)
+				
+			super().action_converter(_action_num,auto_cancel)
 		
 	def liquidate(self):
 		#cancel bids and offers, liquidates remaining inventory
+		action_list=[]
+		#inventory=self.trader.inventory
 		if self.trader.n_orders>0:
-			self.step((1,0,0),auto_cancel=True)
-			self.step((-1,0,0),auto_cancel=True)
-			assert self.trader.n_orders==0
-		inventory=self.trader.inventory
+			
+			action_list.append((1,0,0))
+			action_list.append((-1,0,0))
+
 		
 		
-		while inventory>0: #clear out long inventory
+		
+		while self.trader.inventory>0 or self.trader.n_orders>0: #clear out long inventory
 			
-			action=(-1,inventory,-1) 
-			self.action_maker(action,auto_cancel=True)
-			self.step(action,auto_cancel=True)
-			inventory=self.trader.inventory
+			action=(-1,self.trader.inventory,-1)
+			action_list.append(action)
 			
+
+			#send to exchange with possibly cancellations as well
+			
+			self.step(action_list,auto_cancel=True)
+			#after first sweep, only inventory clearing order should be in the market
+			action_list=[]
 			
 		assert self.trader.n_orders==0
-		assert inventory==0
+		assert self.trader.inventory==0
 		
 		
 		
@@ -239,6 +256,7 @@ class SimpleRLEnv(RLEnv):
 
 		#cancel bids and offers
 		self.liquidate()
+		assert self.trader.inventory==0
 
 		#if the sess has little time to run, do a hard reset
 		if self.sess.timer.time_left<1000 or hard:

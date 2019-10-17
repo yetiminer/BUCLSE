@@ -101,9 +101,9 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 			done=1
 		elif inventory>1:
 			done=1
-		elif distance>=ub:
+		elif -distance>=ub:
 			done=1
-		elif distance<lb:
+		elif -distance<lb:
 			done=1
 		
 		else:
@@ -457,7 +457,7 @@ class Experiment():
 				self.__checkpointModel(False,setup=True,tabular=True,memory=True)
 			
 			#save if a record breaker
-			elif self.mean_loss>max(0,self.best_rew[0]) and self.best_rew[1]-i_episode>50:
+			elif self.mean_loss>max(0,self.best_rew[0]) and i_episode-self.best_rew[1]>50:
 					print(f'Saving best checkpoint at episode {i_episode} with reward {self.best_rew[0]}')
 					self.__checkpointModel(True,setup=True,tabular=False,memory=True)
 					self.best_rew=(self.mean_loss,i_episode)

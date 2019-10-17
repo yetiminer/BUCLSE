@@ -236,14 +236,22 @@ class RLEnv(gym.Env):
 	
 
 	def action_converter(self,action_num,auto_cancel=True):
-	 
-		new_order=self.action_dic[action_num].do(self.lob,auto_cancel=auto_cancel)
-		if new_order is not None:
 		
-			#this informs RL_trader of correct qid, does the bookkeeping.
-			message=Message(too=self.sess.exchange.name,fromm=self.trader.tid,subject='New Exchange Order',
-				order=new_order,time=self.time)
-			self.trader.send(message)
+		#sometimes we want agent to execute more than one order in a period
+		if isinstance(action_num,(tuple,int,np.int64)): action_list=[action_num]
+		elif type(action_num)==list: action_list=action_num
+		else:
+			print('unknown action number type',action_num, type(action_num))
+			raise AssertionError
+		
+		for action_num in action_list:
+			new_order=self.action_dic[action_num].do(self.lob,auto_cancel=auto_cancel)
+			if new_order is not None:
+			
+				#this informs RL_trader of correct qid, does the bookkeeping.
+				message=Message(too=self.sess.exchange.name,fromm=self.trader.tid,subject='New Exchange Order',
+					order=new_order,time=self.time)
+				self.trader.send(message)
 			
 		
 		
