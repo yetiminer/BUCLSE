@@ -644,7 +644,7 @@ class Experiment():
 			if exp is not None: assert  type(exp)==Experiment
 				
 			checkpoint=Experiment._resume( best = best)
-			memory_counter=checkpoint.pop('memory_counter')
+			
 			
 			if exp is None: 
 				try:
@@ -660,13 +660,16 @@ class Experiment():
 			optim=checkpoint.pop('optimizer')
 			exp.dyna_q_agent.optimizer.load_state_dict(optim)
 			
-			tabular=checkpoint.pop('tabular')
-			exp.dyna_q_agent.tabular=TabularMemory.load_tabular(**tabular)
+			if 'tabular' in checkpoint:
+				tabular=checkpoint.pop('tabular')
+				exp.dyna_q_agent.tabular=TabularMemory.load_tabular(**tabular)
 			
-			memory=checkpoint.pop('memory')
-			exp.dyna_q_agent.memory[:memory_counter,:]=memory
+			if 'memory' in checkpoint:
+				memory_counter=checkpoint.pop('memory_counter')
+				memory=checkpoint.pop('memory')
+				exp.dyna_q_agent.memory[:memory_counter,:]=memory
 			
-			exp.dyna_q_agent.memory_counter=memory_counter
+				exp.dyna_q_agent.memory_counter=memory_counter
 			
 			train_dic=checkpoint.pop('train_dic')
 			exp._train_setup(**train_dic)
