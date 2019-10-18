@@ -14,6 +14,7 @@ import visdom
 import time
 import os
 import shutil
+import warnings
 
 from collections import namedtuple,deque
 
@@ -32,10 +33,11 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 
 	#profit_target=5
 
-	def __init__(self,*args,profit_target=5,loss_limit=-2,**kwargs):
+	def __init__(self,*args,profit_target=5,loss_limit=-2,lamb=0.9,**kwargs):
 		super().__init__(*args,**kwargs)
 		self.profit_target=profit_target
 		self.loss_limit=loss_limit
+		self.lamb=lamb
 
 	def setup_actions(self):
 		super().setup_actions()
@@ -54,7 +56,7 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 		return ans
 		
 	@staticmethod
-	def reward_oracle(observation,cutoff=50):
+	def reward_oracle(observation,cutoff=50,ub=6,lb=-2,lamb=1):
 
 
 		distance=observation.distance
@@ -64,16 +66,16 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 		bid_ask_spread=observation.bid_ask_spread
 		time_left=observation.time_left
 		
-		ans=0.9*bid_change
+		ans=lamb*bid_change
 		
 		if inventory==0:   #terminal            
 				ans+=-1 #to take account for the entrance spread paid
 				#ans=-distance/2
-				ans+=-0.1*distance
+				ans+=-(1-lamb)*distance
 			
 		elif inventory>1: #terminal
 				ans+=-2*bid_ask_spread
-				ans+=-0.1*distance
+				ans+=-(1-lamb)*distance
 		else:
 				  
 				if orders_out>0: 
@@ -81,8 +83,12 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 	  
 					
 				if time_left==1: #terminal takes account of exit spread
-					ans+=-(bid_ask_spread)-1
-					ans+=-0.1*distance
+					ans+=-1
+					ans+=-(1-lamb)*distance
+					
+				if -distance>=ub or -distance<lb:
+					ans+=-1
+					ans+=-(1-lamb)*distance
 
 		return ans 
 		
@@ -97,18 +103,24 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 		
 		if inventory==0:
 			done=1
+			why=f'inventory {inventory}=0'
 		elif time_left>=1:
 			done=1
+			why=f'time up {time_left}'
 		elif inventory>1:
 			done=1
+			why=f'inventory {inventory}>1'
 		elif -distance>=ub:
 			done=1
-		elif -distance<lb:
+			why=f'-distance {distance} >ub {ub}'
+		elif -distance<lb: 
 			done=1
+			why=f'-distance {distance}<lb {lb}'
 		
 		else:
-			done=0
-		return done
+			done=0 
+			why=None
+		return done,why
 
 
 	def ready_sess(self,sess,order_thresh):
@@ -170,14 +182,14 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 
 		self.observation=Observation(dist,inventory,orders_out,bid_change,ask_change,bid_ask_spread,pil,sum(self.imbalance),time_left)
 
-		self.reward=self.reward_oracle(self.observation,cutoff=self.cutoff)
+		self.reward=self.reward_oracle(self.observation,cutoff=self.cutoff,ub=self.profit_target,lb=self.loss_limit,lamb=self.lamb)
 
-		self.done=self.done_oracle(self.observation,cutoff=self.cutoff,ub=self.profit_target,lb=self.loss_limit)
+		self.done,self.info=self.done_oracle(self.observation,cutoff=self.cutoff,ub=self.profit_target,lb=self.loss_limit)
 
-		info=None
+		
 
 
-		return self.observation,self.reward,self.done,info  
+		return self.observation,self.reward,self.done,self.info  
 
 class GetOutOfLoop(Exception):
     pass
@@ -465,43 +477,57 @@ class Experiment():
 
 				
 				
-		def test_setup(self,lobenv_kwargs=None,MaxEpisodes=250):
+		def test_setup(self,lobenv_kwargs=None,MaxEpisodes=250,agent=None):
 			if lobenv_kwargs is None: lobenv_kwargs=self.lobenv_kwargs
 			self.lobenv_test=SimpleRLEnv_mod.setup(EnvFactory=self.EF_test,parent=SimpleRLEnv_mod,**lobenv_kwargs)
 			
-			self.dyna_q_agent_test=DynaQ(self.dyna_config,**self.agent_kwargs)
+			if agent is None:
+				self.dyna_q_agent_test=DynaQ(self.dyna_config,**self.agent_kwargs)
+				agent=self.dyna_q_agent_test
 			
 			#copy over q net from trained agent.
-			self.dyna_q_agent_test.eval_net.load_state_dict(self.dyna_q_agent.eval_net.state_dict())
+			try:
+				if self.dyna_q_agent_test.eval_net is not None:
+					self.dyna_q_agent_test.eval_net.load_state_dict(self.dyna_q_agent.eval_net.state_dict())
+					
+			except AttributeError:
+					warnings.warn('no eval net for agent, skipping')
 			self.rwd_test = []
-			self.test(MaxEpisodes)
+			self.test(MaxEpisodes,agent=agent)
 		
-		def test(self,MaxEpisodes,start_episode=0):
+		def test(self,MaxEpisodes,start_episode=0,agent=None):
+		
+			#can pass an agent for benchmarking purposes else:
+			if agent is None: agent=self.dyna_q_agent_test
+			
 			EPSILON=0
 			total_steps = 0
 			exp=0
-			s = self.lobenv_test.reset()
+			
 			for i_episode in range(start_episode,MaxEpisodes):
-				
+				s = self.lobenv_test.reset()
 				start_balance=self.lobenv_test.trader.balance
 				ep_r = 0
 				timestep = 0
 				lob_start=self.lobenv_test.time
+				self.info=[]
+				
 				while True:
 					total_steps += 1
 
-					a = self.dyna_q_agent_test.choose_action(s, EPSILON)
+					a = agent.choose_action(s, EPSILON)
 
 					# take action
 					s_, r, done, info = self.lobenv_test.step(a)
-					self.dyna_q_agent_test.store_transition(s, a, r, s_, done)
+					self.info.append(info)
+					agent.store_transition(s, a, r, s_, done)
 					ep_r += r
 					
 					timestep += 1
 
 					if done:						
 						end_time=self.lobenv_test.time
-						s = self.lobenv_test.reset() #note the reset here. 
+						self.lobenv_test.liquidate() #note the liquidation here. 
 						end_balance=self.lobenv_test.trader.balance
 						profit=end_balance-start_balance
 						self.rwd_test.append((lob_start,end_time,total_steps,i_episode,ep_r,profit))
@@ -645,8 +671,9 @@ class Experiment():
 				
 			checkpoint=Experiment._resume( best = best)
 			
-			
-			if exp is None: 
+			returny=False
+			if exp is None:
+				returny=True
 				try:
 					assert 'setup' in checkpoint
 				except AssertionError:
@@ -675,6 +702,8 @@ class Experiment():
 			exp._train_setup(**train_dic)
 			
 			print('keys unused in checkpoint data: ',list(checkpoint.keys()))
+			
+			if returny: return exp 
 		
 		@staticmethod
 		def __save_checkpoint( state, is_best, filename='checkpoints/dyna_checkpoint.pth.tar'):
@@ -693,3 +722,5 @@ class Experiment():
 			d=d.set_index('i_episode')
 			d=d.reward.rolling(self.lookback).agg(['mean','median']).dropna(how='all')
 			self.plot_results(d.index.values,d['mean'].values,d['median'].values)
+			
+		
