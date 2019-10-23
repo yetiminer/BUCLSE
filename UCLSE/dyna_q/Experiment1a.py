@@ -33,11 +33,14 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 
 	#profit_target=5
 
-	def __init__(self,*args,profit_target=5,loss_limit=-2,lamb=0.9,**kwargs):
+	def __init__(self,*args,profit_target=5,loss_limit=-2,lamb=0.9,action_list=None,**kwargs):
+		
+		if action_list is not None: self.action_list=action_list
 		super().__init__(*args,**kwargs)
 		self.profit_target=profit_target
 		self.loss_limit=loss_limit
 		self.lamb=lamb
+		
 
 	def setup_actions(self):
 		super().setup_actions()
@@ -56,7 +59,7 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 		return ans
 		
 	@staticmethod
-	def reward_oracle(observation,cutoff=50,ub=6,lb=-2,lamb=1):
+	def reward_oracle(observation,cutoff=50,ub=6,lb=-2,lamb=0.5):
 
 
 		distance=observation.distance
@@ -72,10 +75,13 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 				ans+=-1 #to take account for the entrance spread paid
 				#ans=-distance/2
 				ans+=-(1-lamb)*distance
+				if distance>0:
+					ans+=5 #bonus
 			
 		elif inventory>1: #terminal
 				ans+=-2*bid_ask_spread
 				ans+=-(1-lamb)*distance
+				ans+=-5 #penalty
 		else:
 				  
 				if orders_out>0: 
@@ -86,9 +92,15 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 					ans+=-1
 					ans+=-(1-lamb)*distance
 					
-				if -distance>=ub or -distance<lb:
+				if -distance>=ub:
 					ans+=-1
 					ans+=-(1-lamb)*distance
+					ans+=5 #bonus
+					
+				elif -distance<lb:
+					ans+=-1
+					ans+=-(1-lamb)*distance
+					ans+=-5 #penalty
 
 		return ans 
 		
@@ -206,8 +218,8 @@ class Experiment():
 		def __init__(self,trader_pref_kwargs=None,timer_kwargs=None,price_sequence_kwargs=None,noise_kwargs=None,
 		messenger_kwargs=None,env_kwargs=None,trader_kwargs=None,lobenv_kwargs=None,dyna_kwargs=None,agent_kwargs=None,visdom=None):
 		
-			if visdom is not None:
-					self.vis=visdom
+			
+			self.vis=visdom
 			
 			self.initiate(trader_pref_kwargs,timer_kwargs,price_sequence_kwargs,noise_kwargs,
 			messenger_kwargs,env_kwargs,trader_kwargs,lobenv_kwargs,dyna_kwargs,agent_kwargs)
@@ -220,6 +232,7 @@ class Experiment():
 			self.price_sequence_kwargs=price_sequence_kwargs
 			self.noise_kwargs=noise_kwargs
 			self.messenger_kwargs=messenger_kwargs
+			self.env_kwargs=env_kwargs
 			self.trader_kwargs=trader_kwargs
 			self.lobenv_kwargs=lobenv_kwargs
 			self.dyna_kwargs=dyna_kwargs
@@ -310,7 +323,7 @@ class Experiment():
 					self.EPSILON=epsilon
 				
 				self.graph=graph
-				if graph:
+				if graph and self.vis is not None:
 					if graph:
 						self._setup_graph()
 						
@@ -338,7 +351,13 @@ class Experiment():
 			pass
 			
 			
-		def train(self,MaxEpisodes=100,start_episode=0,total_steps=0):
+		def train(self,MaxEpisodes=100,start_episode=0,total_steps=0,folder=None):
+			if folder is None:
+				print('Specify path to save checkpoints')
+				raise AttributeError
+			else:
+				self.folder=folder
+				
 			print(f'Planning is {self.planning}, double Q model is {self.dyna_config["double_q_model"]}, tabular memory is {self.dyna_config["memory"]["tabular memory"]}')
 			self.temp_explo_data=[]
 			self.best_counter=0 #this is a counter that increments
@@ -463,15 +482,16 @@ class Experiment():
 				
 				
 		def checkpoint_make(self,i_episode):
+			folder=self.folder
 			#save every 1000 episodes 							
 			if i_episode%1000==0 and i_episode>=1000:
 				print(f'Saving checkpoint at episode {i_episode}')
-				self.__checkpointModel(False,setup=True,tabular=True,memory=True)
+				self.__checkpointModel(False,setup=True,tabular=True,memory=True,folder=folder)
 			
 			#save if a record breaker
 			elif self.mean_loss>max(0,self.best_rew[0]) and i_episode-self.best_rew[1]>50:
 					print(f'Saving best checkpoint at episode {i_episode} with reward {self.best_rew[0]}')
-					self.__checkpointModel(True,setup=True,tabular=False,memory=True)
+					self.__checkpointModel(True,setup=True,tabular=False,memory=True,folder=folder)
 					self.best_rew=(self.mean_loss,i_episode)
 					
 
@@ -597,7 +617,7 @@ class Experiment():
 			
 			self.vis.get_window_data(self.train_return_hist)
 			
-		def __checkpointModel(self, is_best,setup=False,memory=False,tabular=False):
+		def __checkpointModel(self, is_best,setup=False,memory=False,tabular=False,folder=None):
         
 			train_dic={ 
 			'planning_steps':self.planning_steps,
@@ -640,14 +660,15 @@ class Experiment():
 			if tabular:
 				save_dic.update({'tabular': self.dyna_q_agent.tabular.__dict__})
 			
-			self.__save_checkpoint(save_dic, is_best)
+			self.__save_checkpoint(save_dic, is_best,folder=folder)
 		
 		@staticmethod
-		def _resume( best = False):
+		def _resume( best = False,folder='checkpoints/exp_last',ext='.pth.tar',filename='dyna_checkpoint',best_filename='dyna_best'):
 			if best:
-				path = 'checkpoints/dyna_best.pth.tar'
+				path=os.path.join(folder,best_filename+ext)
+				
 			else:
-				path = 'checkpoints/dyna_checkpoint.pth.tar'
+				path = path=os.path.join(folder,filename+ext)
 
 			if os.path.isfile(path):
 				print("=> loading checkpoint '{}'".format(path))
@@ -666,10 +687,10 @@ class Experiment():
 			return checkpoint
 		
 		@staticmethod
-		def resume(exp=None,best=False):
+		def resume(exp=None,best=False,folder='checkpoints/exp_last'):
 			if exp is not None: assert  type(exp)==Experiment
 				
-			checkpoint=Experiment._resume( best = best)
+			checkpoint=Experiment._resume( best = best,folder=folder)
 			
 			returny=False
 			if exp is None:
@@ -706,10 +727,20 @@ class Experiment():
 			if returny: return exp 
 		
 		@staticmethod
-		def __save_checkpoint( state, is_best, filename='checkpoints/dyna_checkpoint.pth.tar'):
-			torch.save(state, filename)
+		def __save_checkpoint( state, is_best, folder='checkpoints/exp_last',filename='dyna_checkpoint',bestfilename='dyna_best',ext='.pth.tar'):
+			Experiment.check_dir_exists_make_else(folder)
+			path=os.path.join(folder,filename+ext)
+			torch.save(state, path)
 			if is_best:
-				shutil.copyfile(filename, 'checkpoints/dyna_best.pth.tar')
+				bestpath=os.path.join(folder,bestfilename+ext)
+				shutil.copyfile(path, bestpath)
+		
+		@staticmethod
+		def check_dir_exists_make_else(dir):
+			
+			if not(os.path.isdir(dir)):
+				os.mkdir(dir)
+				print('making new directory',dir)
 		
 		def recover_plots(self):
 			

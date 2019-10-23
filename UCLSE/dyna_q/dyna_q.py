@@ -8,6 +8,7 @@ import UCLSE.dyna_q.utils as utils
 from UCLSE.dyna_q.priorExpReplay import PriorExpReplay
 from UCLSE.dyna_q.CVAE import  Decoder, CVAE_loss_make
 from UCLSE.dyna_q.CVAE import CVAE as CVAE_model
+from math import sqrt,log
 
 class Q_Net(nn.Module):
 	def __init__(self, N_STATES, N_ACTIONS, H1Size, H2Size):
@@ -672,7 +673,8 @@ class DynaQ(object):
 from collections import Counter
 
 class TabularMemory():
-	def __init__(self,N_ACTIONS):
+	def __init__(self,N_ACTIONS,initial_Q=0):
+		self.n_actions=N_ACTIONS
 		self.memory={}
 		self.default_counter=Counter({k:0 for k in range(N_ACTIONS)})
 		self.action_counter={}
@@ -680,6 +682,7 @@ class TabularMemory():
 		self.state_counter=Counter()
 		self.state_action_counter=Counter()
 		self.reverse_memory={}
+		self.initial_Q=initial_Q
 		
 	def __repr__(self):
 		return f'state counter length: {len(self.state_counter)}, state_action counter length: {len(self.state_action_counter)}, total experiences: {sum(self.state_action_counter.values())}'
@@ -689,7 +692,7 @@ class TabularMemory():
 		s_=tuple([*s_])
 		if s not in self.memory: self.memory[s]={}
 
-		if a not in self.memory[s]: self.memory[s][a]={'count':0,'reward':Counter(),'done':Counter(),'s_':Counter()}
+		if a not in self.memory[s]: self.memory[s][a]={'count':0,'reward':Counter(),'done':Counter(),'s_':Counter(),'Q':self.initial_Q}
 		
 		self.memory[s][a]['count']+=1
 		self.memory[s][a]['reward'].update([r])
@@ -720,6 +723,77 @@ class TabularMemory():
 		table=self.memory[state][action]['s_']
 		return self.numpy_select1(table) #this returns reward,s_,done tuple
 		
+	def q_update(tab,sample_state,sample_action,val=0,gamma=0.5):
+		if 'Q' not in tab.memory[sample_state][sample_action]:
+			tab.memory[sample_state][sample_action]['Q']=val
+
+
+		trans=tab.memory[sample_state][sample_action]['s_']
+		denom=tab.memory[sample_state][sample_action]['count']
+				#sum_a (p(s,s_,a)*(R_(s,s_,a)+gamma*terminal_state*max_a'(Q(s_,a')))
+		return sum([count*(k[0]+gamma*((k[2]+1)%2)*tab.max_get_Q(k[1])[0]) for k,count in trans.items()])/denom
+
+	def max_get_Q(tab,state,val=0):
+		max_state_value=-100000
+		
+		if state in tab.memory:
+		
+			for action,dic in tab.memory[state].items():
+				if 'Q' not in dic: dic['Q']=val
+				if dic['Q']>max_state_value:
+					max_action=action
+					max_state_value=dic['Q']
+					
+		else:
+			#the next state has not been experienced in memory
+			max_state_value=tab.initial_Q
+			max_action=np.random.randint(0,tab.n_actions)
+				
+		return max_state_value,max_action
+		
+	def max_get_Q_UCB(tab,state,total_steps,val=0,beta=1):
+		max_state_value=-100000
+		
+		
+		if state in tab.memory:
+			UCB_num=sqrt(beta*log(total_steps))
+			zero_visits=[]
+			#for action,dic in tab.memory[state].items():
+			for action,times_visited in tab.action_counter[state].items():
+				
+				if times_visited==0:
+					zero_visits.append(action)
+				else:
+					UCB_denom=sqrt(2*times_visited)
+					UCB=UCB_num/UCB_denom
+					Q=tab.memory[state][action]['Q']
+					if Q+UCB>max_state_value:
+						max_action=action
+						max_state_value=Q
+						
+			if len(zero_visits)>0:
+				max_action=int(np.random.choice(zero_visits,1)[0])
+				max_state_value=tab.initial_Q
+					
+		else:
+			#the next state has not been experienced in memory
+			max_state_value=tab.initial_Q
+			max_action=np.random.randint(0,tab.n_actions)
+				
+		return max_state_value,max_action
+
+	def wipe_update(tab,val):
+		#for all q values in the memory, set to a value
+		for state in tab.memory:
+			for action in tab.memory[state]:
+				tab.memory[state][action]['Q']=val
+				
+	def full_update(tab,gamma):
+		for state in tab.memory:
+			for action in tab.memory[state]:
+				
+				tab.memory[state][action]['Q']=tab.q_update(state,action,gamma)
+		
 	@staticmethod		
 	def numpy_select1(table,reps=1,replace=True):
 		#selects next state according to its distribution in the counter table.
@@ -738,11 +812,13 @@ class TabularMemory():
 		return tuple(np_tab[rdx])
 		
 	@staticmethod
-	def load_tabular(memory=None,default_counter=None,action_counter=None,initial_counter=None,state_counter=None,state_action_counter=None,reverse_memory=None):
+	def load_tabular(memory=None,default_counter=None,action_counter=None,initial_counter=None,state_counter=None,state_action_counter=None,reverse_memory=None,n_actions=None,initial_Q=None):
 		
 		N_ACTIONS=len(default_counter)
+		assert N_ACTIONS==n_actions #originally this wasn't specified on instantiation
+
 		
-		tabular=TabularMemory(N_ACTIONS)
+		tabular=TabularMemory(N_ACTIONS,initial_Q=initial_Q)
 		
 		tabular.memory=memory
 		tabular.action_counter=action_counter
