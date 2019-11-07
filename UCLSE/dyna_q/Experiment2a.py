@@ -33,13 +33,17 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 
 	#profit_target=5
 
-	def __init__(self,*args,profit_target=5,loss_limit=-2,lamb=0.9,action_list=None,**kwargs):
+	def __init__(self,*args,profit_target=5,loss_limit=-2,lamb=0.9,action_list=None,fake_cash=0,**kwargs):
 		
 		if action_list is not None: self.action_list=action_list
 		super().__init__(*args,**kwargs)
 		self.profit_target=profit_target
 		self.loss_limit=loss_limit
 		self.lamb=lamb
+		if fake_cash is callable:
+			self.fake_cash=fake_cash()
+		else:
+			self.fake_cash=fake_cash
 		
 
 	def setup_actions(self):
@@ -53,13 +57,15 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 	@property
 	def distance(self):
 		if self.trader.inventory==0:
-			ans=-self.trader.trade_manager.cash #after execution, when inventory is 0, there is no distance - but prior to execution it is current cash balance
+			ans=-self.trader.trade_manager.cash+self.fake_cash-10*self.initial_distance #after execution, when inventory is 0, there is no distance - but prior to execution it is current cash balance
 		else:
-			ans=self.trader.trade_manager.avg_cost-self.best_bid
+			ans=self.trader.trade_manager.avg_cost-self.best_bid+self.fake_cash-10*self.initial_distance
 		return ans
 		
+
+		
 	@staticmethod
-	def reward_oracle(observation,cutoff=50,ub=6,lb=-2,lamb=0.5):
+	def reward_oracle_default(observation,cutoff=50,ub=6,lb=-2,lamb=0.5):
 
 
 		distance=observation.distance
@@ -222,8 +228,8 @@ class Dyna_QAgentTabular():
 		self._gamma=gamma
 		self.gamma_decay=gamma_decay
 		self.mode=self.exploration['mode']
-		self.test_memory = np.zeros((memory_capacity, self.n_statespace * 2 + 3))
-		self.test_memory_index=0
+		self.memory = np.zeros((memory_capacity, self.n_statespace * 2 + 3))
+		self.memory_counter=0
 		
 	def __repr__(self):
 		return f'n actions:{self.n_actions} initial_q: {self.initial_Q}, tabular memory: {self.tabular}, exploration mode {self.mode}'
@@ -232,8 +238,8 @@ class Dyna_QAgentTabular():
 		self.tabular.tabulate(s, a, r, s_, d,initial)
 		if test:
 			transition = np.hstack((s, [a, r, d], s_))
-			self.test_memory[self.test_memory_index, :] = transition
-			self.test_memory_index+=1
+			self.memory[self.memory_counter, :] = transition
+			self.memory_counter+=1
 			
 	
 	@property
@@ -291,7 +297,7 @@ class Dyna_QAgentTabular():
 		ans=self.tabular.max_get_Q_UCB(state,total_steps,val=0,beta=beta)[1]
 		return ans
 
-	def simulate_learn_tabular(self,EPSILON):
+	def learn_tabular(self,EPSILON):
 		self.tabular.full_update(gamma=self.gamma)
 
 
@@ -301,17 +307,18 @@ loss_record_dtype=LossRecord(int,int,np.float,np.float)
 		
 class Experiment():
 		def __init__(self,trader_pref_kwargs=None,timer_kwargs=None,price_sequence_kwargs=None,noise_kwargs=None,
-		messenger_kwargs=None,env_kwargs=None,trader_kwargs=None,lobenv_kwargs=None,dyna_kwargs=None,agent_kwargs=None,visdom=None,dyna_Q_agent=None):
+		messenger_kwargs=None,env_kwargs=None,trader_kwargs=None,lobenv_kwargs=None,agent_kwargs=None,visdom=None,agent=None,name='experiment 2_no_name'):
 		
 			
 			self.vis=visdom
 			
 			self.initiate(trader_pref_kwargs,timer_kwargs,price_sequence_kwargs,noise_kwargs,
-			messenger_kwargs,env_kwargs,trader_kwargs,lobenv_kwargs,dyna_kwargs,agent_kwargs,dyna_Q_agent=dyna_Q_agent)
+			messenger_kwargs,env_kwargs,trader_kwargs,lobenv_kwargs,agent_kwargs,agent=agent,name=name)
 		
 		def initiate(self,trader_pref_kwargs=None,timer_kwargs=None,price_sequence_kwargs=None,noise_kwargs=None,
-		messenger_kwargs=None,env_kwargs=None,trader_kwargs=None,lobenv_kwargs=None,dyna_kwargs=None,agent_kwargs=None,dyna_Q_agent=None,memory=None,tabular=None):
+		messenger_kwargs=None,env_kwargs=None,trader_kwargs=None,lobenv_kwargs=None,agent_kwargs=None,agent=None,memory=None,tabular=None,name=None):
 			#needed this for loading from checkpoint
+			self.name=name
 			self.trader_pref_kwargs=trader_pref_kwargs
 			self.timer_kwargs=timer_kwargs
 			self.price_sequence_kwargs=price_sequence_kwargs
@@ -320,13 +327,14 @@ class Experiment():
 			self.env_kwargs=env_kwargs
 			self.trader_kwargs=trader_kwargs
 			self.lobenv_kwargs=lobenv_kwargs
-			self.dyna_kwargs=dyna_kwargs
+			
 			self.agent_kwargs=agent_kwargs
+			self.agent_type=agent
 			
 			EF1,EF2,EF3=(EnvFactory(trader_pref_kwargs=trader_pref_kwargs,
 					timer_kwargs=timer_kwargs,price_sequence_kwargs=price_sequence_kwargs,
 					noise_kwargs=noise_kwargs,trader_kwargs=trader_kwargs,env_kwargs=env_kwargs,
-					messenger_kwargs=messenger_kwargs) for k in range(3))
+					messenger_kwargs=messenger_kwargs,name=str(k)) for k in range(3))
 			
 			self.EF_test=EnvFactory(trader_pref_kwargs=trader_pref_kwargs,
 					timer_kwargs=timer_kwargs,price_sequence_kwargs=price_sequence_kwargs,
@@ -345,19 +353,13 @@ class Experiment():
 			self.lobenvs=[lobenv1,lobenv2,lobenv3]
 			
 			
-			self.dyna_config=dyna_kwargs
 			
 			
-			self.dyna_q_agent=dyna_Q_agent(**dyna_kwargs)
+			
+			self.agent=agent(**agent_kwargs)
 			
 
-		def setup_dyna_config(self,dyna_config):
-			N_ACTIONS = len(self.lobenvs[0].new_action_dic)
-			N_STATES = len(Observation._fields)
-			ENV_A_SHAPE = 0   # to confirm the shape
-			env_config = {'n_actions': N_ACTIONS, 'n_states': N_STATES, 'env_a_shape': ENV_A_SHAPE}
-			dyna_config.update(env_config)
-			return dyna_config
+
 		
 		
 		@staticmethod
@@ -403,7 +405,7 @@ class Experiment():
 				self.thresh=thresh
 				self.planning=planning
 				if epsilon is None:
-					self.EPSILON = self.dyna_q_agent.exploration['init_epsilon']
+					self.EPSILON = self.agent.exploration['init_epsilon']
 				else:
 					self.EPSILON=epsilon
 				
@@ -422,13 +424,13 @@ class Experiment():
 			
 			
 		def _setup_graph(self):
-				self.train_loss_window = self.__create_plot_window(self.vis, '#Iterations', 'Loss', 'Training Loss')
+				self.train_loss_window = self.__create_plot_window(self.vis, '#Iterations', 'Loss', self.name + ': Training Loss')
 				time.sleep(0.5)
 				self.vis.get_window_data(self.train_loss_window)
-				self.train_return_hist=self.__create_bar_window(self.vis, 'Return distribution')
+				self.train_return_hist=self.__create_bar_window(self.vis, self.name+': Return distribution')
 				time.sleep(0.5)
 				self.vis.get_window_data(self.train_return_hist)
-				self.state_window=self.__create_plot_window(self.vis, 'Episode #', '#states', 'States explored')
+				self.state_window=self.__create_plot_window(self.vis, 'Episode #', '#states', self.name+ ': States explored')
 				time.sleep(0.5)
 				self.vis.get_window_data(self.state_window)
 				assert self.train_loss_window!=self.train_return_hist!=self.state_window
@@ -438,7 +440,7 @@ class Experiment():
 			
 			
 		def train(self,MaxEpisodes=100,start_episode=0,total_steps=0,folder=None):
-			self.mode=self.dyna_q_agent.mode
+			self.mode=self.agent.mode
 			
 			print(f'Exploration is {self.mode}')
 			if folder is None:
@@ -461,7 +463,8 @@ class Experiment():
 					start_balance=lobenv.trader.balance
 					ep_r = 0
 					timestep = 0
-					s = lobenv.reset()
+					s,r0 = lobenv.reset()
+					ep_r=lobenv.lamb*r0
 					initial=True
 					
 					while True:
@@ -473,19 +476,19 @@ class Experiment():
 						self.EPSILON = utils.epsilon_decay(
 							eps=self.EPSILON, 
 							step=self.total_steps, 
-							config=self.dyna_q_agent.exploration
+							config=self.agent.exploration
 						)
 						
 						
 						
-						a = self.dyna_q_agent.choose_action(s, self.EPSILON,mode=self.mode,total_steps=self.total_steps)
+						a = self.agent.choose_action(s, self.EPSILON,mode=self.mode,total_steps=self.total_steps)
 
 						# take action
 						s_, r, done, info = lobenv.step(a)
 						ep_r += r
 
 						# store current transition
-						self.dyna_q_agent.store_transition(s, a, r, s_, done,initial)
+						self.agent.store_transition(s, a, r, s_, done,initial)
 
 						
 						
@@ -500,10 +503,10 @@ class Experiment():
 							profit=end_balance-start_balance
 							
 								#no planning before first update
-							if self.planning and i_episode%20==0 and i_episode>self.first_learn:
+							if i_episode%20==0 and i_episode>self.first_learn:
 								begin=time.time()
 								for _ in range(self.planning_steps):
-									self.dyna_q_agent.simulate_learn_tabular(EPSILON=self.EPSILON)
+									self.agent.learn_tabular(EPSILON=self.EPSILON)
 								endt=time.time()
 								self.time_to_backup=endt-begin
 								
@@ -547,7 +550,7 @@ class Experiment():
 			self.stopping,self.median_loss,self.mean_loss=self.stopper(self.rwd_dyna,lookback=self.lookback,thresh=self.thresh)
 			
 			#store number of novel state requests during training, length of state, state action dictionaries per period
-			explo_data=(i_episode,len(self.dyna_q_agent.tabular.state_counter),len(self.dyna_q_agent.tabular.state_action_counter))
+			explo_data=(i_episode,len(self.agent.tabular.state_counter),len(self.agent.tabular.state_action_counter))
 			self.temp_explo_data.append(explo_data)
 			self.novel_list.append(explo_data)
 		
@@ -591,13 +594,15 @@ class Experiment():
 			self.lobenv_test=SimpleRLEnv_mod.setup(EnvFactory=self.EF_test,parent=SimpleRLEnv_mod,**lobenv_kwargs)
 			
 			if agent is None:
-				self.dyna_q_agent_test=DynaQ(self.dyna_config,**self.agent_kwargs)
-				agent=self.dyna_q_agent_test
+				self.agent_test=self.agent_type(**self.agent_kwargs)
+				agent=self.agent_test
+			else:
+				self.agent_test=agent
 			
 			#copy over q net from trained agent.
 			try:
-				if self.dyna_q_agent_test.eval_net is not None:
-					self.dyna_q_agent_test.eval_net.load_state_dict(self.dyna_q_agent.eval_net.state_dict())
+				if self.agent_test.eval_net is not None:
+					self.agent_test.eval_net.load_state_dict(self.agent.eval_net.state_dict())
 					
 			except AttributeError:
 					warnings.warn('no eval net for agent, skipping')
@@ -606,18 +611,18 @@ class Experiment():
 			self.test(MaxEpisodes,agent=agent)
 		
 		def test(self,MaxEpisodes,start_episode=0,agent=None):
-			self.mode=self.dyna_q_agent.mode
+			self.mode=self.agent.mode
 			#can pass an agent for benchmarking purposes else:
-			if agent is None: agent=self.dyna_q_agent_test
+			if agent is None: agent=self.agent_test
 			
 			EPSILON=0
 			total_steps = 0
 			exp=0
 			
 			for i_episode in range(start_episode,MaxEpisodes):
-				s = self.lobenv_test.reset()
+				s,r0 = self.lobenv_test.reset()
 				start_balance=self.lobenv_test.trader.balance
-				ep_r = 0
+				ep_r = self.lobenv_test.lamb*r0
 				timestep = 0
 				lob_start=self.lobenv_test.time
 				self.info=[]
@@ -640,7 +645,7 @@ class Experiment():
 						self.lobenv_test.liquidate() #note the liquidation here. 
 						end_balance=self.lobenv_test.trader.balance
 						profit=end_balance-start_balance
-						self.rwd_test.append((lob_start,end_time,total_steps,i_episode,ep_r,profit))
+						self.rwd_test.append((lob_start,end_time,total_steps,i_episode,ep_r,profit,self.lobenv_test.initial_distance))
 						if i_episode %10==0:
 							print(f'Dyna-Q - EXP {exp+1}, | Ep: , {i_episode + 1}, | timestep:  {timestep} | Ep_r: { ep_r}|profit:{profit} start:{lob_start}|end:{end_time}')
 						
@@ -702,7 +707,7 @@ class Experiment():
 			weights=np.stack((weights_rew,weights_pro),axis=1)
 			
 			bin_centres=bin_edges[0:-1]
-			self.vis.bar(X=weights,Y=bin_centres,win=self.train_return_hist,opts=dict(title='Return distribution',legend=['reward','profit']))
+			self.vis.bar(X=weights,Y=bin_centres,win=self.train_return_hist,opts=dict(title=self.name+' Return distribution',legend=['reward','profit']))
 			
 			
 			self.vis.get_window_data(self.train_return_hist)
@@ -737,13 +742,14 @@ class Experiment():
 					messenger_kwargs=self.messenger_kwargs,
 					trader_kwargs=self.trader_kwargs,
 					lobenv_kwargs=self.lobenv_kwargs,
-					dyna_kwargs=self.dyna_kwargs,
-					agent_kwargs=self.agent_kwargs,)
+					#dyna_kwargs=self.dyna_kwargs,
+					agent_kwargs=self.agent_kwargs,
+					name=self.name)
 				
 				save_dic.update({'setup':setup_dic})
 			
 			if tabular:
-				save_dic.update({'tabular': self.dyna_q_agent.tabular.__dict__})
+				save_dic.update({'tabular': self.agent.tabular.__dict__})
 			
 			self.__save_checkpoint(save_dic, is_best,folder=folder)
 		
@@ -793,14 +799,14 @@ class Experiment():
 			
 			if 'tabular' in checkpoint:
 				tabular=checkpoint.pop('tabular')
-				exp.dyna_q_agent.tabular=TabularMemory.load_tabular(**tabular)
+				exp.agent.tabular=TabularMemory.load_tabular(**tabular)
 			
 			if 'memory' in checkpoint:
 				memory_counter=checkpoint.pop('memory_counter')
 				memory=checkpoint.pop('memory')
-				exp.dyna_q_agent.memory[:memory_counter,:]=memory
+				exp.agent.memory[:memory_counter,:]=memory
 			
-				exp.dyna_q_agent.memory_counter=memory_counter
+				exp.agent.memory_counter=memory_counter
 			
 			train_dic=checkpoint.pop('train_dic')
 			exp._train_setup(**train_dic)
@@ -837,11 +843,13 @@ class Experiment():
 			d=d.reward.rolling(self.lookback).agg(['mean','median']).dropna(how='all')
 			self.plot_results(d.index.values,d['mean'].values,d['median'].values)
 			
-		def plot_hist_profit(self):
+		def plot_hist_profit(self,title='Test'):
 			d=pd.DataFrame(self.rwd_test)
 			bins=np.arange(-10.5,10.5,1)
 			ax=d[4].hist(bins=bins,label='reward')
 			d[5].hist(bins=bins,label='profit',ax=ax,alpha=0.5)
 			ax.legend()
+			_=ax.xaxis.set_ticks(np.arange(-10,11))
+			ax.set_title(title)
 			return ax
 			

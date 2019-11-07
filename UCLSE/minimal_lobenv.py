@@ -24,7 +24,7 @@ class SimpleRLEnv(RLEnv):
 	imbalance=deque([0 for l in range(memory)])
 	Observation_obj=Observation
 	
-	def __init__(self,*args,sess_factory=None,cutoff=50,**kwargs):
+	def __init__(self,*args,sess_factory=None,cutoff=50,reward_func=None,**kwargs):
 		super().__init__(*args,**kwargs)
 		
 		if sess_factory is None: 
@@ -32,10 +32,18 @@ class SimpleRLEnv(RLEnv):
 			raise TypeErrorypeerror
 		self.sess_factory=sess_factory
 		self.cutoff=cutoff
+		self.set_reward_oracle(reward_func)
 		
 	def set_cutoff(self,cutoff):
 		self.cutoff=cutoff
     
+	def set_reward_oracle(self,function=None):
+		if function is None:
+			self.reward_oracle=self.reward_oracle_default
+		else:
+			self.reward_oracle=function
+	
+	
 	@property
 	def distance(self):
 		if self.trader.inventory==0:
@@ -94,7 +102,7 @@ class SimpleRLEnv(RLEnv):
 		self.imbalance.append(imbalance)
 
 	@staticmethod
-	def reward_oracle(distance,inventory,orders_out):
+	def reward_oracle_default(distance,inventory,orders_out):
 		return np.vstack([distance==0,inventory==0,orders_out==0]).all(axis=0).astype('long')
 
 	@staticmethod
@@ -237,8 +245,10 @@ class SimpleRLEnv(RLEnv):
 		
 		while self.trader.inventory>0 or self.trader.n_orders>0: #clear out long inventory
 			
-			action=(-1,self.trader.inventory,-1)
-			action_list.append(action)
+			for i in range(1,self.trader.inventory+1):
+				#create a list of orders that will each execute at best in turn
+				action=(-1,1,-1)
+				action_list.append(action)
 			
 
 			#send to exchange with possibly cancellations as well
@@ -289,9 +299,11 @@ class SimpleRLEnv(RLEnv):
 		#also ensure that viable lob exists
 		self.ready_sess(self.sess,self.thresh)
 		
+		self.initial_distance=0
+		
 		#assert there is enough time again, else do a hard reset
 		if self.sess.timer.time_left<2*self.cutoff:
-			observation=self.reset(wait_period=wait_period,hard=True)
+			observation,reward=self.reset(wait_period=wait_period,hard=True)
 		else:
 			#coordinate lobs again
 			self.add_lob(self.sess.exchange.publish_lob(self.time,False))
@@ -302,9 +314,15 @@ class SimpleRLEnv(RLEnv):
 			#buy at best ask
 			self.period_count=-1
 			observation,reward,done,info=self.step((1,1,-1),auto_cancel=True)
+			
+			#make sure the thing isn't finished before it has begun
+			if done: observation,reward=self.reset(wait_period=wait_period)
+			
 			assert self.trader.inventory==1
+			
+		self.initial_distance=observation.distance
 		
-		return observation
+		return observation,reward
 		
 		
 	
@@ -320,9 +338,10 @@ class SimpleRLEnv(RLEnv):
 						   ,timer=Env.timer,messenger=Env.messenger)
 
 		lobenv=parent(RL_trader=rl_trader,thresh=thresh,sess=Env,sess_factory=EnvFactory,time_limit=time_limit,**kwargs)
-
-		lobenv.step((1,1,-1),auto_cancel=True)
-		_=lobenv.render()
+		
+		lobenv.reset()
+		#lobenv.step((1,1,-1),auto_cancel=True)
+		#_=lobenv.render()
 		#position_dic,fig=lobenv.spatial_render(show=True,array=False,dim_min=(10,1))
 		#lobenv.make_uniform(position_dic)
 		#pod_array={k:d.toarray() for k,d in position_dic.items() if d is not None}
@@ -332,81 +351,125 @@ class SimpleRLEnv(RLEnv):
 		return lobenv #trunc_pd,position_dic
 		
 
-class EnvFactory():
+# class EnvFactory():
 
 
 
-	def __init__(self,trader_pref_kwargs={},timer_kwargs={},price_sequence_kwargs={},noise_kwargs={},trader_kwargs={},env_kwargs={},messenger_kwargs={}):
+	# def __init__(self,name=1,trader_pref_kwargs={},timer_kwargs={},price_sequence_kwargs={},noise_kwargs={},trader_kwargs={},env_kwargs={},messenger_kwargs={}):
 		
-		#this is necessary so we can have multiple lobenvs with multiple instances of traders classes but non-connected class variables!
-		class EF_Zip_u(WW_Zip):
-			pass
-		class EF_HBL_u(HBL):
-			pass
-		class EF_ContTrader_u(ContTrader):
-			pass
-		class EF_NoiseTrader_u(NoiseTrader):
-			pass
+		# #this is necessary so we can have multiple lobenvs with multiple instances of traders classes but non-connected class variables!
+		# #EF_ZIP_u,EF_HBL_u,EF_ContTrader_u,EF_NoiseTrader_u=self.define_class_2(name)
+		
+		# class EF_Zip_u(WW_Zip):
+			# pass
+		# class EF_HBL_u(HBL):
+			# pass
+		# class EF_ContTrader_u(ContTrader):
+			# pass
+		# class EF_NoiseTrader_u(NoiseTrader):
+			# pass
 
-		#self.trader_objects={'WW_Zip':EF_Zip_u,'HBL':EF_HBL_u,'ContTrader':EF_ContTrader_u,'NoiseTrader':EF_NoiseTrader_u}
-		self.trader_objects={'WW_Zip':EF_Zip_u,'HBL':EF_HBL_u,'ContTrader':EF_ContTrader_u,'NoiseTrader':EF_NoiseTrader_u}
+		# #self.trader_objects={'WW_Zip':EF_Zip_u,'HBL':EF_HBL_u,'ContTrader':EF_ContTrader_u,'NoiseTrader':EF_NoiseTrader_u}
+		# self.trader_objects={'WW_Zip':EF_Zip_u,'HBL':EF_HBL_u,'ContTrader':EF_ContTrader_u,'NoiseTrader':EF_NoiseTrader_u}
 		
-		self.trader_pref_kwargs=trader_pref_kwargs
-		self.timer_kwargs=timer_kwargs
-		self.price_sequence_kwargs=price_sequence_kwargs
-		self.noise_kwargs=noise_kwargs
-		self.trader_kwargs=trader_kwargs
-		self.env_kwargs=env_kwargs
-		self.messenger_kwargs=messenger_kwargs
+		# self.trader_pref_kwargs=trader_pref_kwargs
+		# self.timer_kwargs=timer_kwargs
+		# self.price_sequence_kwargs=price_sequence_kwargs
+		# self.noise_kwargs=noise_kwargs
+		# self.trader_kwargs=trader_kwargs
+		# self.env_kwargs=env_kwargs
+		# self.messenger_kwargs=messenger_kwargs
 		
-		
-	def setup(self):
-		timer=CustomTimer(**self.timer_kwargs)
-		self.length=int((timer.end-timer.start)/timer.step)+1
-		
-		price_sequence_obj=PriceSequenceStep(**self.price_sequence_kwargs,length=self.length)
-		price_seq=price_sequence_obj.make()
-		
-		
-		noise_obj=GaussNoise(**self.noise_kwargs)
-		_=noise_obj.make(dims=(self.length,1))
-		
-		messenger=Messenger(**self.messenger_kwargs)
-		exchange=Exchange(timer=timer,record=True,messenger=messenger)
-		
-		self.trader_preference=TraderPreference(self.trader_pref_kwargs)
-		
-		traders={}
-		for t,trader_dic in self.trader_kwargs.items():
-			t_names,t_prefs=self.name_pref_maker(self.trader_preference,trader_dic['prefix'],trader_dic['number'])
+	# @staticmethod
+	# def define_class():
+		# class EF_Zip_u(WW_Zip):
+			# pass
+		# EF_Zip_u.__qualname__='EF_Zip_u'
 			
-			try:
-				trader_object=self.trader_objects[trader_dic['object_name']]
-			except KeyError:
-				s=trader_dic['object_name']
-				print(f'{s} not recognised in self.trader_objects')
-				raise
+		# class EF_HBL_u(HBL):
+			# pass
+			
+		# EF_HBL_u.__qualname__='EF_HBL_u'	
+			
+		# class EF_ContTrader_u(ContTrader):
+			# pass
+			
+		# EF_ContTrader_u.__qualname__='EF_ContTrader_u'	
+			
+		# class EF_NoiseTrader_u(NoiseTrader):
+			# pass
+		
+		# EF_NoiseTrader_u.__qualname__='EF_NoiseTrader_u'
+		
+		# return EF_ZIP_u,EF_HBL_u,EF_ContTrader_u,EF_NoiseTrader_u,
+		
+	# @staticmethod
+	# def define_class_2(i):
+		# i=1
+		# #this is where we are going to copy subclass of traders to
+		# dest_file_raw=os.path.join('UCLSE','temp','trader_subs'+str(i))
+		# #add dot py 
+		# dest_file_name=dest_file_raw+'.py'
+		# shutil.copy('UCLSE/trader_subs.py',dest_file_name)
+		# #reformat file location to import as a module
+		# dest_file_name=dest_file_raw.replace('\\','.')
+		# mod=importlib.import_module(dest_file_name)
+		# #get the class objects
+		# EF_Zip_u=getattr(mod,'EF_Zip_u')
+		# EF_HBL_u=getattr(mod,'EF_HBL_u')
+		# EF_ContTrader_u=getattr(mod,'EF_ContTrader_u')
+		# EF_NoiseTrader_u=getattr(mod,'EF_NoiseTrader_u')
+		# return EF_ZIP_u,EF_HBL_u,EF_ContTrader_u,EF_NoiseTrader_u,
+		
+	
+		
+	# def setup(self):
+		# timer=CustomTimer(**self.timer_kwargs)
+		# self.length=int((timer.end-timer.start)/timer.step)+1
+		
+		# price_sequence_obj=PriceSequenceStep(**self.price_sequence_kwargs,length=self.length)
+		# price_seq=price_sequence_obj.make()
+		
+		
+		# noise_obj=GaussNoise(**self.noise_kwargs)
+		# _=noise_obj.make(dims=(self.length,1))
+		
+		# messenger=Messenger(**self.messenger_kwargs)
+		# exchange=Exchange(timer=timer,record=True,messenger=messenger)
+		
+		# self.trader_preference=TraderPreference(self.trader_pref_kwargs)
+		
+		# traders={}
+		# for t,trader_dic in self.trader_kwargs.items():
+			# t_names,t_prefs=self.name_pref_maker(self.trader_preference,trader_dic['prefix'],trader_dic['number'])
+			
+			# try:
+				# trader_object=self.trader_objects[trader_dic['object_name']]
+			# except KeyError:
+				# s=trader_dic['object_name']
+				# print(f'{s} not recognised in self.trader_objects')
+				# raise
 				
-			traders_dic={tn:trader_object(tid=tn,timer=timer,
-							   trader_preference=t_prefs[tn],exchange=exchange,messenger=messenger,**trader_dic['setup_kwargs']) 
-					 for tn in t_names}
+			# traders_dic={tn:trader_object(tid=tn,timer=timer,
+							   # trader_preference=t_prefs[tn],exchange=exchange,messenger=messenger,**trader_dic['setup_kwargs']) 
+					 # for tn in t_names}
 					 
-			traders={**traders,**traders_dic}
+			# traders={**traders,**traders_dic}
 			
-		Env=Environment(timer,traders,price_sequence_obj=price_sequence_obj,noise_obj=noise_obj,exchange=exchange,messenger=messenger,**self.env_kwargs)
+		# Env=Environment(timer,traders,price_sequence_obj=price_sequence_obj,noise_obj=noise_obj,exchange=exchange,messenger=messenger,**self.env_kwargs)
 		
 			
-		return Env
+		# return Env
 		
 		
-	@staticmethod
-	def name_pref_maker(trader_preference,prefix,number):
-		names=[prefix+str(a) for a in range(0,number)]
-		#pref=deepcopy(trader_preference)
-		prefs={t:deepcopy(trader_preference) for t in names}
-		for t,p in prefs.items():
-			p.make() 
-		return names,prefs
+	# @staticmethod
+	# def name_pref_maker(trader_preference,prefix,number):
+		# names=[prefix+str(a) for a in range(0,number)]
+		# #pref=deepcopy(trader_preference)
+		# prefs={t:deepcopy(trader_preference) for t in names}
+		# for t,p in prefs.items():
+			# p.make() 
+		# return names,prefs
 	
 	
 	

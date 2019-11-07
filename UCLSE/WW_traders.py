@@ -338,11 +338,14 @@ class WW_Zip(TraderM):
 	def valuation(trader):
     
 		return trader.trade_manager.cash+trader.calc_cost_to_liquidate3(trader.lob,trader.trade_manager.inventory)[0]
-		
+
+mt_fields=['surplus','price','prob']
+MaxThing=namedtuple('MaxThing',mt_fields)
+
+
 class HBL(WW_Zip):
 	
-	fields=['surplus','price','prob']
-	MaxThing=namedtuple('MaxThing',fields)
+
 	best_bid_choice=MaxThing(0,0,0)
 	best_ask_choice=MaxThing(0,0,0)
 	#lob=None
@@ -448,7 +451,7 @@ class HBL(WW_Zip):
 	
 		if len(bid)>0:
 			max_bid=max(bid)
-			self.best_bid_choice=self.MaxThing(*max_bid)
+			self.best_bid_choice=MaxThing(*max_bid)
 		#else default is empty tuple defined on init
 		
 		return self.best_bid_choice 
@@ -459,7 +462,7 @@ class HBL(WW_Zip):
 		
 		if len(ask)>0:
 			max_ask=max(ask)
-			self.best_ask_choice=self.MaxThing(*max_ask)
+			self.best_ask_choice=MaxThing(*max_ask)
 		#else default is empty tuple defined init
 		
 		return self.best_ask_choice
@@ -636,6 +639,7 @@ class ContTrader(WW_Zip):
 
 			self.profit_target=profit_target
 			self.init_class_variables()
+			assert self.old_lob is None
 		
 		@classmethod
 		def init_class_variables(cls):

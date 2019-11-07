@@ -1,4 +1,4 @@
-from UCLSE.dyna_q.dyna_q import DynaQ,TabularMemory
+from UCLSE.dyna_q.dyna_q_double import DynaQ,TabularMemory
 
 from UCLSE.wang_wellman_new import EnvFactory
 from UCLSE.minimal_lobenv import SimpleRLEnv,  Observation#,EnvFactory,
@@ -17,6 +17,15 @@ import shutil
 import warnings
 
 from collections import namedtuple,deque
+
+
+from sklearn.tree import plot_tree
+from sklearn.model_selection import cross_val_score
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
+from subprocess import call
+from sklearn.tree import export_graphviz
+from IPython.display import Image
 
 obs_names=['distance','inventory','orders_out','bid_change','ask_change',
            'bid_ask_spread','position_in_lob','imbalance','time_left']
@@ -50,16 +59,18 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 			self.new_action_dic[k]=action
 		self.action_dic={**self.action_dic,**self.new_action_dic}
 		
+
+		
 	@property
 	def distance(self):
 		if self.trader.inventory==0:
-			ans=-self.trader.trade_manager.cash #after execution, when inventory is 0, there is no distance - but prior to execution it is current cash balance
+			ans=-self.trader.trade_manager.cash -10*self.initial_distance#after execution, when inventory is 0, there is no distance it is current cash balance
 		else:
-			ans=self.trader.trade_manager.avg_cost-self.best_bid
+			ans=self.trader.trade_manager.avg_cost-self.best_bid-10*self.initial_distance
 		return ans
 		
 	@staticmethod
-	def reward_oracle(observation,cutoff=50,ub=6,lb=-2,lamb=0.5):
+	def reward_oracle_default(observation,cutoff=50,ub=6,lb=-2,lamb=0.5):
 
 
 		distance=observation.distance
@@ -141,7 +152,7 @@ class SimpleRLEnv_mod(SimpleRLEnv):
 					and sess.timer.next_period()):
 			sess.simulate_one_period(recording=False)
 			
-		while sess.exchange.asks.best_price-sess.exchange.bids.best_price>1 and sess.timer.next_period():
+		while sess.exchange.asks.best_price-sess.exchange.bids.best_price>1 and sess.timer.next_period():# and self.sess.exchange.bids.lob_anon[-1][1]>1: #make sure more than one order in best bid
 			sess.simulate_one_period(recording=False)
 			
 
@@ -216,17 +227,18 @@ loss_record_dtype=LossRecord(int,int,np.float,np.float)
 		
 class Experiment():
 		def __init__(self,trader_pref_kwargs=None,timer_kwargs=None,price_sequence_kwargs=None,noise_kwargs=None,
-		messenger_kwargs=None,env_kwargs=None,trader_kwargs=None,lobenv_kwargs=None,dyna_kwargs=None,agent_kwargs=None,visdom=None):
+		messenger_kwargs=None,env_kwargs=None,trader_kwargs=None,lobenv_kwargs=None,dyna_kwargs=None,agent_kwargs=None,visdom=None,agent=DynaQ,name='experiment_no_name'):
 		
 			
 			self.vis=visdom
 			
 			self.initiate(trader_pref_kwargs,timer_kwargs,price_sequence_kwargs,noise_kwargs,
-			messenger_kwargs,env_kwargs,trader_kwargs,lobenv_kwargs,dyna_kwargs,agent_kwargs)
+			messenger_kwargs,env_kwargs,trader_kwargs,lobenv_kwargs,dyna_kwargs,agent_kwargs,agent=agent,name=name)
 		
 		def initiate(self,trader_pref_kwargs=None,timer_kwargs=None,price_sequence_kwargs=None,noise_kwargs=None,
-		messenger_kwargs=None,env_kwargs=None,trader_kwargs=None,lobenv_kwargs=None,dyna_kwargs=None,agent_kwargs=None,memory=None,tabular=None):
+		messenger_kwargs=None,env_kwargs=None,trader_kwargs=None,lobenv_kwargs=None,dyna_kwargs=None,agent_kwargs=None,memory=None,tabular=None,agent=DynaQ,name='experiment_no_name'):
 			#needed this for loading from checkpoint
+			self.name=name
 			self.trader_pref_kwargs=trader_pref_kwargs
 			self.timer_kwargs=timer_kwargs
 			self.price_sequence_kwargs=price_sequence_kwargs
@@ -237,11 +249,12 @@ class Experiment():
 			self.lobenv_kwargs=lobenv_kwargs
 			self.dyna_kwargs=dyna_kwargs
 			self.agent_kwargs=agent_kwargs
+			self.agent_type=agent
 			
 			EF1,EF2,EF3=(EnvFactory(trader_pref_kwargs=trader_pref_kwargs,
 					timer_kwargs=timer_kwargs,price_sequence_kwargs=price_sequence_kwargs,
 					noise_kwargs=noise_kwargs,trader_kwargs=trader_kwargs,env_kwargs=env_kwargs,
-					messenger_kwargs=messenger_kwargs) for k in range(3))
+					messenger_kwargs=messenger_kwargs,name=str(k)) for k in range(3))
 			
 			self.EF_test=EnvFactory(trader_pref_kwargs=trader_pref_kwargs,
 					timer_kwargs=timer_kwargs,price_sequence_kwargs=price_sequence_kwargs,
@@ -260,10 +273,12 @@ class Experiment():
 			self.lobenvs=[lobenv1,lobenv2,lobenv3]
 			
 			
-			self.dyna_config=self.setup_dyna_config(dyna_kwargs)
+			self.dyna_config=None
+			if dyna_kwargs is not None:
+				self.dyna_config=self.setup_dyna_config(dyna_kwargs)
 			
 			
-			self.dyna_q_agent=DynaQ(self.dyna_config,**agent_kwargs)
+			self.agent=agent(self.dyna_config,**agent_kwargs)
 			
 
 		def setup_dyna_config(self,dyna_config):
@@ -336,20 +351,25 @@ class Experiment():
 			
 			
 		def _setup_graph(self):
-				self.train_loss_window = self.__create_plot_window(self.vis, '#Iterations', 'Loss', 'Training Loss')
+				self.train_loss_window = self.__create_plot_window(self.vis, '#Iterations', 'Loss', self.name + ': Training Loss')
 				time.sleep(0.5)
 				self.vis.get_window_data(self.train_loss_window)
-				self.train_return_hist=self.__create_bar_window(self.vis, 'Return distribution')
+				self.train_return_hist=self.__create_bar_window(self.vis, self.name+': Return distribution')
 				time.sleep(0.5)
 				self.vis.get_window_data(self.train_return_hist)
-				self.state_window=self.__create_plot_window(self.vis, 'Episode #', '#states', 'States explored')
+				self.state_window=self.__create_plot_window(self.vis, 'Episode #', '#states',self.name+ ': States explored')
 				time.sleep(0.5)
 				self.vis.get_window_data(self.state_window)
 				assert self.train_loss_window!=self.train_return_hist!=self.state_window
 				
 		def resume_train(self):
 			pass
-			
+		
+		def lobenv_multi_class_check(self):
+			#when there are multiple lobenvs, can get into trouble if trader classes aren't separate - FSO problem
+			d=[l.sess.traders['HBL1'].fso.processed for l in self.lobenvs]
+			return d
+		
 			
 		def train(self,MaxEpisodes=100,start_episode=0,total_steps=0,folder=None):
 			if folder is None:
@@ -372,8 +392,9 @@ class Experiment():
 					start_balance=lobenv.trader.balance
 					ep_r = 0
 					timestep = 0
-					s = lobenv.reset()
+					s,r0 = lobenv.reset()
 					initial=True
+					ep_r=lobenv.lamb*r0
 					
 					while True:
 						total_steps += 1
@@ -389,18 +410,16 @@ class Experiment():
 						assert self.EPSILON>=self.dyna_config['exploration']['min_epsilon']
 						
 						
-						a = self.dyna_q_agent.choose_action(s, self.EPSILON)
+						a = self.agent.choose_action(s, self.EPSILON)
 
 						# take action
 						s_, r, done, info = lobenv.step(a)
 						ep_r += r
 
 						# store current transition
-						self.dyna_q_agent.store_transition(s, a, r, s_, done,initial)
+						self.agent.store_transition(s, a, r, s_, done,initial)
 
-						
-						
-						
+
 						if done:
 							self.episode+=1
 							
@@ -411,13 +430,24 @@ class Experiment():
 							profit=end_balance-start_balance
 							
 							# start update policy when memory has enough exps
-							if self.dyna_q_agent.memory_counter > self.dyna_config['first_update']:
-								self.dyna_q_agent.learn(EPSILON=self.EPSILON)
+							if self.agent.memory_counter > self.dyna_config['first_update']:
+								self.agent.learn(EPSILON=self.EPSILON)
 							
 								#no planning before first update
-								if self.planning and i_episode%10<=2:
-									for _ in range(self.planning_steps):
-										self.dyna_q_agent.simulate_learn_tabular(EPSILON=self.EPSILON)
+								if self.planning and i_episode%self.dyna_config['model_update_freq']==0:
+									if self.agent.memory_counter > self.dyna_config['batch_size']:
+										
+										if 'model' in self.dyna_config and self.dyna_config['model']=='tabular':
+											pass
+										else:
+											self.agent.update_env_model()
+											
+									if i_episode%self.dyna_config['planning_freq']==0:
+										for _ in range(self.planning_steps):
+											if 'model' in self.dyna_config and self.dyna_config['model']=='tabular':
+												self.agent.simulate_learn_tabular(EPSILON=self.EPSILON)
+											else:
+												self.agent.simulate_learn(EPSILON=self.EPSILON)
 							
 							
 							#store,plot and display data
@@ -459,7 +489,7 @@ class Experiment():
 			self.stopping,self.median_loss,self.mean_loss=self.stopper(self.rwd_dyna,lookback=self.lookback,thresh=self.thresh)
 			
 			#store number of novel state requests during training, length of state, state action dictionaries per period
-			explo_data=(i_episode,self.dyna_q_agent.novel,len(self.dyna_q_agent.tabular.state_counter),len(self.dyna_q_agent.tabular.state_action_counter))
+			explo_data=(i_episode,self.agent.novel,len(self.agent.tabular.state_counter),len(self.agent.tabular.state_action_counter))
 			self.temp_explo_data.append(explo_data)
 			self.novel_list.append(explo_data)
 		
@@ -502,13 +532,18 @@ class Experiment():
 			self.lobenv_test=SimpleRLEnv_mod.setup(EnvFactory=self.EF_test,parent=SimpleRLEnv_mod,**lobenv_kwargs)
 			
 			if agent is None:
-				self.dyna_q_agent_test=DynaQ(self.dyna_config,**self.agent_kwargs)
-				agent=self.dyna_q_agent_test
+				self.agent_test=self.agent_type(self.dyna_config,**self.agent_kwargs)
+				agent=self.agent_test
 			
 			#copy over q net from trained agent.
 			try:
-				if self.dyna_q_agent_test.eval_net is not None:
-					self.dyna_q_agent_test.eval_net.load_state_dict(self.dyna_q_agent.eval_net.state_dict())
+				if self.agent_test.eval_net is not None:
+					#self.agent_test.eval_net.load_state_dict(self.agent.eval_net.state_dict())
+					self.agent_test.QNet0.load_state_dict(self.agent.QNet0.state_dict())
+					self.agent_test.QNet1.load_state_dict(self.agent.QNet1.state_dict())
+					self.agent_test.toggle_net(-1)
+					self.agent_test.eval_net_counter=self.agent.eval_net_counter
+					self.agent_test.learn_step_counter = self.agent.learn_step_counter
 					
 			except AttributeError:
 					warnings.warn('no eval net for agent, skipping')
@@ -518,16 +553,20 @@ class Experiment():
 		def test(self,MaxEpisodes,start_episode=0,agent=None):
 		
 			#can pass an agent for benchmarking purposes else:
-			if agent is None: agent=self.dyna_q_agent_test
+			if agent is None: agent=self.agent_test
 			
 			EPSILON=0
 			total_steps = 0
 			exp=0
 			
 			for i_episode in range(start_episode,MaxEpisodes):
-				s = self.lobenv_test.reset()
+				self.agent.toggle_net(i_episode)
+				s,r0 = self.lobenv_test.reset()
 				start_balance=self.lobenv_test.trader.balance
-				ep_r = 0
+				ep_r = self.lobenv_test.lamb*r0
+				#ep_r=0
+				if r0!=0: print('r0',r0)
+				
 				timestep = 0
 				lob_start=self.lobenv_test.time
 				self.info=[]
@@ -550,7 +589,7 @@ class Experiment():
 						self.lobenv_test.liquidate() #note the liquidation here. 
 						end_balance=self.lobenv_test.trader.balance
 						profit=end_balance-start_balance
-						self.rwd_test.append((lob_start,end_time,total_steps,i_episode,ep_r,profit))
+						self.rwd_test.append((lob_start,end_time,total_steps,i_episode,ep_r,profit,self.lobenv_test.initial_distance))
 						if i_episode %10==0:
 							print(f'Dyna-Q - EXP {exp+1}, | Ep: , {i_episode + 1}, | timestep:  {timestep} | Ep_r: { ep_r}|profit:{profit} start:{lob_start}|end:{end_time}')
 						
@@ -612,7 +651,7 @@ class Experiment():
 			weights=np.stack((weights_rew,weights_pro),axis=1)
 			
 			bin_centres=bin_edges[0:-1]
-			self.vis.bar(X=weights,Y=bin_centres,win=self.train_return_hist,opts=dict(title='Return distribution',legend=['reward','profit']))
+			self.vis.bar(X=weights,Y=bin_centres,win=self.train_return_hist,opts=dict(title=self.name+' Return distribution',legend=['reward','profit']))
 			
 			
 			self.vis.get_window_data(self.train_return_hist)
@@ -634,9 +673,14 @@ class Experiment():
 				}
 			
 			save_dic={'episode': self.episode,        
-			'state_dict': self.dyna_q_agent.eval_net.state_dict(),        
-			'optimizer' : self.dyna_q_agent.optimizer.state_dict(),
-			'train_dic':train_dic}
+			'state_dict': self.agent.eval_net.state_dict(), 
+			'Q1':self.agent.QNet1.state_dict(),
+			'Q0':self.agent.QNet0.state_dict(),
+			'optimizer' : self.agent.optimizer.state_dict(),
+			'train_dic':train_dic,
+			'learn_step_counter':self.agent.learn_step_counter,
+			'eval_net_counter':self.agent.eval_net_counter,
+			}
 		
 			
 			if setup:
@@ -649,16 +693,21 @@ class Experiment():
 					trader_kwargs=self.trader_kwargs,
 					lobenv_kwargs=self.lobenv_kwargs,
 					dyna_kwargs=self.dyna_kwargs,
-					agent_kwargs=self.agent_kwargs,)
+					agent_kwargs=self.agent_kwargs,
+					name=self.name,
+					)
 				
 				save_dic.update({'setup':setup_dic})
 			
 			if memory:      
-				memory_counter=self.dyna_q_agent.memory_counter
-				save_dic.update({'memory':self.dyna_q_agent.memory[0:memory_counter,:], #don't want to save zeros
+				memory_counter=self.agent.memory_counter
+				save_dic.update({'memory':self.agent.memory[0:memory_counter,:], #don't want to save zeros
 									'memory_counter':memory_counter})
 			if tabular:
-				save_dic.update({'tabular': self.dyna_q_agent.tabular.__dict__})
+				save_dic.update({'tabular': self.agent.tabular.__dict__})
+				
+			if self.agent.env_losses!=[]:
+				save_dic.update({'env_losses':self.agent.env_losses})
 			
 			self.__save_checkpoint(save_dic, is_best,folder=folder)
 		
@@ -701,23 +750,34 @@ class Experiment():
 					print('setup variables not saved in checkpoint file, experiment variable needs to be populated')
 				setup=checkpoint.pop('setup')   
 				exp=Experiment(**setup)
-				
+			
 			state_dict=checkpoint.pop('state_dict')
-			exp.dyna_q_agent.eval_net.load_state_dict(state_dict)
+			Q1=checkpoint.pop('Q1')
+			Q0=checkpoint.pop('Q0')
+			exp.agent.eval_net.load_state_dict(state_dict)
+			exp.agent.QNet1.load_state_dict(Q1)
+			exp.agent.QNet0.load_state_dict(Q0)
+			exp.agent.learn_step_counter=checkpoint.pop('learn_step_counter')
+			exp.eval_net_counter=checkpoint.pop('eval_net_counter')
+			
 			
 			optim=checkpoint.pop('optimizer')
-			exp.dyna_q_agent.optimizer.load_state_dict(optim)
+			exp.agent.optimizer.load_state_dict(optim)
 			
 			if 'tabular' in checkpoint:
 				tabular=checkpoint.pop('tabular')
-				exp.dyna_q_agent.tabular=TabularMemory.load_tabular(**tabular)
+				exp.agent.tabular=TabularMemory.load_tabular(**tabular)
 			
 			if 'memory' in checkpoint:
 				memory_counter=checkpoint.pop('memory_counter')
 				memory=checkpoint.pop('memory')
-				exp.dyna_q_agent.memory[:memory_counter,:]=memory
+				exp.agent.memory[:memory_counter,:]=memory
 			
-				exp.dyna_q_agent.memory_counter=memory_counter
+				exp.agent.memory_counter=memory_counter
+				
+			if 'env_losses' in checkpoint:
+				env_losses=checkpoint.pop('env_losses')
+				exp.agent.env_losses=env_losses
 			
 			train_dic=checkpoint.pop('train_dic')
 			exp._train_setup(**train_dic)
@@ -754,4 +814,97 @@ class Experiment():
 			d=d.reward.rolling(self.lookback).agg(['mean','median']).dropna(how='all')
 			self.plot_results(d.index.values,d['mean'].values,d['median'].values)
 			
-		
+		def plot_hist_profit(self,title='Test'):
+			d=pd.DataFrame(self.rwd_test)
+			bins=np.arange(-10.5,10.5,1)
+			ax=d[4].hist(bins=bins,label='reward')
+			d[5].hist(bins=bins,label='profit',ax=ax,alpha=0.5)
+			ax.legend()
+			_=ax.xaxis.set_ticks(np.arange(-10,11))
+			ax.set_title(title)
+			return ax,d
+			
+		@staticmethod
+		def plotbm_results(experiment,title1,title2,ds=None,memory_s=None,name=None,path='Results/'):
+			try:
+				assert name is not None
+			except AssertionError:
+				print('specify folder name to save results in')
+			path=os.path.join(path,name)
+			
+			Experiment.check_dir_exists_make_else(path)
+			fig, (ax1,ax2) = plt.subplots(nrows=2,ncols=1, figsize=(16, 16), dpi=80, facecolor='w', edgecolor='k')
+			if ds is None: ds=pd.DataFrame(experiment.rwd_test)
+			bins=np.arange(-10.5,10.5,1)
+			ax1=ds[4].hist(ax=ax1,bins=bins,label='reward')
+			ds[5].hist(bins=bins,label='profit',ax=ax1,alpha=0.5)
+			ax1.legend()
+			_=ax1.xaxis.set_ticks(np.arange(-10,11))
+			ax1.set_title(title1)
+
+			#format returns df
+			ds['duration']=ds[1]-ds[0]
+			ds=ds[[4,5,6,'duration']]
+			ds.columns=['reward','profit','start distance','duration']
+
+			#save returns df
+			ds.to_csv(os.path.join(path,name+'_returns.csv'))
+
+
+			obs_names=['distance','inventory','orders_out','bid_change','ask_change',
+					   'bid_ask_spread','position_in_lob','imbalance','time_left']
+			columns=obs_names+['action','rw','done']+['n_'+o for o in obs_names]
+			if memory_s is None: 
+				memory_s=pd.DataFrame(experiment.agent_test.memory,columns=columns)
+				memory_s=memory_s[:experiment.agent_test.memory_counter]
+				memory_s.to_csv(os.path.join(path,name+'_memory.csv'))
+			#memory_s.position_in_lob.value_counts(),memory_s.action.value_counts()
+			memory_s.imbalance.hist(ax=ax2)
+			ax2.set_title(title2)
+			ax2.set_xlim(-1,1)
+
+			fig.savefig(os.path.join(path,name+'_hist'))
+
+			return ds,memory_s
+			
+
+
+
+		@staticmethod
+		def fit_tree(memory,path,experiment):
+
+			x=memory[obs_names]
+			y=memory['action']
+
+			X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.33, random_state=42)
+			clf = DecisionTreeClassifier(random_state=0,max_depth=3)
+			clf.fit(X_train,y_train)
+
+
+			class_labels=[(str(k),str(experiment.lobenv_test.new_action_dic[k])) for k in memory['action'].value_counts().index.sort_values()]
+			class_labels=pd.DataFrame(class_labels)
+
+			out_path=os.path.join(path,'tree.dot')
+			im_path=os.path.join(path,'tree.png')
+			
+			
+			export_graphviz(clf, out_file=out_path, 
+							feature_names = obs_names,
+							class_names = class_labels[1],
+							rounded = True, proportion = False, 
+							precision = 2, filled = True)
+
+			
+			call(['dot', '-Tpng', out_path, '-o', im_path, '-Gdpi=600'])
+
+			# Display in jupyter notebook
+			
+			
+			
+			Image(filename = im_path)
+			
+			train_score=clf.score(X_train,y_train)
+			test_score=clf.score(X_test,y_test)
+			importances=pd.DataFrame({'obs_name':obs_names,'importance':clf.feature_importances_})
+			
+			return clf,train_score,test_score,importances

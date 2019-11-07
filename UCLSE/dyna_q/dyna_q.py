@@ -9,6 +9,7 @@ from UCLSE.dyna_q.priorExpReplay import PriorExpReplay
 from UCLSE.dyna_q.CVAE import  Decoder, CVAE_loss_make
 from UCLSE.dyna_q.CVAE import CVAE as CVAE_model
 from math import sqrt,log
+import random
 
 class Q_Net(nn.Module):
 	def __init__(self, N_STATES, N_ACTIONS, H1Size, H2Size):
@@ -115,7 +116,7 @@ class EnvModel(nn.Module):
 
 class DynaQ(object):
 	def __init__(self, config,envModel=None,env_H1Size = 64,env_H2Size = 32,Q_H1Size = 64,Q_H2Size = 32,doneModel=None,
-						rewardModel=None,loss_func=None,latent_dim=2,recon_weight=1,kl_thresh=0,CVAE=False):
+						rewardModel=None,loss_func=None,latent_dim=2,recon_weight=1,kl_thresh=0,CVAE=False,device='cuda'):
 		self.config = config
 		self.n_states = self.config['n_states']
 		self.n_actions = self.config['n_actions']
@@ -125,8 +126,7 @@ class DynaQ(object):
 		self.env_H1Size = env_H1Size
 		self.env_H2Size = env_H2Size
 		
-		self.device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-		print(f'device in use is {self.device}')
+		self.set_device(device)
 		
 		self.eval_net = Q_Net(self.n_states, self.n_actions, self.Q_H1Size, self.Q_H2Size)
 		self.target_net = deepcopy(self.eval_net)
@@ -206,6 +206,22 @@ class DynaQ(object):
 		self.l1_loss = nn.L1Loss(reduction='none')
 		self.done_loss_func=self.loss_func  #nn.binary_cross_entropy()
 		#self.loss_func = nn.SmoothL1Loss()
+		
+	def set_device(self,dev='cuda'):
+		if dev=='cuda':
+			if torch.cuda.is_available():
+				self.device=torch.device(dev)
+				
+			else:
+				dev='cpu'
+				print('GPU not available, using cpu')
+				
+		if dev=='cpu':
+			self.device=torch.device(dev)
+			
+		print('Device in use is ', self.device)
+				
+		
 		
 	def initialise_memory(self):
 		self.memory_counter = 0
@@ -754,8 +770,12 @@ class TabularMemory():
 	def max_get_Q_UCB(tab,state,total_steps,val=0,beta=1):
 		max_state_value=-100000
 		
+
 		
 		if state in tab.memory:
+			#total step experiments or total times that state was visisted?
+			total_steps=sum(tab.action_counter[state].values())
+		
 			UCB_num=sqrt(beta*log(total_steps))
 			zero_visits=[]
 			#for action,dic in tab.memory[state].items():
@@ -769,7 +789,11 @@ class TabularMemory():
 					Q=tab.memory[state][action]['Q']
 					if Q+UCB>max_state_value:
 						max_action=action
-						max_state_value=Q
+						max_state_value=Q+UCB
+					elif Q+UCB==max_state_value and random.random()>0.5: #break ties at random
+						max_action=action
+						max_state_value=Q+UCB
+						
 						
 			if len(zero_visits)>0:
 				max_action=int(np.random.choice(zero_visits,1)[0])

@@ -410,26 +410,31 @@ class Environment():
 		ddf['max_change']=ddf[['future_delta_min','future_delta_max']].apply(maxCol,axis=1)
 		
 		return ddf
-		
+
+import importlib
+import shutil
+import os
+
 class EnvFactory():
 #factory class for environment
 
 
-	def __init__(self,trader_pref_kwargs={},timer_kwargs={},price_sequence_kwargs={},noise_kwargs={},trader_kwargs={},env_kwargs={},messenger_kwargs={}):
+	def __init__(self,name=1,trader_pref_kwargs={},timer_kwargs={},price_sequence_kwargs={},noise_kwargs={},trader_kwargs={},env_kwargs={},messenger_kwargs={}):
 		
 		#this is necessary so we can have multiple lobenvs with multiple instances of traders classes but non-connected class variables!
-		class EF_Zip_u(WW_Zip):
-			pass
-		class EF_HBL_u(HBL):
-			pass
-		class EF_ContTrader_u(ContTrader):
-			pass
-		class EF_NoiseTrader_u(NoiseTrader):
-			pass
+		EF_Zip_u,EF_HBL_u,EF_ContTrader_u,EF_NoiseTrader_u=self.define_class_2(name)
+		# class EF_Zip_u(WW_Zip):
+			# pass
+		# class EF_HBL_u(HBL):
+			# pass
+		# class EF_ContTrader_u(ContTrader):
+			# pass
+		# class EF_NoiseTrader_u(NoiseTrader):
+			# pass
 
 		#self.trader_objects={'WW_Zip':EF_Zip_u,'HBL':EF_HBL_u,'ContTrader':EF_ContTrader_u,'NoiseTrader':EF_NoiseTrader_u}
 		self.trader_objects={'WW_Zip':EF_Zip_u,'HBL':EF_HBL_u,'ContTrader':EF_ContTrader_u,'NoiseTrader':EF_NoiseTrader_u}
-		
+		self.name=name
 		self.trader_pref_kwargs=trader_pref_kwargs
 		self.timer_kwargs=timer_kwargs
 		self.price_sequence_kwargs=price_sequence_kwargs
@@ -437,6 +442,47 @@ class EnvFactory():
 		self.trader_kwargs=trader_kwargs
 		self.env_kwargs=env_kwargs
 		self.messenger_kwargs=messenger_kwargs
+		
+	@staticmethod
+	def define_class():
+		class EF_Zip_u(WW_Zip):
+			pass
+		EF_Zip_u.__qualname__='EF_Zip_u'
+			
+		class EF_HBL_u(HBL):
+			pass
+			
+		EF_HBL_u.__qualname__='EF_HBL_u'	
+			
+		class EF_ContTrader_u(ContTrader):
+			pass
+			
+		EF_ContTrader_u.__qualname__='EF_ContTrader_u'	
+			
+		class EF_NoiseTrader_u(NoiseTrader):
+			pass
+		
+		EF_NoiseTrader_u.__qualname__='EF_NoiseTrader_u'
+		
+		return EF_Zip_u,EF_HBL_u,EF_ContTrader_u,EF_NoiseTrader_u,
+		
+	@staticmethod
+	def define_class_2(i):
+		
+		#this is where we are going to copy subclass of traders to
+		dest_file_raw=os.path.join('UCLSE','temp','trader_subs'+str(i))
+		#add dot py 
+		dest_file_name=dest_file_raw+'.py'
+		shutil.copy('UCLSE/trader_subs.py',dest_file_name)
+		#reformat file location to import as a module
+		dest_file_name=dest_file_raw.replace('\\','.')
+		mod=importlib.import_module(dest_file_name)
+		#get the class objects
+		EF_Zip_u=getattr(mod,'EF_Zip_u')
+		EF_HBL_u=getattr(mod,'EF_HBL_u')
+		EF_ContTrader_u=getattr(mod,'EF_ContTrader_u')
+		EF_NoiseTrader_u=getattr(mod,'EF_NoiseTrader_u')
+		return EF_Zip_u,EF_HBL_u,EF_ContTrader_u,EF_NoiseTrader_u,
 		
 		
 	def setup(self):

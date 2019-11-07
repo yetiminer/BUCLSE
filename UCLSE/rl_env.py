@@ -253,6 +253,9 @@ class RLEnv(gym.Env):
 					order=new_order,time=self.time)
 				self.trader.send(message)
 			
+			#need to refresh lob after each trade
+			self.add_lob(self.sess.exchange.publish_lob())
+			
 		
 		
 	def stop_checker(self):
