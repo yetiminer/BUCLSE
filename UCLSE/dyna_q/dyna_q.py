@@ -264,7 +264,11 @@ class DynaQ(object):
 		
 		#presumably ties become less likely as time progresses, so any accidental favouritism from action numbering disappears
 		try:
-			action=self.tabular.action_counter[tuple([*x])].most_common()[-1][0] 
+			#action=self.tabular.action_counter[tuple([*x])].most_common()[-1][0] 
+			#deals with ties. is this really neceessary?
+			least_count=self.tabular.action_counter[tuple([*x])].most_common()[-1][1]
+			action=np.random.choice([a[0] for a in filter(lambda c: c[1]==least_count,ct.items())])
+			
 		except KeyError: #no action experience at this state
 			self.novel+=1
 			action=self._random_action(x)

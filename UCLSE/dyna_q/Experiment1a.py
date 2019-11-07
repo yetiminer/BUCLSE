@@ -1,4 +1,4 @@
-from UCLSE.dyna_q.dyna_q_double import DynaQ,TabularMemory
+from UCLSE.dyna_q.dyna_q import DynaQ,TabularMemory
 
 from UCLSE.wang_wellman_new import EnvFactory
 from UCLSE.minimal_lobenv import SimpleRLEnv,  Observation#,EnvFactory,
@@ -382,6 +382,8 @@ class Experiment():
 			self.temp_explo_data=[]
 			self.best_counter=0 #this is a counter that increments
 			
+			discount=self.dyna_config['discount']
+			
 			try: 
 
 			
@@ -395,6 +397,7 @@ class Experiment():
 					s,r0 = lobenv.reset()
 					initial=True
 					ep_r=lobenv.lamb*r0
+					
 					
 					while True:
 						total_steps += 1
@@ -414,7 +417,7 @@ class Experiment():
 
 						# take action
 						s_, r, done, info = lobenv.step(a)
-						ep_r += r
+						ep_r = r+ep_r*discount
 
 						# store current transition
 						self.agent.store_transition(s, a, r, s_, done,initial)
@@ -558,9 +561,14 @@ class Experiment():
 			EPSILON=0
 			total_steps = 0
 			exp=0
+			discount=self.dyna_config['discount']
 			
 			for i_episode in range(start_episode,MaxEpisodes):
-				self.agent.toggle_net(i_episode)
+				try:
+					self.agent.toggle_net(i_episode)
+				except AttributeError:
+					#not double q
+					pass
 				s,r0 = self.lobenv_test.reset()
 				start_balance=self.lobenv_test.trader.balance
 				ep_r = self.lobenv_test.lamb*r0
@@ -580,7 +588,7 @@ class Experiment():
 					s_, r, done, info = self.lobenv_test.step(a)
 					self.info.append(info)
 					agent.store_transition(s, a, r, s_, done)
-					ep_r += r
+					ep_r = r+ep_r*discount
 					
 					timestep += 1
 
@@ -674,13 +682,20 @@ class Experiment():
 			
 			save_dic={'episode': self.episode,        
 			'state_dict': self.agent.eval_net.state_dict(), 
-			'Q1':self.agent.QNet1.state_dict(),
-			'Q0':self.agent.QNet0.state_dict(),
+
 			'optimizer' : self.agent.optimizer.state_dict(),
 			'train_dic':train_dic,
 			'learn_step_counter':self.agent.learn_step_counter,
-			'eval_net_counter':self.agent.eval_net_counter,
+			
 			}
+		
+			try:
+				{'Q1':self.agent.QNet1.state_dict(),
+				'Q0':self.agent.QNet0.state_dict(),
+				'eval_net_counter':self.agent.eval_net_counter,
+				}
+			except AttributeError:
+				print('not strict double Q model')
 		
 			
 			if setup:
@@ -752,13 +767,18 @@ class Experiment():
 				exp=Experiment(**setup)
 			
 			state_dict=checkpoint.pop('state_dict')
-			Q1=checkpoint.pop('Q1')
-			Q0=checkpoint.pop('Q0')
+			try:
+				Q1=checkpoint.pop('Q1')
+				Q0=checkpoint.pop('Q0')
+				exp.agent.QNet1.load_state_dict(Q1)
+				exp.agent.QNet0.load_state_dict(Q0)
+				exp.eval_net_counter=checkpoint.pop('eval_net_counter')
+			except KeyError:
+				print('not double Q')
+				
 			exp.agent.eval_net.load_state_dict(state_dict)
-			exp.agent.QNet1.load_state_dict(Q1)
-			exp.agent.QNet0.load_state_dict(Q0)
 			exp.agent.learn_step_counter=checkpoint.pop('learn_step_counter')
-			exp.eval_net_counter=checkpoint.pop('eval_net_counter')
+			
 			
 			
 			optim=checkpoint.pop('optimizer')

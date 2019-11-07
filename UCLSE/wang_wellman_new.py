@@ -422,15 +422,15 @@ class EnvFactory():
 	def __init__(self,name=1,trader_pref_kwargs={},timer_kwargs={},price_sequence_kwargs={},noise_kwargs={},trader_kwargs={},env_kwargs={},messenger_kwargs={}):
 		
 		#this is necessary so we can have multiple lobenvs with multiple instances of traders classes but non-connected class variables!
-		EF_Zip_u,EF_HBL_u,EF_ContTrader_u,EF_NoiseTrader_u=self.define_class_2(name)
-		# class EF_Zip_u(WW_Zip):
-			# pass
-		# class EF_HBL_u(HBL):
-			# pass
-		# class EF_ContTrader_u(ContTrader):
-			# pass
-		# class EF_NoiseTrader_u(NoiseTrader):
-			# pass
+		#EF_Zip_u,EF_HBL_u,EF_ContTrader_u,EF_NoiseTrader_u=self.define_class_2(name)
+		class EF_Zip_u(WW_Zip):
+			pass
+		class EF_HBL_u(HBL):
+			pass
+		class EF_ContTrader_u(ContTrader):
+			pass
+		class EF_NoiseTrader_u(NoiseTrader):
+			pass
 
 		#self.trader_objects={'WW_Zip':EF_Zip_u,'HBL':EF_HBL_u,'ContTrader':EF_ContTrader_u,'NoiseTrader':EF_NoiseTrader_u}
 		self.trader_objects={'WW_Zip':EF_Zip_u,'HBL':EF_HBL_u,'ContTrader':EF_ContTrader_u,'NoiseTrader':EF_NoiseTrader_u}
