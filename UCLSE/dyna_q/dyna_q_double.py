@@ -210,7 +210,7 @@ class DynaQ(object):
 		#self.loss_func = nn.SmoothL1Loss()
 		
 	def toggle_net(self,per):
-		if per%10>=5:
+		if per%2==0:
 			self.target_net=self.QNet0
 			self.target_net_name='Q0'
 			self.eval_net=self.QNet1

@@ -149,9 +149,10 @@ class DynaQ(object):
 		
 		
 		if doneModel is not None:
-			if doneModel:
+			if doneModel==True:
 				self.doneModel=Done_net(self.n_states)
 			else:
+				print('custom done function')
 				self.doneModel=doneModel
 				
 			self.doneModel.to(self.device)

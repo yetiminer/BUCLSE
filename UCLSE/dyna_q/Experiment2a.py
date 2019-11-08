@@ -853,3 +853,88 @@ class Experiment():
 			ax.set_title(title)
 			return ax
 			
+				@staticmethod
+		def plotbm_results(experiment,title1,title2,ds=None,memory_s=None,name=None,path='Results/'):
+			try:
+				assert name is not None
+			except AssertionError:
+				print('specify folder name to save results in')
+			path=os.path.join(path,name)
+			
+			Experiment.check_dir_exists_make_else(path)
+			fig, (ax1,ax2) = plt.subplots(nrows=2,ncols=1, figsize=(16, 16), dpi=80, facecolor='w', edgecolor='k')
+			if ds is None: ds=pd.DataFrame(experiment.rwd_test)
+			bins=np.arange(-10.5,10.5,1)
+			ax1=ds[4].hist(ax=ax1,bins=bins,label='reward')
+			ds[5].hist(bins=bins,label='profit',ax=ax1,alpha=0.5)
+			ax1.legend()
+			_=ax1.xaxis.set_ticks(np.arange(-10,11))
+			ax1.set_title(title1)
+
+			#format returns df
+			ds['duration']=ds[1]-ds[0]
+			ds=ds[[4,5,6,'duration']]
+			ds.columns=['reward','profit','start distance','duration']
+
+			#save returns df
+			ds.to_csv(os.path.join(path,name+'_returns.csv'))
+
+
+			obs_names=['distance','inventory','orders_out','bid_change','ask_change',
+					   'bid_ask_spread','position_in_lob','imbalance','time_left']
+			columns=obs_names+['action','rw','done']+['n_'+o for o in obs_names]
+			if memory_s is None: 
+				memory_s=pd.DataFrame(experiment.agent_test.memory,columns=columns)
+				memory_s=memory_s[:experiment.agent_test.memory_counter]
+				memory_s.to_csv(os.path.join(path,name+'_memory.csv'))
+			#memory_s.position_in_lob.value_counts(),memory_s.action.value_counts()
+			memory_s.imbalance.hist(ax=ax2)
+			ax2.set_title(title2)
+			ax2.set_xlim(-1,1)
+
+			fig.savefig(os.path.join(path,name+'_hist'))
+
+			return ds,memory_s
+			
+
+
+
+		@staticmethod
+		def fit_tree(memory,path,experiment):
+
+			x=memory[obs_names]
+			y=memory['action']
+
+			X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.33, random_state=42)
+			clf = DecisionTreeClassifier(random_state=0,max_depth=3)
+			clf.fit(X_train,y_train)
+
+
+			class_labels=[(str(k),str(experiment.lobenv_test.new_action_dic[k])) for k in memory['action'].value_counts().index.sort_values()]
+			class_labels=pd.DataFrame(class_labels)
+
+			out_path=os.path.join(path,'tree.dot')
+			im_path=os.path.join(path,'tree.png')
+			
+			
+			export_graphviz(clf, out_file=out_path, 
+							feature_names = obs_names,
+							class_names = class_labels[1],
+							rounded = True, proportion = False, 
+							precision = 2, filled = True)
+
+			
+			call(['dot', '-Tpng', out_path, '-o', im_path, '-Gdpi=600'])
+
+			# Display in jupyter notebook
+			
+			
+			
+			Image(filename = im_path)
+			
+			train_score=clf.score(X_train,y_train)
+			test_score=clf.score(X_test,y_test)
+			importances=pd.DataFrame({'obs_name':obs_names,'importance':clf.feature_importances_})
+			
+			return clf,train_score,test_score,importances
+			

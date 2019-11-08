@@ -277,8 +277,10 @@ class Experiment():
 			if dyna_kwargs is not None:
 				self.dyna_config=self.setup_dyna_config(dyna_kwargs)
 			
-			
-			self.agent=agent(self.dyna_config,**agent_kwargs)
+			if self.dyna_config is not None:
+				self.agent=agent(self.dyna_config,**agent_kwargs)
+			else:
+				self.agent=agent(**agent_kwargs)
 			
 
 		def setup_dyna_config(self,dyna_config):
@@ -541,7 +543,7 @@ class Experiment():
 			#copy over q net from trained agent.
 			try:
 				if self.agent_test.eval_net is not None:
-					#self.agent_test.eval_net.load_state_dict(self.agent.eval_net.state_dict())
+					self.agent_test.eval_net.load_state_dict(self.agent.eval_net.state_dict())
 					self.agent_test.QNet0.load_state_dict(self.agent.QNet0.state_dict())
 					self.agent_test.QNet1.load_state_dict(self.agent.QNet1.state_dict())
 					self.agent_test.toggle_net(-1)
@@ -561,7 +563,10 @@ class Experiment():
 			EPSILON=0
 			total_steps = 0
 			exp=0
-			discount=self.dyna_config['discount']
+			try:
+				discount=self.dyna_config['discount']
+			except TypeError:
+				discount=self.agent.discount
 			
 			for i_episode in range(start_episode,MaxEpisodes):
 				try:
@@ -598,7 +603,7 @@ class Experiment():
 						end_balance=self.lobenv_test.trader.balance
 						profit=end_balance-start_balance
 						self.rwd_test.append((lob_start,end_time,total_steps,i_episode,ep_r,profit,self.lobenv_test.initial_distance))
-						if i_episode %10==0:
+						if i_episode %25==0:
 							print(f'Dyna-Q - EXP {exp+1}, | Ep: , {i_episode + 1}, | timestep:  {timestep} | Ep_r: { ep_r}|profit:{profit} start:{lob_start}|end:{end_time}')
 						
 						break
@@ -681,21 +686,27 @@ class Experiment():
 				}
 			
 			save_dic={'episode': self.episode,        
-			'state_dict': self.agent.eval_net.state_dict(), 
-
-			'optimizer' : self.agent.optimizer.state_dict(),
+			
 			'train_dic':train_dic,
 			'learn_step_counter':self.agent.learn_step_counter,
 			
 			}
+			
+			try:
+				save_dic.update({        
+				'state_dict': self.agent.eval_net.state_dict(), 
+				'optimizer' : self.agent.optimizer.state_dict(),
+				})
+			except AttributeError:
+				warnings.warn('Not DeepQ model - no neural net Q')
 		
 			try:
-				{'Q1':self.agent.QNet1.state_dict(),
+				save_dic.update({'Q1':self.agent.QNet1.state_dict(),
 				'Q0':self.agent.QNet0.state_dict(),
 				'eval_net_counter':self.agent.eval_net_counter,
-				}
+				})
 			except AttributeError:
-				print('not strict double Q model')
+				warnings.warn('not strict double Q model')
 		
 			
 			if setup:
@@ -709,6 +720,7 @@ class Experiment():
 					lobenv_kwargs=self.lobenv_kwargs,
 					dyna_kwargs=self.dyna_kwargs,
 					agent_kwargs=self.agent_kwargs,
+					env_kwargs=self.env_kwargs,
 					name=self.name,
 					)
 				
@@ -766,7 +778,7 @@ class Experiment():
 				setup=checkpoint.pop('setup')   
 				exp=Experiment(**setup)
 			
-			state_dict=checkpoint.pop('state_dict')
+			
 			try:
 				Q1=checkpoint.pop('Q1')
 				Q0=checkpoint.pop('Q0')
@@ -774,15 +786,24 @@ class Experiment():
 				exp.agent.QNet0.load_state_dict(Q0)
 				exp.eval_net_counter=checkpoint.pop('eval_net_counter')
 			except KeyError:
-				print('not double Q')
-				
-			exp.agent.eval_net.load_state_dict(state_dict)
+				warnings.warn('not double Q')
+			
+			try:
+				state_dict=checkpoint.pop('state_dict')
+				opt_dic=checkpoint.pop('optimizer')
+				exp.agent.eval_net.load_state_dict(state_dict)
+				exp.agent.optimizer.load_state_dict(opt_dic)
+			except KeyError:
+				warnings.warn('not DQN')
+			
 			exp.agent.learn_step_counter=checkpoint.pop('learn_step_counter')
 			
 			
-			
-			optim=checkpoint.pop('optimizer')
-			exp.agent.optimizer.load_state_dict(optim)
+			try:
+				optim=checkpoint.pop('optimizer')
+				exp.agent.optimizer.load_state_dict(optim)
+			except KeyError:
+				warnings.warn('no optimizer saved')
 			
 			if 'tabular' in checkpoint:
 				tabular=checkpoint.pop('tabular')
