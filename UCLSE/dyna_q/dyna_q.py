@@ -10,6 +10,7 @@ from UCLSE.dyna_q.CVAE import  Decoder, CVAE_loss_make
 from UCLSE.dyna_q.CVAE import CVAE as CVAE_model
 from math import sqrt,log
 import random
+import warnings
 
 class Q_Net(nn.Module):
 	def __init__(self, N_STATES, N_ACTIONS, H1Size, H2Size):
@@ -137,12 +138,17 @@ class DynaQ(object):
 		
 		if rewardModel is not None:
 		
-			if rewardModel:
+			if rewardModel==True:
 				self.rewardModel=Reward_net(self.n_states)
 			else:
 				self.rewardModel=rewardModel
+				print('custom reward function')
+
+			try:
+				self.rewardModel.to(self.device)
+			except AttributeError:
+				warnings.warn('Assume reward model is not trainable')
 				
-			self.rewardModel.to(self.device)
 			
 		else:
 			self.rewardModel=None
@@ -154,8 +160,10 @@ class DynaQ(object):
 			else:
 				print('custom done function')
 				self.doneModel=doneModel
-				
-			self.doneModel.to(self.device)
+			try:
+				self.doneModel.to(self.device)
+			except AttributeError:
+				warnings.warn('Assume done model is not trainable')
 				
 		else:
 			self.doneModel=None
@@ -179,11 +187,11 @@ class DynaQ(object):
 		self.env_model.to(self.device)
 	
 		if self.env_model.reward_layer: self.reward_train=True
-		elif rewardModel: self.reward_train=True
+		elif rewardModel==True: self.reward_train=True
 		else: self.reward_train=False
 		
 		if self.env_model.done_layer: self.done_train=True
-		elif doneModel: self.done_train=True
+		elif doneModel==True: self.done_train=True
 		else: self.done_train=False
 		
 		self.clipping=False

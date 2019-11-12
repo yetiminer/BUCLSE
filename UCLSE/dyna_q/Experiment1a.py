@@ -443,6 +443,7 @@ class Experiment():
 									if self.agent.memory_counter > self.dyna_config['batch_size']:
 										
 										if 'model' in self.dyna_config and self.dyna_config['model']=='tabular':
+											#no model update stage when tabular
 											pass
 										else:
 											self.agent.update_env_model()
