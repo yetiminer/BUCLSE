@@ -335,7 +335,7 @@ class DynaQ(object):
 
 		return action 
 
-	def store_transition(self, s, a, r, s_, d,initial=False):
+	def store_transition(self, s, a, r, s_, d,initial=False,test=False):
 		transition = np.hstack((s, [a, r, d], s_))
 		if self.config['memory']['prioritized']:
 			self.memory.store(transition)

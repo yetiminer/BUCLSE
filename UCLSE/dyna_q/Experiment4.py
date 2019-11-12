@@ -1,4 +1,4 @@
-from UCLSE.dyna_q.Experiment1a import Experiment, GetOutOfLoop, ProfitWeird
+from UCLSE.dyna_q.Experiment1a import Experiment, GetOutOfLoop, ProfitWeird, SimpleRLEnv_mod
 import numpy as np
 from UCLSE.dyna_q.dyna_q import TabularMemory
 from collections import namedtuple
@@ -305,3 +305,16 @@ class Experiment(Experiment):
 			print('keys unused in checkpoint data: ',list(checkpoint.keys()))
 			
 			if returny: return exp 
+			
+		def test_setup(self,lobenv_kwargs=None,MaxEpisodes=250,agent=None):
+			if lobenv_kwargs is None: lobenv_kwargs=self.lobenv_kwargs
+			self.lobenv_test=SimpleRLEnv_mod.setup(EnvFactory=self.EF_test,parent=SimpleRLEnv_mod,**lobenv_kwargs)
+			
+			if agent is None:
+				self.agent_test=self.agent_type(self.dyna_config,**self.agent_kwargs)
+				agent=self.agent_test
+			else:
+				self.agent_test=agent
+
+			self.rwd_test = []
+			self.test(MaxEpisodes,agent=agent,testm=True)

@@ -555,7 +555,7 @@ class Experiment():
 			self.rwd_test = []
 			self.test(MaxEpisodes,agent=agent)
 		
-		def test(self,MaxEpisodes,start_episode=0,agent=None):
+		def test(self,MaxEpisodes,start_episode=0,agent=None,testm=False):
 		
 			#can pass an agent for benchmarking purposes else:
 			if agent is None: agent=self.agent_test
@@ -592,7 +592,7 @@ class Experiment():
 					# take action
 					s_, r, done, info = self.lobenv_test.step(a)
 					self.info.append(info)
-					agent.store_transition(s, a, r, s_, done)
+					agent.store_transition(s, a, r, s_, done,test=testm)
 					ep_r = r+ep_r*discount
 					
 					timestep += 1
@@ -704,6 +704,8 @@ class Experiment():
 				save_dic.update({'Q1':self.agent.QNet1.state_dict(),
 				'Q0':self.agent.QNet0.state_dict(),
 				'eval_net_counter':self.agent.eval_net_counter,
+				'Q0Optim':self.agent.Q0optimizer.state_dict(),
+				'Q1Optim':self.agent.Q1optimizer.state_dict(),
 				})
 			except AttributeError:
 				warnings.warn('not strict double Q model')
@@ -784,6 +786,13 @@ class Experiment():
 				Q0=checkpoint.pop('Q0')
 				exp.agent.QNet1.load_state_dict(Q1)
 				exp.agent.QNet0.load_state_dict(Q0)
+				Q0Optim=checkpoint.pop('Q0Optim')
+				Q1Optim=checkpoint.pop('Q1Optim')
+				#exp.agent.Q0optimizer.load_state_dict(Q0Optim)
+				#exp.agent.Q0optimixer.load_state_dict(Q1Optim)
+				
+				
+				
 				exp.eval_net_counter=checkpoint.pop('eval_net_counter')
 			except KeyError:
 				warnings.warn('not double Q')
@@ -866,7 +875,7 @@ class Experiment():
 			return ax,d
 			
 		@staticmethod
-		def plotbm_results(experiment,title1,title2,ds=None,memory_s=None,name=None,path='Results/'):
+		def plotbm_results(experiment,title1,title2,returns=None,memory_s=None,name=None,path='Results/'):
 			try:
 				assert name is not None
 			except AssertionError:
@@ -875,21 +884,33 @@ class Experiment():
 			
 			Experiment.check_dir_exists_make_else(path)
 			fig, (ax1,ax2) = plt.subplots(nrows=2,ncols=1, figsize=(16, 16), dpi=80, facecolor='w', edgecolor='k')
-			if ds is None: ds=pd.DataFrame(experiment.rwd_test)
+			
 			bins=np.arange(-10.5,10.5,1)
-			ax1=ds[4].hist(ax=ax1,bins=bins,label='reward')
-			ds[5].hist(bins=bins,label='profit',ax=ax1,alpha=0.5)
-			ax1.legend()
-			_=ax1.xaxis.set_ticks(np.arange(-10,11))
-			ax1.set_title(title1)
+			if returns is None: 
+			
+				returns=pd.DataFrame(experiment.rwd_test)
+				
+				ax1=returns[4].hist(ax=ax1,bins=bins,label='reward')
+				returns[5].hist(bins=bins,label='profit',ax=ax1,alpha=0.5)
+				ax1.legend()
+				_=ax1.xaxis.set_ticks(np.arange(-10,11))
+				ax1.set_title(title1)
 
-			#format returns df
-			ds['duration']=ds[1]-ds[0]
-			ds=ds[[4,5,6,'duration']]
-			ds.columns=['reward','profit','start distance','duration']
+				#format returns df
+				returns['duration']=returns[1]-returns[0]
+				returns=returns[[4,5,6,'duration']]
+				returns.columns=['reward','profit','start distance','duration']
 
-			#save returns df
-			ds.to_csv(os.path.join(path,name+'_returns.csv'))
+				#save returns df
+				if returns is None:
+					returns.to_csv(os.path.join(path,name+'_returns.csv'))
+					
+			else:
+				ax1=returns.reward.hist(ax=ax1,bins=bins,label='reward')
+				returns.profit.hist(bins=bins,label='profit',ax=ax1,alpha=0.5)
+				ax1.legend()
+				_=ax1.xaxis.set_ticks(np.arange(-10,11))
+				ax1.set_title(title1)
 
 
 			obs_names=['distance','inventory','orders_out','bid_change','ask_change',
@@ -906,10 +927,20 @@ class Experiment():
 
 			fig.savefig(os.path.join(path,name+'_hist'))
 
-			return ds,memory_s
+			return returns,memory_s
 			
 
-
+		@staticmethod
+		def memory_returns_loader(exp,path=None):
+			
+			if path is None:
+				cwd=os.getcwd()
+				path=os.path.join(cwd,'Results',exp.name)
+			fn=os.path.join(path,exp.name+'_returns.csv')
+			returns=pd.read_csv(fn,index_col=0)
+			fn=os.path.join(path,exp.name+'_memory.csv')
+			memory=pd.read_csv(fn,index_col=0)
+			return returns,memory
 
 		@staticmethod
 		def fit_tree(memory,path,experiment):
@@ -921,8 +952,11 @@ class Experiment():
 			clf = DecisionTreeClassifier(random_state=0,max_depth=3)
 			clf.fit(X_train,y_train)
 
-
-			class_labels=[(str(k),str(experiment.lobenv_test.new_action_dic[k])) for k in memory['action'].value_counts().index.sort_values()]
+			try:
+				class_labels=[(str(k),str(experiment.lobenv_test.new_action_dic[k])) for k in memory['action'].value_counts().index.sort_values()]
+			except AttributeError:
+				class_labels=[(str(k),str(experiment.lobenvs[0].new_action_dic[k])) for k in memory['action'].value_counts().index.sort_values()]
+			
 			class_labels=pd.DataFrame(class_labels)
 
 			out_path=os.path.join(path,'tree.dot')
@@ -936,7 +970,7 @@ class Experiment():
 							precision = 2, filled = True)
 
 			
-			call(['dot', '-Tpng', out_path, '-o', im_path, '-Gdpi=600'])
+			call(['dot', '-Tpng', out_path, '-o', im_path, '-G5,8'])  #'-Gdpi=600'
 
 			# Display in jupyter notebook
 			
@@ -948,4 +982,14 @@ class Experiment():
 			test_score=clf.score(X_test,y_test)
 			importances=pd.DataFrame({'obs_name':obs_names,'importance':clf.feature_importances_})
 			
+			#bit lazy to save them in a column
+			importances['test_score']=test_score
+			importances['train_score']=train_score
+			Experiment.save_importances(experiment,importances,path)
+			
 			return clf,train_score,test_score,importances
+			
+		@staticmethod
+		def save_importances(exp,importances,path=None):
+			fn=os.path.join(path,'importances.csv')
+			importances.to_csv(fn)

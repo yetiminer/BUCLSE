@@ -133,6 +133,13 @@ class DynaQ(object):
 		self.QNet1 = deepcopy(self.QNet0)
 		self.QNet0.to(self.device)
 		self.QNet1.to(self.device)
+		
+		self.Q0optimizer = torch.optim.Adam(self.QNet0.parameters(), lr=self.config['learning_rate'])
+		self.Q1optimizer = torch.optim.Adam(self.QNet1.parameters(), lr=self.config['learning_rate'])
+		
+		
+		
+		
 		self.novel=0 #a counter to see how many novel state action pairs have been encountered
 		self.toggle_net(-1)
 		self.eval_net_counter=Counter()
@@ -193,13 +200,14 @@ class DynaQ(object):
 		if 'clipping' in self.config:
 			self.clipping=True
 		
+		self.env_opt = torch.optim.Adam(self.env_model.parameters(), lr=0.01)
+		
 
 		# for storing memory
 		self.initialise_memory()
 
 		
-		self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=self.config['learning_rate'])
-		self.env_opt = torch.optim.Adam(self.env_model.parameters(), lr=0.01)
+
 		if loss_func is None:
 			self.loss_func = nn.MSELoss()
 		else:
@@ -215,12 +223,14 @@ class DynaQ(object):
 			self.target_net_name='Q0'
 			self.eval_net=self.QNet1
 			self.eval_net_name='Q1'
+			self.optimizer=self.Q1optimizer
 			
 		else:
 			self.target_net=self.QNet1
 			self.target_net_name='Q1'
 			self.eval_net=self.QNet0
 			self.eval_net_name='Q0'
+			self.optimizer=self.Q0optimizer
 			
 		
 	def set_device(self,dev='cuda'):
@@ -353,7 +363,7 @@ class DynaQ(object):
 
 		return action 
 
-	def store_transition(self, s, a, r, s_, d,initial=False):
+	def store_transition(self, s, a, r, s_, d,initial=False,test=False):
 		transition = np.hstack((s, [a, r, d], s_))
 		if self.config['memory']['prioritized']:
 			self.memory.store(transition)
@@ -661,20 +671,17 @@ class DynaQ(object):
 		q_eval = self.eval_net(b_s).gather(1, b_a)  # shape (batch, 1) #gather 
 		batch_size=self.config['batch_size']
 		
-		if self.config['double_q_model']:
-			q_eval_next = self.eval_net(b_s_) #vector of value s associated with actions
-			q_argmax = np.argmax(q_eval_next.data.cpu().numpy(), axis=1) #choose action with respect to eval_net
-			q_next = self.target_net(b_s_) #vector of values associated with actions from target_net
-			q_next_numpy = q_next.cpu().data.numpy()
-			#q_update = np.zeros((self.config['batch_size'], 1))
-			#for i in range(self.config['batch_size']): #can this be replaced with q_update=q_next_numpy[np.arange(batch_size),q_argmax]??????
-			#	q_update[i] = q_next_numpy[i, q_argmax[i]]
-			q_update=q_next_numpy[np.arange(batch_size),q_argmax]
-			discounted_q_update=torch.tensor(self.config['discount'] *q_update,device=self.device).unsqueeze(1)
-			q_target = b_r + discounted_q_update * b_d
-		else:
-			q_next = self.target_net(b_s_).detach()     # detach from graph, don't backpropagate
-			q_target = b_r + self.config['discount'] * q_next.max(1)[0].view(batch_size, 1) * b_d  # shape (batch, 1)
+
+		q_eval_next = self.eval_net(b_s_) #vector of value s associated with actions
+		q_argmax = np.argmax(q_eval_next.data.cpu().numpy(), axis=1) #choose action with respect to eval_net
+		q_next = self.target_net(b_s_) #vector of values associated with actions from target_net
+		q_next_numpy = q_next.cpu().data.numpy()
+
+		q_update=q_next_numpy[np.arange(batch_size),q_argmax]
+		discounted_q_update=torch.tensor(self.config['discount'] *q_update,device=self.device).unsqueeze(1)
+		q_target = b_r + discounted_q_update * b_d
+		
+
 			
 		#tensor.max(1) returns largest value and its index in two tensors. tensor.max(1)[0] returns values
 		#tensor.view(r,c) reshapes tensor into whatever tensor shape (r,c)
