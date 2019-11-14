@@ -579,7 +579,7 @@ class Experiment():
 				start_balance=self.lobenv_test.trader.balance
 				ep_r = self.lobenv_test.lamb*r0
 				#ep_r=0
-				if r0!=0: print('r0',r0)
+				#if r0!=0: print('r0',r0)
 				
 				timestep = 0
 				lob_start=self.lobenv_test.time
@@ -626,6 +626,11 @@ class Experiment():
 		def plot_results(self,i_episode,mean_loss,median_loss):
 			self.vis.line(X=i_episode, Y=mean_loss, win=self.train_loss_window, update='append',name='mean')
 			self.vis.line(X=i_episode, Y=median_loss, win=self.train_loss_window, update='append',name='median')
+			self.vis.get_window_data(self.train_loss_window)
+			
+		def plot_results_test(self,i_episode,mean_loss,median_loss):
+			self.vis.line(X=i_episode, Y=mean_loss, win=self.train_loss_window, update='append',name='mean_test')
+			self.vis.line(X=i_episode, Y=median_loss, win=self.train_loss_window, update='append',name='median_test')
 			self.vis.get_window_data(self.train_loss_window)
 			
 		def plot_exploration(self,da=None):
@@ -689,12 +694,15 @@ class Experiment():
 			save_dic={'episode': self.episode,        
 			
 			'train_dic':train_dic,
-			'learn_step_counter':self.agent.learn_step_counter,
+			
 			
 			}
 			
+			
+			statey_dic={'learn_step_counter':self.agent.learn_step_counter}
+			
 			try:
-				save_dic.update({        
+				statey_dic.update({        
 				'state_dict': self.agent.eval_net.state_dict(), 
 				'optimizer' : self.agent.optimizer.state_dict(),
 				})
@@ -702,7 +710,7 @@ class Experiment():
 				warnings.warn('Not DeepQ model - no neural net Q')
 		
 			try:
-				save_dic.update({'Q1':self.agent.QNet1.state_dict(),
+				statey_dic.update({'Q1':self.agent.QNet1.state_dict(),
 				'Q0':self.agent.QNet0.state_dict(),
 				'eval_net_counter':self.agent.eval_net_counter,
 				'Q0Optim':self.agent.Q0optimizer.state_dict(),
@@ -711,6 +719,7 @@ class Experiment():
 			except AttributeError:
 				warnings.warn('not strict double Q model')
 		
+			save_dic.update(statey_dic)
 			
 			if setup:
 				setup_dic=dict(
@@ -740,6 +749,7 @@ class Experiment():
 				save_dic.update({'env_losses':self.agent.env_losses})
 			
 			self.__save_checkpoint(save_dic, is_best,folder=folder)
+			return statey_dic
 		
 		@staticmethod
 		def _resume( best = False,folder='checkpoints/exp_last',ext='.pth.tar',filename='dyna_checkpoint',best_filename='dyna_best'):
@@ -767,7 +777,7 @@ class Experiment():
 		
 		@staticmethod
 		def resume(exp=None,best=False,folder='checkpoints/exp_last'):
-			if exp is not None: assert  type(exp)==Experiment
+			#if exp is not None: assert  type(exp)==Experiment
 				
 			checkpoint=Experiment._resume( best = best,folder=folder)
 			
@@ -800,20 +810,21 @@ class Experiment():
 			
 			try:
 				state_dict=checkpoint.pop('state_dict')
-				opt_dic=checkpoint.pop('optimizer')
+				
 				exp.agent.eval_net.load_state_dict(state_dict)
-				exp.agent.optimizer.load_state_dict(opt_dic)
+				
 			except KeyError:
 				warnings.warn('not DQN')
 			
 			exp.agent.learn_step_counter=checkpoint.pop('learn_step_counter')
 			
 			
-			try:
+			if 'optimizer' in checkpoint:
 				optim=checkpoint.pop('optimizer')
 				exp.agent.optimizer.load_state_dict(optim)
-			except KeyError:
-				warnings.warn('no optimizer saved')
+			else:
+				warnings.warn('No optimizer saved')
+
 			
 			if 'tabular' in checkpoint:
 				tabular=checkpoint.pop('tabular')
@@ -903,8 +914,8 @@ class Experiment():
 				returns.columns=['reward','profit','start distance','duration']
 
 				#save returns df
-				if returns is None:
-					returns.to_csv(os.path.join(path,name+'_returns.csv'))
+				
+				returns.to_csv(os.path.join(path,name+'_returns.csv'))
 					
 			else:
 				ax1=returns.reward.hist(ax=ax1,bins=bins,label='reward')
