@@ -84,6 +84,7 @@ class Experiment(Experiment):
 				self.rwd_dyna =rwd_dyna
 				self.rwd_dyna_test =rwd_dyna_test
 				self.best_rew=best_rew
+				self.test_counter=0
 				
 				
 		def _setup_graph(self):
@@ -232,13 +233,14 @@ class Experiment(Experiment):
 					
 
 		
-		def test_loop(self,train_episode,MaxEpisodes,start_episode=0,testm=False):
+		def test_loop(self,train_episode,MaxEpisodes,start_episode=0,testm=False,lookback=20):
 			
 			agent=self.agent
 			
 			EPSILON=0
 			total_steps = 0
-			lobenv_test=self.env_selector(train_episode-1,self.lobenvs)
+			
+
 			
 			try:
 				discount=self.dyna_config['discount']
@@ -246,6 +248,10 @@ class Experiment(Experiment):
 				discount=self.agent.discount
 			
 			for i_episode in range(start_episode,MaxEpisodes):
+				#no conesecutive test in same environment
+				lobenv_test=self.env_selector(train_episode+self.test_counter,self.lobenvs)
+				self.test_counter+=1
+			
 				try:
 					self.agent.toggle_net(i_episode)
 				except AttributeError:
@@ -289,7 +295,7 @@ class Experiment(Experiment):
 				
 
 				
-			self.stopping,self.median_test_loss,self.mean_test_loss=self.stopper(self.rwd_dyna_test,lookback=self.lookback,thresh=self.thresh)
+			self.stopping,self.median_test_loss,self.mean_test_loss=self.stopper(self.rwd_dyna_test,lookback=lookback,thresh=self.thresh)
 			
 			#plot test results
 			self.plot_results_test(np.array([train_episode]),np.array([self.mean_test_loss]),np.array([self.median_test_loss]))
@@ -317,17 +323,17 @@ class Experiment(Experiment):
 				
 				#do a test
 				if i_episode-self.last_test>self.dyna_config['model_update_freq']:
-					self.test_loop(i_episode,self.lookback)
+					self.test_loop(i_episode,self.lookback,lookback=self.lookback)
 					self.last_test=i_episode
 					
 					
 					#potentially save if a record breaker
 					if max(self.mean_test_loss,self.median_test_loss)>max(0,self.best_rew[0])  and i_episode-self.best_rew[2]>10:
 							
-							#test agin - avoid winners curse
-							self.test_loop(i_episode,2*self.lookback)
+							#test agin - avoid winners curse - reuse some of the previous data
+							self.test_loop(i_episode,2*self.lookback,lookback=3*self.lookback)
 							if  self.mean_test_loss>max(0,self.best_rew[0]):
-								print(f'Saving best checkpoint at episode {i_episode} with reward {self.best_rew[0]}')
+								print(f'Saving best checkpoint at episode {i_episode} with reward {self.mean_test_loss}')
 								self.best_state_dict=self.__checkpointModel(True,setup=True,tabular=False,memory=True,folder=folder)
 								self.best_rew=(self.mean_test_loss,self.median_test_loss,i_episode)
 					
