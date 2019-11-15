@@ -105,7 +105,7 @@ class Experiment(Experiment):
 
 
 		def _train_setup(self,MaxEpisodes=100,planning_steps=5,lookback=50,thresh=5,planning=True,graph=False,epsilon=None,
-							total_steps=0,episode=0,novel_list=[],rwd_dyna=[],best_rew=(0,0),first_learn=100):
+							total_steps=0,episode=0,novel_list=[],rwd_dyna=[],best_rew=(0,0,0),first_learn=100,rwd_dyna_test=[]):
 				self.MaxEpisodes=MaxEpisodes
 				self.planning_steps=planning_steps #number of planning sweeps
 				self.exp=0
@@ -128,9 +128,28 @@ class Experiment(Experiment):
 				self.rwd_dyna =rwd_dyna
 				self.best_rew=best_rew
 				self.first_learn=first_learn
+				self.rwd_dyna_test=rwd_dyna_test
+				self.test_counter=0
+				
+		def _setup_graph(self):
+				self.train_loss_window = self.__create_plot_window(self.vis, '#Iterations', 'Loss', self.name + ': Training Loss')
+				time.sleep(0.5)
+				self.vis.get_window_data(self.train_loss_window)
+				self.train_return_hist=self.__create_bar_window(self.vis, self.name+': Return distribution')
+				time.sleep(0.5)
+				self.vis.get_window_data(self.train_return_hist)
+				self.state_window=self.__create_plot_window(self.vis, 'Episode #', '#states',self.name+ ': States explored')
+				time.sleep(0.5)
+				self.vis.get_window_data(self.state_window)
+				self.test_loss_window = self.__create_plot_window(self.vis, '#Iterations', 'Loss', self.name + ': Test Loss')
+				time.sleep(0.5)
+				
+				assert self.train_loss_window!=self.train_return_hist!=self.state_window!=self.test_loss_window
+		
 				
 		def train(self,MaxEpisodes=100,start_episode=0,total_steps=0,folder=None):
 			self.mode=self.agent.mode
+			self.last_test=start_episode
 			
 			print(f'Exploration is {self.mode}')
 			if folder is None:
@@ -208,7 +227,10 @@ class Experiment(Experiment):
 							self.display_train_data(i_episode,timestep)
 							
 							#store checkpoint if necessary
-							self.checkpoint_make(i_episode)
+														
+							if i_episode>self.first_learn:
+								self.checkpoint_make(i_episode)
+							
 							
 							#check on stopping conditions
 							if self.lr.profit==0 and self.lr.reward>10: 
@@ -318,3 +340,102 @@ class Experiment(Experiment):
 
 			self.rwd_test = []
 			self.test(MaxEpisodes,agent=agent,testm=True)
+			
+			
+		def checkpoint_make(self,i_episode):
+			folder=self.folder
+			#save every 1000 episodes 							
+			if i_episode%1000==0 and i_episode>=1000:
+				print(f'Saving checkpoint at episode {i_episode}')
+				_=self.__checkpointModel(False,setup=True,tabular=True,memory=True,folder=folder)
+				
+			#check whether the reported mean_loss is better than best test_loss
+			elif (self.mean_loss>max(0,self.best_rew[0]) or self.median_loss>max(0,self.best_rew[1])) and i_episode-self.best_rew[2]>5:
+					
+				
+				#do a test
+				if i_episode-self.last_test>5:
+					self.test_loop(i_episode,self.lookback,lookback=self.lookback)
+					self.last_test=i_episode
+					
+					
+					#potentially save if a record breaker
+					if max(self.mean_test_loss,self.median_test_loss)>max(0,self.best_rew[0])  and i_episode-self.best_rew[2]>10:
+							
+							#test agin - avoid winners curse - reuse some of the previous data
+							self.test_loop(i_episode,2*self.lookback,lookback=3*self.lookback)
+							if  self.mean_test_loss>max(0,self.best_rew[0]):
+								print(f'Saving best checkpoint at episode {i_episode} with reward {self.mean_test_loss}')
+								self.best_state_dict=self.__checkpointModel(True,setup=True,tabular=False,memory=True,folder=folder)
+								self.best_rew=(self.mean_test_loss,self.median_test_loss,i_episode)
+			
+			
+		def test_loop(self,train_episode,MaxEpisodes,start_episode=0,testm=False,lookback=20):
+			
+			agent=self.agent
+			
+			EPSILON=0
+			total_steps = 0
+			
+
+			
+			try:
+				discount=self.dyna_config['discount']
+			except TypeError:
+				discount=self.agent.discount
+			
+			for i_episode in range(start_episode,MaxEpisodes):
+				#no conesecutive test in same environment
+				lobenv_test=self.env_selector(train_episode+self.test_counter,self.lobenvs)
+				self.test_counter+=1
+			
+				try:
+					self.agent.toggle_net(i_episode)
+				except AttributeError:
+					#not double q
+					pass
+				s,r0 = lobenv_test.reset()
+				start_balance=lobenv_test.trader.balance
+				ep_r = lobenv_test.lamb*r0
+				#ep_r=0
+				#if r0!=0: print('r0',r0)
+				
+				timestep = 0
+				lob_start=lobenv_test.time
+				self.info=[]
+				
+				while True:
+					total_steps += 1
+
+					a = agent.choose_action(s, EPSILON)
+
+					# take action
+					s_, r, done, info = lobenv_test.step(a)
+					self.info.append(info)
+					#agent.store_transition(s, a, r, s_, done,test=testm)
+					ep_r = r+ep_r*discount
+					
+					timestep += 1
+
+					if done:						
+						end_time=lobenv_test.time
+						lobenv_test.liquidate() #note the liquidation here. 
+						end_balance=lobenv_test.trader.balance
+						profit=end_balance-start_balance
+						#self.rwd_test.append((lob_start,end_time,total_steps,i_episode,ep_r,profit,self.lobenv_test.initial_distance))
+						self.lr=LossRecord(i_episode,timestep,ep_r,profit)
+						self.rwd_dyna_test.append(self.lr)
+						
+						break
+					else:
+						s = s_
+				
+
+				
+			self.stopping,self.median_test_loss,self.mean_test_loss=self.stopper(self.rwd_dyna_test,lookback=lookback,thresh=self.thresh)
+			
+			#plot test results
+			self.plot_results_test(np.array([train_episode]),np.array([self.mean_test_loss]),np.array([self.median_test_loss]))
+			
+			
+			print(f'TEST episode {train_episode}, median {self.median_test_loss} | mean | {self.mean_test_loss}')
